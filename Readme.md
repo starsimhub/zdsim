@@ -12,7 +12,6 @@ This repository hosts a disease modeling framework focused on **identifying zero
 Currently, only tetanus data is available, making it the key indicator for assessing immunization gaps.
 
 ## Goals
-- Identify **zero-dose children** using available **tetanus vaccination data**.
 - Develop a **disease model** to simulate **tetanus transmission and immunity**.
 - Implement **Pentacel vaccination interventions**, using tetanus as a proxy.
 - Expand the model to include the remaining diseases targeted by Pentacel in future iterations.
