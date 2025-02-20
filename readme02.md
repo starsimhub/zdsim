@@ -61,6 +61,3 @@ This project is licensed under the MIT License. See the [LICENSE](LICENSE) file 
 ## Contact
 For questions or collaborations, feel free to **open an issue** or reach out to the repository maintainers.
 
----
-
-Would you like any additional refinements or changes?
