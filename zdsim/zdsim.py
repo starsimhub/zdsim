@@ -4,20 +4,15 @@ import matplotlib.pyplot as plt
 import pandas as pd
 from enum import IntEnum
 
-__all__ = ['Tetanus', 'TetanusStates']
+__all__ = ['Tetanus', 'TST']
 
-class TetanusStates(IntEnum):
+class TST(IntEnum):
     NONE   = 0  # Agent is alive
-    IMMUNIZED     = 2  # Received vaccination
-    SUSCEPTIBLE   = 2  # Agent is susceptible to tetanus
-    INFECTED      = 3  # Agent is infected with tetanus
-
-class VaccineTypes(IntEnum):
-    NONE = 0  # No vaccine received
-    DPT1 = 1  # first (1st) dose of diphtheria-tetanus-pertussis containing vaccine (DTP1)
-    DPT2 = 2  # Second dose of vaccine
-    DPT3 = 3  # Third dose of vaccine
-    PENTA_DOSE = 4 # DPT1 + HepB + HiB
+    ONE_DOSE_IMMUNIZED  = 1  # Received one dose of vaccination
+    TWO_DOSE_IMMUNIZED  = 2  # Received two doses of vaccination
+    FULLY_IMMUNIZED     = 3  # Received vaccination
+    SUSCEPTIBLE   = 4  # Agent is susceptible to tetanus
+    INFECTED      = 5  # Agent is infected with tetanus
 
 class Tetanus(ss.Infection):
     def __init__(self, pars=None, **kwargs):
@@ -29,7 +24,10 @@ class Tetanus(ss.Infection):
             a. state
             b. time recorders
         """
-
+        #vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv
+        # "TABLE" NAME = Tetanus
+        # Each parameter is a column in the 'TABLE' related to the tetanus disease
+        # -------------------------------------------------------------------------------------      
         self.define_pars(
             init_prev = ss.bernoulli(0.01),  # Initial infection probability
             beta = ss.beta(1.3),             # Transmission rate per contact
@@ -40,23 +38,33 @@ class Tetanus(ss.Infection):
             immunity_boost = 1.0,            # Boost in immunity after infection
         )
         self.update_pars(pars, **kwargs)
+        #^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+
+
+        #vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv
+        # "TABLE" NAME = Tetanus
+        # Each parameter is a column in the 'TABLE' related to the tetanus disease
+        # -------------------------------------------------------------------------
         self.define_states(
-            ss.FloatArr('state', default=TetanusStates.NONE),
-            ss.FloatArr('ti_infected'),
-            ss.FloatArr('rel_sus', default=1.0),
-        )
+            ss.FloatArr('state', default=TST.NONE),                           #<--- This will be an array under Tetanus.state with Float values -- so tetanus.rel_sus[12] will return the state of agent 12 
+            ss.FloatArr('time_infected'),                                                 #<--- This will be an array under Tetanus.ti_infected  
+            ss.FloatArr('rel_sus', default=1.0),                                        #<--- This will be an array under Tetanus.rel_sus
+            ss.FloatArr('minerva_column', default=0),                                    #<--- This will be an array under Tetanus.minerva_column
+        )    
+        # INDEX: the row index is the agent ID
+        #^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-
-        
     """ Determines if an agent is infectious and can transmit tetanus. """
     @property
-    def infectious(self):   
-        return self.state == TetanusStates.INFECTED
+    def zero_dose_prospect(self):   
+        # this is a filter that returns the uids of the agents that are infected
+        return (self.state == TST.NONE) | (self.state == TST.ONE_DOSE_IMMUNIZED) | (self.state == TST.TWO_DOSE_IMMUNIZED)
 
     @property
-    def immnunized(self):
-        return self.state == TetanusStates.IMMUNIZED
+    def protected(self):
+        # this is a filter that returns the uids of the agents that are immunized
+        return self.state == TST.IMMUNIZED
 
     def set_prognoses(self, uids, from_uids=None):
         """ Handles new infections and vaccination effects. """
@@ -64,13 +72,11 @@ class Tetanus(ss.Infection):
 
         return
 
-
     def step(self):
         """ Executes transitions at each time step (infection, recovery, waning immunity). """
         super().step()
         p = self.pars
         ti = self.ti
-
 
     def init_results(self):
         """ Initialize results """
@@ -95,14 +101,20 @@ class Tetanus(ss.Infection):
 
         vaccinated_uids = self.pars.vaccine_prob.filter(uids)
         self.vaccinated[vaccinated_uids] = True
-        self.state[vaccinated_uids] = TetanusStates.IMMUNIZED
+        self.state[vaccinated_uids] = TST.IMMUNIZED
 
         return len(vaccinated_uids)
+    
+    def finalize_result(self):
+        super().finalize_results()
+        res = self.results
+        res['cum_deaths']     = np.cumsum(res['new_deaths'])
 
+        return
+    
     def plot(self):
-        """ Generates a plot of disease progression over time. """
         fig = plt.figure()
-        for rkey in self.results.keys():
+        for rkey in self.results.keys(): 
             if rkey == 'timevec':
                 continue
             plt.plot(self.results['timevec'], self.results[rkey], label=rkey.title())
