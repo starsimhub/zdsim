@@ -1,6 +1,6 @@
+# Getting your environment ready: Windows Users
 
-
-## 🖥️ Step 1: Install Visual Studio Code
+## Step 1: Install Visual Studio Code
 
 **Instructions:**
 
@@ -25,7 +25,7 @@
 
 ---
 
-## 🔧 Step 2: Install Git
+## Step 2: Install Git
 
 
 **Instructions:**
@@ -52,7 +52,7 @@
 
 ---
 
-## 🐍 Step 3: Install Python 3.12
+## Step 3: Install Python 3.12
 
 **Instructions:**
 
@@ -79,7 +79,7 @@
 
 ---
 
-## 📁 Step 4: Clone the `zdsim` GitHub Repository
+## Step 4: Clone the `zdsim` GitHub Repository
 
 Cloning the repository downloads the project's source code to your local machine, allowing you to work on it. 
 **Instructions:**
@@ -107,7 +107,7 @@ Cloning the repository downloads the project's source code to your local machine
 
 ---
 
-## 🧪 Step 5: Create a Virtual Environment
+## Step 5: Create a Virtual Environment
 
 **Why?**  
 A virtual environment isolates your project's dependencies, preventing conflicts with other Python projects on your system.
@@ -123,7 +123,7 @@ A virtual environment isolates your project's dependencies, preventing conflicts
 
 ---
 
-## ⚙️ Step 6: Activate the Virtual Environment
+## Step 6: Activate the Virtual Environment
 
 **Why?**  
 Activating the virtual environment ensures that any Python packages you install are contained within this environment.
@@ -139,7 +139,7 @@ Activating the virtual environment ensures that any Python packages you install 
 
 ---
 
-## 📦 Step 7: Install the Project in Editable Mode
+## Step 7: Install the Project in Editable Mode
 
 **Why?**  
 Installing the project in editable mode allows you to make changes to the source code and have them reflected immediately without reinstalling the package.
@@ -158,7 +158,7 @@ Installing the project in editable mode allows you to make changes to the source
 
 ---
 
-## 🧑‍💻 Step 8: Open the Project in Visual Studio Code
+## Step 8: Open the Project in Visual Studio Code
 
 **Why?**  
 Opening the project in VS Code provides a user-friendly interface for editing, running, and debugging your code.
@@ -182,7 +182,7 @@ Opening the project in VS Code provides a user-friendly interface for editing, r
 
 ---
 
-## 🎉 You're All Set!
+## You're All Set!
 
 You now have a fully functional Python development environment set up on your Windows machine, ready for working on the `zdsim` project. Happy coding!
 
