@@ -1,8 +1,118 @@
 import numpy as np
 import starsim as ss
 from enum import IntEnum
+import starsim as ss
+import numpy as np
+from starsim.diseases.sir import SIR
 
-__all__ = ['PneumoniaState', 'Pneumonia']
+class Pneumonia(SIR):
+    """
+    Pneumonia model targeting children under 5 years old.
+    """
+
+    def __init__(self, pars=None, *args, **kwargs):
+        super().__init__()
+        self.define_pars(
+            beta      = ss.beta(0.8),
+            init_prev = ss.bernoulli(p=0.01),
+            dur_exp   = ss.normal(loc=ss.days(3)),
+            dur_inf   = ss.lognorm_ex(mean=ss.days(7)),
+            p_death   = ss.bernoulli(p=0.05),
+            under5_sus_factor = 2.0  # Multiplier to increase risk for under 5s
+        )
+        self.update_pars(pars=pars, **kwargs)
+
+        self.define_states(
+            ss.State('exposed', label='Exposed'),
+            ss.FloatArr('ti_exposed', label='Time of exposure'),
+        )
+
+    @property
+    def infectious(self):
+        return self.infected | self.exposed
+
+    def make_new_cases(self):
+        """
+        Override default transmission to primarily target under-fives.
+        """
+        people = self.sim.people
+        sus = self.susceptible.uids
+        if len(sus) == 0:
+            return
+
+        # Weight susceptibility by age
+        age = people.age[sus]
+        weights = np.where(age < 5, self.pars.under5_sus_factor, 1.0)
+
+        # Compute transmission probabilities
+        beta_eff = self.pars.beta * self.rel_trans.mean()
+        p_infect = 1 - np.exp(-beta_eff * weights)
+
+        infected = sus[np.random.rand(len(sus)) < p_infect]
+        if len(infected):
+            self.set_prognoses(infected)
+
+        return
+
+    def set_prognoses(self, uids, source_uids=None):
+        super().set_prognoses(uids, source_uids)
+        ti = self.ti
+        p = self.pars
+
+        self.susceptible[uids] = False
+        self.exposed[uids] = True
+        self.ti_exposed[uids] = ti
+
+        self.ti_infected[uids] = ti + p.dur_exp.rvs(uids)
+        dur_inf = p.dur_inf.rvs(uids)
+
+        will_die = p.p_death.rvs(uids)
+        dead_uids = uids[will_die]
+        rec_uids = uids[~will_die]
+
+        self.ti_dead[dead_uids] = self.ti_infected[dead_uids] + dur_inf[will_die]
+        self.ti_recovered[rec_uids] = self.ti_infected[rec_uids] + dur_inf[~will_die]
+        return
+
+    def step(self):
+        ti = self.ti
+
+        new_infections = (self.exposed & (self.ti_infected <= ti)).uids
+        self.exposed[new_infections] = False
+        self.infected[new_infections] = True
+
+        new_recoveries = (self.infected & (self.ti_recovered <= ti)).uids
+        self.infected[new_recoveries] = False
+        self.recovered[new_recoveries] = True
+
+        deaths = (self.ti_dead <= ti).uids
+        if len(deaths):
+            self.sim.people.request_death(deaths)
+
+        return
+
+    def step_die(self, uids):
+        for state in ['susceptible', 'exposed', 'infected', 'recovered']:
+            self.statesdict[state][uids] = False
+        return
+
+    def init_results(self):
+        super().init_results()
+        self.define_results(
+            ss.Result('new_infections_u5', dtype=int, label='New infections <5'),
+            ss.Result('new_deaths_u5', dtype=int, label='New deaths <5'),
+        )
+
+    def update_results(self):
+        super().update_results()
+        ti = self.ti
+        age = self.sim.people.age
+
+        self.results.new_infections_u5[ti] = np.count_nonzero((self.ti_exposed == ti) & (age < 5))
+        self.results.new_deaths_u5[ti] = np.count_nonzero((self.ti_dead == ti) & (age < 5))
+
+
+__all__ = ['PneumoniaState', 'Pneumonia2']
 
 class PneumoniaState(IntEnum):
     SUSCEPTIBLE = 0
@@ -101,3 +211,16 @@ class Pneumonia(ss.Infection):
         self.results.pne_recovered[ti] = np.sum(state_rec)
         self.results.pne_deaths[ti] = np.sum(state_dead)
 
+if __name__ == '__main__':
+    dis = Pneumonia()
+    # routine = ss.routine_vx(name='penta', prob=0.6, start_year=2023, age_range=[5], product='pentadose')
+    sim = ss.Sim(
+        n_agents=10000,
+        diseases=dis,
+        start=2000,
+        stop=2026,
+        verbose=.25
+    )
+    sim.run()
+    sim.plot()
+    print(sim.pars)
