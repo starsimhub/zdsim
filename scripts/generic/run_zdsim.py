@@ -8,9 +8,126 @@ from starsim.calibration import Calibration
 from starsim.calib_components import Normal
 import matplotlib.dates as mdates
 
+"""
+run_zdsim.py
+
+This script provides a full pipeline for simulating, calibrating, and analyzing tetanus disease dynamics using the Starsim agent-based modeling framework. It includes:
+    - Construction of a simulation with configurable parameters and interventions
+    - Calibration of model parameters to real-world data
+    - Output of model results and comparison to observed data
+    - Visualization and CSV export of baseline and intervention scenarios
+
+Usage:
+    Run this script directly to perform calibration and generate outputs:
+        python run_zdsim.py
+
+Requirements:
+    - starsim
+    - sciris
+    - numpy
+    - pandas
+    - matplotlib
+    - tetanus_monthly_cases.csv (input data)
+
+Outputs:
+    - model_tetanus_cases.csv
+    - baseline_tetanus_cases.csv
+    - intervention_tetanus_cases.csv
+    - model_vs_data_after_calibration.png
+
+"""
+
+def plot_model_vs_data(model_dates, model_cases, data_dates, data_cases, filename=None):
+    """
+    Plot model-predicted cases vs. real data after calibration.
+
+    Args:
+        model_dates (array-like): Dates for model predictions.
+        model_cases (array-like): Model-predicted case counts.
+        data_dates (array-like): Dates for observed data.
+        data_cases (array-like): Observed case counts.
+        filename (str, optional): If provided, save the plot to this file.
+    """
+    plt.figure(figsize=(12, 6))
+    plt.plot(model_dates, model_cases, label='Model')
+    if len(data_dates) > 0:
+        plt.plot(data_dates, data_cases, 'ko-', label='Data')
+    plt.xlabel('Date')
+    plt.ylabel('Monthly Tetanus Cases')
+    plt.title('Model after calibration')
+    plt.legend()
+    plt.tight_layout()
+    plt.gca().xaxis.set_major_locator(mdates.YearLocator())
+    plt.gca().xaxis.set_major_formatter(mdates.DateFormatter('%Y'))
+    plt.gcf().autofmt_xdate()
+    if filename:
+        plt.savefig(filename)
+    plt.show()
+
+def plot_baseline_vs_data(baseline_dates, baseline_cases, data_dates, data_cases):
+    """
+    Plot baseline model-predicted cases vs. real data before calibration.
+
+    Args:
+        baseline_dates (array-like): Dates for baseline model predictions.
+        baseline_cases (array-like): Baseline model-predicted case counts.
+        data_dates (array-like): Dates for observed data.
+        data_cases (array-like): Observed case counts.
+    """
+    plt.figure(figsize=(8,6))
+    plt.plot(baseline_dates, baseline_cases, label='Model')
+    if len(data_dates) > 0:
+        plt.plot(data_dates, data_cases, 'ko-', label='Data')
+    plt.xlabel('Date')
+    plt.ylabel('Monthly Tetanus Cases')
+    plt.title('Model before calibration')
+    plt.legend()
+    plt.tight_layout()
+    plt.show()
+
+def plot_baseline_vs_intervention(baseline_dates, baseline_cases, intervention_dates, intervention_cases, data_dates, data_cases):
+    """
+    Plot baseline and intervention model-predicted cases vs. real data after calibration/intervention.
+
+    Args:
+        baseline_dates (array-like): Dates for baseline model predictions.
+        baseline_cases (array-like): Baseline model-predicted case counts.
+        intervention_dates (array-like): Dates for intervention model predictions.
+        intervention_cases (array-like): Intervention model-predicted case counts.
+        data_dates (array-like): Dates for observed data.
+        data_cases (array-like): Observed case counts.
+    """
+    plt.figure(figsize=(8,6))
+    plt.plot(baseline_dates, baseline_cases, label='Baseline')
+    plt.plot(intervention_dates, intervention_cases, label='Vaccine')
+    if len(data_dates) > 0:
+        plt.plot(data_dates, data_cases, 'ko-', label='Data')
+    plt.xlabel('Date')
+    plt.ylabel('Monthly Tetanus Cases')
+    plt.title('Model after calibration')
+    plt.legend()
+    plt.tight_layout()
+    plt.show()
+
 
 def make_sim(sim_pars=None, disease_pars=None):
-    """Create and configure a tetanus simulation."""
+    """
+    Create and configure a tetanus simulation using Starsim.
+
+    Args:
+        sim_pars (dict, optional): Simulation-level parameters (e.g., start/stop dates, time step). If provided, these override defaults.
+        disease_pars (dict, optional): Parameters for the Tetanus disease model (e.g., beta, init_prev). If provided, these override defaults.
+
+    Returns:
+        starsim.Sim: A configured simulation object ready to run.
+
+    The simulation includes:
+        - A population of 10,000 agents
+        - A random contact network
+        - A ZeroDoseVaccination intervention
+        - Tetanus disease dynamics
+        - Births and deaths
+    """
     sim_params = dict(
         start=sc.date('2019-01-01'),
         stop=sc.date('2025-01-31'),
@@ -23,8 +140,8 @@ def make_sim(sim_pars=None, disease_pars=None):
     inv = ZeroDoseVaccination(dict(
         start_day=0,
         end_day=365*50,
-        coverage=0.5,
-        efficacy=0.9,
+        coverage=0.7,
+        efficacy=0.95,
         year=[2020, 2021, 2022, 2023, 2024, 2025],
     ))
 
@@ -45,12 +162,36 @@ def make_sim(sim_pars=None, disease_pars=None):
     sim.pars.verbose = sim.pars.dt / 365
     return sim
 
-if __name__ == '__main__':
+    
+def run_calib():  
+    """
+    Run the calibration pipeline for the Tetanus model.
+
+    This function:
+        - Loads real-world monthly tetanus case data from CSV
+        - Sets up calibration parameters (beta, init_prev)
+        - Defines a build function to update the simulation with calibration parameters
+        - Uses Starsim's Calibration framework to fit the model to data
+        - Runs the best-fit simulation and outputs results to CSV
+        - Plots model vs. data before and after calibration
+        - Runs and outputs baseline and intervention scenarios
+
+    Outputs:
+        - model_tetanus_cases.csv: Model-predicted cases after calibration
+        - baseline_tetanus_cases.csv: Cases with baseline scenario
+        - intervention_tetanus_cases.csv: Cases with intervention scenario
+        - model_vs_data_after_calibration.png: Plot comparing model and data
+
+    Raises:
+        Exception: If the input data file cannot be loaded
+    """
+        
     # --- Calibration block ---
     # Load real data
     data_df = pd.read_csv('tetanus_monthly_cases.csv')
     data_df['date'] = pd.to_datetime(data_df['date'])
-    data_df = data_df.set_index('date')
+    # Do NOT sort the data; preserve the order as in the CSV to match the year/month sequence
+    data_df = data_df.set_index('date')  # This does not sort, just sets the index
     # Prepare calibration data: index must match model output (monthly)
     calib_data = data_df['cases'].values
     calib_dates = data_df.index
@@ -65,6 +206,8 @@ if __name__ == '__main__':
 
     # Define the build function
     def build_fn(sim, calib_pars=None, **kwargs):
+        if sim is None:
+            raise ValueError('build_fn received sim=None. Cannot proceed.')
         tetanus = None
         if hasattr(sim, 'diseases'):
             if isinstance(sim.diseases, dict):
@@ -78,18 +221,28 @@ if __name__ == '__main__':
             for k, v in calib_pars.items():
                 if hasattr(tetanus.pars, k):
                     setattr(tetanus.pars, k, v['value'] if isinstance(v, dict) and 'value' in v else v)
+        if sim is None:
+            raise ValueError('build_fn is returning sim=None!')
         return sim
 
     # Set up the calibration component
     expected = calib_df.rename(columns={'n_infected': 'x'}).reset_index()[['t', 'x']]
-    component = Normal(
-        name='n_infected',
-        expected=expected,
-        extract_fn=lambda sim: pd.DataFrame({
+    def safe_extract_fn(sim):
+        if sim is None:
+            raise ValueError('extract_fn received sim=None. This usually means build_fn failed to return a valid simulation object.')
+        if not hasattr(sim, 'results') or sim.results is None:
+            raise ValueError('extract_fn: sim.results is None. Simulation may have failed to run.')
+        if 'tetanus' not in sim.results or 'n_infected' not in sim.results['tetanus']:
+            raise ValueError('extract_fn: sim.results does not contain tetanus/n_infected.')
+        return pd.DataFrame({
             't': np.arange(len(sim.results['tetanus']['n_infected'])),
             'x': sim.results['tetanus']['n_infected'],
             'rand_seed': getattr(sim.pars, 'rand_seed', 0)
-        }),
+        })
+    component = Normal(
+        name='n_infected',
+        expected=expected,
+        extract_fn=safe_extract_fn,
         conform='none',
         weight=1.0
     )
@@ -141,20 +294,7 @@ if __name__ == '__main__':
         data_cases = []
 
     # --- Plot model vs. data ---
-    plt.figure(figsize=(12, 6))
-    plt.plot(model_dates, model_cases, label='Model')
-    if len(data_dates) > 0:
-        plt.plot(data_dates, data_cases, 'ko-', label='Data')
-    plt.xlabel('Date')
-    plt.ylabel('Monthly Tetanus Cases')
-    plt.title('Model after calibration')
-    plt.legend()
-    plt.tight_layout()
-    plt.gca().xaxis.set_major_locator(mdates.YearLocator())
-    plt.gca().xaxis.set_major_formatter(mdates.DateFormatter('%Y'))
-    plt.gcf().autofmt_xdate()
-    plt.savefig('model_vs_data_after_calibration.png')
-    plt.show()
+    plot_model_vs_data(model_dates, model_cases, data_dates, data_cases, filename='model_vs_data_after_calibration.png')
 
     # --- Baseline simulation ---
     baseline_dis = Tetanus(dict(beta=beta_per_step, init_prev=best_pars['init_prev']))
@@ -191,30 +331,15 @@ if __name__ == '__main__':
     intervention_df.to_csv('intervention_tetanus_cases.csv', index=False)
 
     # --- Plot: Model before calibration ---
-    plt.figure(figsize=(8,6))
-    plt.plot(baseline_dates, baseline_cases, label='Model')
-    if len(data_dates) > 0:
-        plt.plot(data_dates, data_cases, 'ko-', label='Data')
-    plt.xlabel('Date')
-    plt.ylabel('Monthly Tetanus Cases')
-    plt.title('Model before calibration')
-    plt.legend()
-    plt.tight_layout()
-    plt.show()
+    plot_baseline_vs_data(baseline_dates, baseline_cases, data_dates, data_cases)
 
     # --- Plot: Model after calibration/intervention ---
-    plt.figure(figsize=(8,6))
-    plt.plot(baseline_dates, baseline_cases, label='Baseline')
-    plt.plot(intervention_dates, intervention_cases, label='Vaccine')
-    if len(data_dates) > 0:
-        plt.plot(data_dates, data_cases, 'ko-', label='Data')
-    plt.xlabel('Date')
-    plt.ylabel('Monthly Tetanus Cases')
-    plt.title('Model after calibration')
-    plt.legend()
-    plt.tight_layout()
-    plt.show()
+    plot_baseline_vs_intervention(baseline_dates, baseline_cases, intervention_dates, intervention_cases, data_dates, data_cases)
 
 
 
 
+
+if __name__ == '__main__':
+    
+    run_calib()

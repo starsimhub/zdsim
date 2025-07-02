@@ -29,9 +29,7 @@ class Tetanus(ss.Infection):
             vaccine_prob = 0.25,           # Probability of vaccination per month
             vaccine_efficacy = 0.9,        # Probability vaccine produces immunity
         )
-        
         self.update_pars(pars, **kwargs)
-        self.pars.beta = ss.beta_per_step(self.pars.beta)
         self.define_states(
             ss.FloatArr('state', default=TST.SUSCEPTIBLE),
             ss.BoolArr('immune', default=False),
