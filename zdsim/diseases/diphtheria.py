@@ -76,8 +76,20 @@ if __name__ == '__main__':
         start=2000,
         stop=2026,
         verbose=0.25
-        )
+    )
     sim.run()
     sim.plot()
     plt.show()
+
+    # --- Simple test for CI or development ---
+    def test_diphtheria():
+        test_diph = Diphtheria()
+        test_sim = ss.Sim(n_agents=100, diseases=test_diph, start=2020, stop=2022, verbose=0)
+        test_sim.run()
+        # Check that results are present and simulation completed
+        assert hasattr(test_sim, 'results'), 'Simulation did not generate results.'
+        assert test_sim.results.t[-1] == 2022, 'Simulation did not reach stop year.'
+        print('Diphtheria test passed.')
+
+    test_diphtheria()
 

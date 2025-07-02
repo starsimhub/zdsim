@@ -1,3 +1,3 @@
 from .diseases import *
-from .base import *
+# from ..scripts.generic.base import *  # Removed problematic relative import
 from .interventions import *

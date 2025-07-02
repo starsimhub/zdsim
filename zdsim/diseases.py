@@ -21,140 +21,87 @@ class VxST(IntEnum):
 class Tetanus(ss.Infection):
     def __init__(self, pars=None, **kwargs):
         super().__init__()
-        
-        # 1. Define parameters
-        # 2. Update parameters
-        # 3. Define states:
-        #    a. state
-        #    b. time recorders
-        """
-        #vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv
-        # DISEASE PARAMETERS: All this data will be stored in the Tetanus.pars dictionary
-        # -------------------------------------------------------------------------------------      
-        """
         self.define_pars(
-            init_prev = ss.bernoulli(0.01),  # Initial infection probability
-            beta = ss.beta(1.3),             # Transmission rate per contact
-            gamma = ss.peryear(3),           # Recovery rate (3-month infectious period)
-            waning = ss.peryear(0.055),      # Immunity waning rate (loss of protection)
-            # vaccine_prob = 0.25,             # Probability of receiving a vaccine
-            # vaccine_efficacy = 0.9,          # Vaccine effectiveness in preventing infection
-            immunity_boost = 1.0,            # Boost in immunity after infection
+            init_prev = ss.bernoulli(0.1),  # 10% initially infected for testing
+            beta = 1.3,                    # Infection rate (per month)
+            gamma = 0.25,                  # Recovery rate (per month, 3 months infectious period)
+            waning = 0.055,                # Immunity waning rate (per month)
+            vaccine_prob = 0.25,           # Probability of vaccination per month
+            vaccine_efficacy = 0.9,        # Probability vaccine produces immunity
         )
         self.update_pars(pars, **kwargs)
-        #^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-        """
-        #vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv
-        # AGENT HEALTH STATUS AND DISEASE-LINKED DATA
-        # --------------------------------------------
-        
-            Each agent has the following disease-related parameters, forming a virtual table like this:
-
-            | Agent ID | Infection Status | Disease Stage  | Time Since Infection  | Vaccine Status | Treatment Status | Mortality Risk |
-            |----------|------------------|----------------|-----------------------|----------------|------------------|----------------|
-            | 1        | Infected         | Latent         | 10 days               | Vaccinated     | Not on treatment | Low            |
-            | 2        | Susceptible      | N/A            | N/A                   | Not vaccinated | N/A              | Moderate       |
-            | 3        | Infected         | Active         | 45 days               | Vaccinated     | On treatment     | High           |
-            | ...      | ...              | ...            | ...                   | ...            | ...              | ...            |
-
-            > ⚠️ Note: This data is stored internally for each agent. While conceptually it forms a table, under the hood it is not managed 
-            as a single table, but rather as a collection of vectors. The data is stored in specialized data structures that combine 
-            disease -and- agent specific information. For this reason, it must be defined using Starsim array types (e.g., `ss.FloatArr`, `ss.BoolArr`, etc.)
-            as shown below and as numbers (e.g., 0, 1, 2, etc.) instead of strings (e.g., "Infected", "Susceptible", etc.) to ensure efficient storage and processing.
-            e.g. If you want to store a Yes or No value, use ss.BoolArr, in this way: ss.BoolArr('vaccinated', default=False) will be initialized and stored
-            as a "column" for the agent defauted to Zeroes
-        """
-
         self.define_states(
-            ss.FloatArr('state', default=TST.SUSCEPTIBLE),  #<--- This will be an array under Tetanus.state with Float values -- so tetanus.rel_sus[12] will return the state of agent 12 
-            ss.FloatArr('vx_state', default=VxST.NONE),     #<--- Optional: Keeps track of the vaccination status  
-            ss.FloatArr('time_infected'),                   #<--- This will be an array under Tetanus.ti_infected  
-            ss.FloatArr('time_last_vx'),                    #<--- Optional: Could be used to store the time of the last vaccination.
-            ss.FloatArr('rel_sus', default=1.0),            #<--- This will be an array under Tetanus.rel_sus
-            ss.FloatArr('minerva_column', default=0),       #<--- This will be an array under Tetanus.minerva_column
-        )    
-        # INDEX: each row is an agent, the row index is the agent ID  (ss.UID or ss.AUID)
-        #^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-    """ Determines if an agent is infectious and can transmit tetanus. """
-    @property
-    def zero_dose_prospect(self):   
-        # this is a filter that returns the uids of the agents that are infected
-        return (self.state == TST.SUSCEPTIBLE) | (self.vx_state == VxST.ONE_DOSE_IMMUNIZED) | (self.vx_state == VxST.TWO_DOSE_IMMUNIZED)
-
-    @property
-    def protected(self):
-        # this is a filter that returns the uids of the agents that are immunized
-        return self.state == VxST.FULLY_IMMUNIZED
-
-    def set_prognoses(self, uids, from_uids=None):
-        """ Handles new infections and vaccination effects. """
-        super().set_prognoses(uids, from_uids)
-        # Convert numpy indices to ss.uids if needed
-        if not hasattr(uids, 'uids') and not isinstance(uids, ss.uids().__class__):
-            uids = ss.uids(uids)
-        self.state[uids] = TST.INFECTED
-        self.time_infected[uids] = self.ti
-        return
+            ss.FloatArr('state', default=TST.SUSCEPTIBLE),
+            ss.BoolArr('immune', default=False),
+            ss.BoolArr('vaccinated', default=False),
+            ss.FloatArr('time_infected'),
+            ss.FloatArr('time_recovered'),
+            ss.FloatArr('time_vaccinated'),
+        )
 
     def step(self):
-        """ Simulate the disease dynamics for one time step. """
         p = self.pars
         ti = self.ti
-        # Susceptible to infected
-        sus = (self.state == TST.SUSCEPTIBLE)
+        # Vaccination step for susceptibles
+        sus = (self.state == TST.SUSCEPTIBLE) & (~self.vaccinated)
         n_sus = np.sum(sus)
         if n_sus > 0:
-            # Example: random infection based on beta
-            new_inf = np.random.rand(n_sus) < p.beta
+            to_vacc = np.random.rand(n_sus) < p.vaccine_prob
+            vacc_uids = np.where(sus)[0][to_vacc]
+            if len(vacc_uids) > 0:
+                eff = np.random.rand(len(vacc_uids)) < p.vaccine_efficacy
+                immune_uids = np.array(vacc_uids)[eff]
+                self.vaccinated[ss.uids(vacc_uids)] = True
+                self.time_vaccinated[ss.uids(vacc_uids)] = ti
+                self.immune[ss.uids(immune_uids)] = True
+        # Waning immunity
+        waning = (self.immune == True)
+        n_waning = np.sum(waning)
+        if n_waning > 0:
+            lose_imm = np.random.rand(n_waning) < p.waning
+            lose_imm_uids = np.where(waning)[0][lose_imm]
+            if len(lose_imm_uids) > 0:
+                self.immune[ss.uids(lose_imm_uids)] = False
+                self.vaccinated[ss.uids(lose_imm_uids)] = False
+        # Environmental exposure for susceptibles (not immune)
+        sus = (self.state == TST.SUSCEPTIBLE) & (~self.immune)
+        n_sus = np.sum(sus)
+        if n_sus > 0:
+            new_inf = np.random.rand(n_sus) < (p.beta / 1000)  # Adjust for population size
             new_inf_uids = np.where(sus)[0][new_inf]
             if len(new_inf_uids) > 0:
-                # Convert to ss.uids for Arr indexing
-                new_inf_uids = ss.uids(new_inf_uids)
-                self.set_prognoses(new_inf_uids)
-        # Infected to recovered
+                self.set_prognoses(ss.uids(new_inf_uids))
+        # Recovery
         inf = (self.state == TST.INFECTED)
         n_inf = np.sum(inf)
         if n_inf > 0:
             recover = np.random.rand(n_inf) < p.gamma
             rec_uids = np.where(inf)[0][recover]
             if len(rec_uids) > 0:
-                # Convert to ss.uids for Arr indexing
-                rec_uids = ss.uids(rec_uids)
-                self.state[rec_uids] = TST.RECOVERED
+                self.state[ss.uids(rec_uids)] = TST.SUSCEPTIBLE
+                self.immune[ss.uids(rec_uids)] = False  # SIS: return to susceptible, not immune
+        return
+
+    def set_prognoses(self, uids, from_uids=None):
+        super().set_prognoses(uids, from_uids)
+        self.state[uids] = TST.INFECTED
+        self.time_infected[uids] = self.ti
         return
 
     def init_results(self):
-        """ Initialize results """
         super().init_results()
         self.define_results(
-            ss.Result('rel_sus', dtype=float, label='Relative susceptibility'),
-            ss.Result('ever_infected', dtype=bool, label='Ever infected'),
-            ss.Result('vaccinated', dtype=bool, label='Vaccinated'),
+            # ss.Result('n_infected', dtype=int, label='Number infected'),  # Already defined by parent
+            # ss.Result('n_susceptible', dtype=int, label='Number susceptible'),  # Already defined by parent
+            ss.Result('n_immune', dtype=int, label='Number immune'),
+            ss.Result('n_vaccinated', dtype=int, label='Number vaccinated'),
         )
         return
 
     def update_results(self):
-        """ Store the population immunity (susceptibility) """
         super().update_results()
-        self.results['rel_sus'][self.ti] = self.rel_sus.mean()
+        self.results['n_infected'][self.ti] = np.sum(self.state == TST.INFECTED)
+        self.results['n_susceptible'][self.ti] = np.sum(self.state == TST.SUSCEPTIBLE)
+        self.results['n_immune'][self.ti] = np.sum(self.immune)
+        self.results['n_vaccinated'][self.ti] = np.sum(self.vaccinated)
         return
-    
-    
-    def finalize_result(self):
-        super().finalize_results()
-        res = self.results
-        res['cum_deaths']     = np.cumsum(res['new_deaths'])
-
-        return
-    
-    def plot(self):
-        fig = plt.figure()
-        for rkey in self.results.keys(): 
-            if rkey == 'timevec':
-                continue
-            plt.plot(self.results['timevec'], self.results[rkey], label=rkey.title())
-        plt.legend()
-        plt.show()
-        return fig

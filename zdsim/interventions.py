@@ -46,6 +46,10 @@ class ZeroDoseVaccination(ss.Intervention):
         eligible_uids = eligible.uids
         change_uids = eligible_uids[np.random.rand(len(eligible_uids)) < self.rate]
         # TODO: Add the actual value of the product's effectiveness here...
-        tetanus.minerva_column[change_uids] = tetanus.minerva_column[change_uids]+0.1 # *self.product.efficacy   
-        
+        # tetanus.minerva_column[change_uids] = tetanus.minerva_column[change_uids]+0.1 # *self.product.efficacy   
+        if len(change_uids) > 0:
+            tetanus.vaccinated[ss.uids(change_uids)] = True
+            tetanus.immune[ss.uids(change_uids)] = True
+            tetanus.time_vaccinated[ss.uids(change_uids)] = tetanus.ti
+
         return len(change_uids)
