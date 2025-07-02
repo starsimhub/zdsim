@@ -4,17 +4,20 @@ import starsim as ss
 from zdsim import *
 import pandas as pd
 import matplotlib.pyplot as plt
+from starsim.calibration import Calibration
+from starsim.calib_components import Normal
+import matplotlib.dates as mdates
 
 
-def make_sim(sim_pars=None):
+def make_sim(sim_pars=None, disease_pars=None):
     """Create and configure a tetanus simulation."""
     sim_params = dict(
         start=sc.date('2019-01-01'),
-        stop=sc.date('2025-01-31')
+        stop=sc.date('2025-01-31'),
+        dt=1/12,  # monthly time step
     )
     if sim_pars:
         sim_params.update(sim_pars)
-
 
     # Create the product - a vaccine with 50% efficacy
     inv = ZeroDoseVaccination(dict(
@@ -26,7 +29,7 @@ def make_sim(sim_pars=None):
     ))
 
     pop = ss.People(n_agents=10000)
-    tt = Tetanus(dict(
+    tt = Tetanus(disease_pars or dict(
         beta=5.0,
         init_prev=0.3,
     ))
@@ -43,19 +46,83 @@ def make_sim(sim_pars=None):
     return sim
 
 if __name__ == '__main__':
-    sim = make_sim()
+    # --- Calibration block ---
+    # Load real data
+    data_df = pd.read_csv('tetanus_monthly_cases.csv')
+    data_df['date'] = pd.to_datetime(data_df['date'])
+    data_df = data_df.set_index('date')
+    # Prepare calibration data: index must match model output (monthly)
+    calib_data = data_df['cases'].values
+    calib_dates = data_df.index
+    calib_df = pd.DataFrame({'t': np.arange(len(calib_data)), 'n_infected': calib_data})
+    calib_df = calib_df.set_index('t')
+
+    # Define calibration parameters
+    calib_pars = dict(
+        beta=dict(low=0.1, high=10, guess=5.0),
+        init_prev=dict(low=0.01, high=0.5, guess=0.3),
+    )
+
+    # Define the build function
+    def build_fn(sim, calib_pars=None, **kwargs):
+        tetanus = None
+        if hasattr(sim, 'diseases'):
+            if isinstance(sim.diseases, dict):
+                tetanus = sim.diseases.get('tetanus', None)
+            elif isinstance(sim.diseases, list):
+                for d in sim.diseases:
+                    if d.__class__.__name__.lower() == 'tetanus':
+                        tetanus = d
+                        break
+        if tetanus is not None and calib_pars is not None:
+            for k, v in calib_pars.items():
+                if hasattr(tetanus.pars, k):
+                    setattr(tetanus.pars, k, v['value'] if isinstance(v, dict) and 'value' in v else v)
+        return sim
+
+    # Set up the calibration component
+    expected = calib_df.rename(columns={'n_infected': 'x'}).reset_index()[['t', 'x']]
+    component = Normal(
+        name='n_infected',
+        expected=expected,
+        extract_fn=lambda sim: pd.DataFrame({
+            't': np.arange(len(sim.results['tetanus']['n_infected'])),
+            'x': sim.results['tetanus']['n_infected'],
+            'rand_seed': getattr(sim.pars, 'rand_seed', 0)
+        }),
+        conform='none',
+        weight=1.0
+    )
+
+    # Create the base sim
+    base_sim = make_sim()
+
+    # Set up and run calibration
+    calib = Calibration(
+        sim=base_sim,
+        calib_pars=calib_pars,
+        build_fn=build_fn,
+        components=[component],
+        total_trials=30,  # You can increase for better fit
+        n_workers=1,
+        verbose=True
+    )
+    calib.calibrate()
+    # calib.check_fit(do_plot=True)
+    calib.check_fit()
+
+    # --- Main simulation code follows ---
+    # Use best-fit parameters from calibration
+    best_pars = calib.best_pars
+    sim = make_sim(disease_pars=dict(beta=best_pars['beta'], init_prev=best_pars['init_prev']))
     sim.run()
     tet : ss.Disease = sim.diseases['tetanus']
-    
     tet.plot()
 
     # --- Output model results to CSV ---
     model_cases = sim.results['tetanus']['n_infected']
-    # Scale model cases to match real data
-    scaling_factor = 3338 / model_cases[0] if model_cases[0] > 0 else 1
-    model_cases_scaled = model_cases * scaling_factor
     model_dates = pd.date_range(start='2019-01-01', periods=len(model_cases), freq='M')
-    model_df = pd.DataFrame({'date': model_dates, 'model_cases': model_cases_scaled})
+    model_df = pd.DataFrame({'date': model_dates, 'model_cases': model_cases})
     model_df.to_csv('model_tetanus_cases.csv', index=False)
 
     # --- Load real data from CSV ---
@@ -71,15 +138,19 @@ if __name__ == '__main__':
         data_cases = []
 
     # --- Plot model vs. data ---
-    plt.figure(figsize=(8,6))
-    plt.plot(model_dates, model_cases_scaled, label='Model')
+    plt.figure(figsize=(12, 6))
+    plt.plot(model_dates, model_cases, label='Model')
     if len(data_dates) > 0:
         plt.plot(data_dates, data_cases, 'ko-', label='Data')
     plt.xlabel('Date')
     plt.ylabel('Monthly Tetanus Cases')
-    plt.title('Model before calibration')
+    plt.title('Model after calibration')
     plt.legend()
     plt.tight_layout()
+    plt.gca().xaxis.set_major_locator(mdates.YearLocator())
+    plt.gca().xaxis.set_major_formatter(mdates.DateFormatter('%Y'))
+    plt.gcf().autofmt_xdate()
+    plt.savefig('model_vs_data_after_calibration.png')
     plt.show()
 
     # --- Baseline simulation ---
@@ -95,7 +166,7 @@ if __name__ == '__main__':
     baseline_cases = baseline_sim.results['tetanus']['n_infected']
     baseline_scaling = 3338 / baseline_cases[0] if baseline_cases[0] > 0 else 1
     baseline_cases_scaled = baseline_cases * baseline_scaling
-    baseline_dates = pd.date_range(start='2019-01-01', periods=len(baseline_cases), freq='M')
+    baseline_dates = pd.date_range(start='2019-01-01', periods=len(baseline_cases), freq='ME')
 
     # --- Intervention simulation (e.g., higher vaccine_prob) ---
     intervention_dis = Tetanus(pars=dict(beta=5.0, init_prev=0.3, vaccine_prob=0.5))  # Example: double the vaccination probability

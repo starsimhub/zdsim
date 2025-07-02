@@ -33,10 +33,6 @@ class ZeroDoseVaccination(ss.Intervention):
     def step(self):  #update(self, sim):
         sim = self.sim
         
-        if self.sim.t.now('year') >= 1000:
-            print("intervention year reached")
-            
-
         tetanus = sim.diseases['tetanus']
         ppl = sim.people
         
