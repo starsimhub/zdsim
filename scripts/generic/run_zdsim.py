@@ -114,14 +114,17 @@ if __name__ == '__main__':
     # --- Main simulation code follows ---
     # Use best-fit parameters from calibration
     best_pars = calib.best_pars
-    sim = make_sim(disease_pars=dict(beta=best_pars['beta'], init_prev=best_pars['init_prev']))
+    # Convert beta from per-year to per-step (monthly) rate
+    beta_per_year = best_pars['beta']
+    beta_per_step = 1 - np.exp(-beta_per_year * (1/12))
+    sim = make_sim(disease_pars=dict(beta=beta_per_step, init_prev=best_pars['init_prev']))
     sim.run()
     tet : ss.Disease = sim.diseases['tetanus']
     tet.plot()
 
     # --- Output model results to CSV ---
     model_cases = sim.results['tetanus']['n_infected']
-    model_dates = pd.date_range(start='2019-01-01', periods=len(model_cases), freq='M')
+    model_dates = pd.date_range(start='2019-01-01', periods=len(model_cases), freq='ME')
     model_df = pd.DataFrame({'date': model_dates, 'model_cases': model_cases})
     model_df.to_csv('model_tetanus_cases.csv', index=False)
 
@@ -154,43 +157,42 @@ if __name__ == '__main__':
     plt.show()
 
     # --- Baseline simulation ---
-    baseline_dis = Tetanus(dict(beta=5.0, init_prev=0.3))
+    baseline_dis = Tetanus(dict(beta=beta_per_step, init_prev=best_pars['init_prev']))
     baseline_sim = ss.Sim(
         n_agents=10000,
         diseases=baseline_dis,
         start='2019-01-01',
         stop='2025-01-31',
+        dt=1/12,
         verbose=0.25
     )
     baseline_sim.run()
     baseline_cases = baseline_sim.results['tetanus']['n_infected']
-    baseline_scaling = 3338 / baseline_cases[0] if baseline_cases[0] > 0 else 1
-    baseline_cases_scaled = baseline_cases * baseline_scaling
     baseline_dates = pd.date_range(start='2019-01-01', periods=len(baseline_cases), freq='ME')
 
     # --- Intervention simulation (e.g., higher vaccine_prob) ---
-    intervention_dis = Tetanus(pars=dict(beta=5.0, init_prev=0.3, vaccine_prob=0.5))  # Example: double the vaccination probability
+    intervention_dis = Tetanus(pars=dict(beta=beta_per_step, init_prev=best_pars['init_prev'], vaccine_prob=0.5))
     intervention_sim = ss.Sim(
         n_agents=10000,
         diseases=intervention_dis,
         start='2019-01-01',
         stop='2025-01-31',
+        dt=1/12,
         verbose=0.25
     )
     intervention_sim.run()
     intervention_cases = intervention_sim.results['tetanus']['n_infected']
-    intervention_scaling = 3338 / intervention_cases[0] if intervention_cases[0] > 0 else 1
-    intervention_cases_scaled = intervention_cases * intervention_scaling
+    intervention_dates = pd.date_range(start='2019-01-01', periods=len(intervention_cases), freq='ME')
 
     # --- Output both model results to CSV ---
-    baseline_df = pd.DataFrame({'date': baseline_dates, 'baseline_cases': baseline_cases_scaled})
-    intervention_df = pd.DataFrame({'date': baseline_dates, 'intervention_cases': intervention_cases_scaled})
+    baseline_df = pd.DataFrame({'date': baseline_dates, 'baseline_cases': baseline_cases})
+    intervention_df = pd.DataFrame({'date': intervention_dates, 'intervention_cases': intervention_cases})
     baseline_df.to_csv('baseline_tetanus_cases.csv', index=False)
     intervention_df.to_csv('intervention_tetanus_cases.csv', index=False)
 
     # --- Plot: Model before calibration ---
     plt.figure(figsize=(8,6))
-    plt.plot(baseline_dates, baseline_cases_scaled, label='Model')
+    plt.plot(baseline_dates, baseline_cases, label='Model')
     if len(data_dates) > 0:
         plt.plot(data_dates, data_cases, 'ko-', label='Data')
     plt.xlabel('Date')
@@ -202,8 +204,8 @@ if __name__ == '__main__':
 
     # --- Plot: Model after calibration/intervention ---
     plt.figure(figsize=(8,6))
-    plt.plot(baseline_dates, baseline_cases_scaled, label='Baseline')
-    plt.plot(baseline_dates, intervention_cases_scaled, label='Vaccine')
+    plt.plot(baseline_dates, baseline_cases, label='Baseline')
+    plt.plot(intervention_dates, intervention_cases, label='Vaccine')
     if len(data_dates) > 0:
         plt.plot(data_dates, data_cases, 'ko-', label='Data')
     plt.xlabel('Date')
