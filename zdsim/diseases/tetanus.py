@@ -88,6 +88,7 @@ class Tetanus(ss.Infection):
 
 
 if __name__ == '__main__':
+    import matplotlib.pyplot as plt
     dis = Tetanus()
     # routine = ss.routine_vx(name='penta', prob=0.6, start_year=2023, age_range=[5], product='pentadose')
     sim = ss.Sim(
@@ -99,3 +100,4 @@ if __name__ == '__main__':
     )
     sim.run()
     sim.plot()
+    plt.show()

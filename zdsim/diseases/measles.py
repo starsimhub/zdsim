@@ -91,6 +91,7 @@ class Measles(ss.diseases.SIR):
 
 
 if __name__ == '__main__':
+    import matplotlib.pyplot as plt
     dis = Measles()
     sim = ss.Sim(
         n_agents=10000,
@@ -101,3 +102,4 @@ if __name__ == '__main__':
     )
     sim.run()
     sim.plot()
+    plt.show()

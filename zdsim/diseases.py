@@ -7,12 +7,16 @@ from enum import IntEnum
 __all__ = ['Tetanus', 'TST']
 
 class TST(IntEnum):
+    NONE          = -1  # No state
     SUSCEPTIBLE   = 0  # Agent is alive
     INFECTED      = 1  # Agent is infected with tetanus
     RECOVERED     = 2
 
-
-    
+class VxST(IntEnum):
+    NONE = 0
+    ONE_DOSE_IMMUNIZED = 1
+    TWO_DOSE_IMMUNIZED = 2
+    FULLY_IMMUNIZED = 3
 
 class Tetanus(ss.Infection):
     def __init__(self, pars=None, **kwargs):
@@ -87,20 +91,39 @@ class Tetanus(ss.Infection):
     def set_prognoses(self, uids, from_uids=None):
         """ Handles new infections and vaccination effects. """
         super().set_prognoses(uids, from_uids)
-        
-        
+        # Convert numpy indices to ss.uids if needed
+        if not hasattr(uids, 'uids') and not isinstance(uids, ss.uids().__class__):
+            uids = ss.uids(uids)
+        self.state[uids] = TST.INFECTED
+        self.time_infected[uids] = self.ti
         return
 
     def step(self):
         """ Simulate the disease dynamics for one time step. """
         p = self.pars
         ti = self.ti
-        # Progression from susceptible to infected
-        
-        # Progression from infected to recovered
-
+        # Susceptible to infected
+        sus = (self.state == TST.SUSCEPTIBLE)
+        n_sus = np.sum(sus)
+        if n_sus > 0:
+            # Example: random infection based on beta
+            new_inf = np.random.rand(n_sus) < p.beta
+            new_inf_uids = np.where(sus)[0][new_inf]
+            if len(new_inf_uids) > 0:
+                # Convert to ss.uids for Arr indexing
+                new_inf_uids = ss.uids(new_inf_uids)
+                self.set_prognoses(new_inf_uids)
+        # Infected to recovered
+        inf = (self.state == TST.INFECTED)
+        n_inf = np.sum(inf)
+        if n_inf > 0:
+            recover = np.random.rand(n_inf) < p.gamma
+            rec_uids = np.where(inf)[0][recover]
+            if len(rec_uids) > 0:
+                # Convert to ss.uids for Arr indexing
+                rec_uids = ss.uids(rec_uids)
+                self.state[rec_uids] = TST.RECOVERED
         return
-    
 
     def init_results(self):
         """ Initialize results """

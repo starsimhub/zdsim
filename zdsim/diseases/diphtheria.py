@@ -11,11 +11,11 @@ class Diphtheria(SIR):
     def __init__(self, pars=None, *args, **kwargs):
         super().__init__()
         self.define_pars(
-            beta      = ss.beta(0.5),
-            init_prev = ss.bernoulli(p=0.005),
-            dur_inf   = ss.lognorm_ex(mean=ss.days(10), std=ss.days(3)),
-            p_death   = ss.bernoulli(p=0.07),
-            under5_sus_factor = 1.5
+            beta=0.3,  # daily, for R0 ≈ 3 and dur_inf=10 days (Kenya-tuned)
+            init_prev=ss.bernoulli(p=0.001),  # 0.1% initial prevalence
+            dur_inf=ss.normal(loc=10),        # days
+            p_death=ss.bernoulli(p=0.05),     # 5% case fatality
+            under5_sus_factor=1.5,            # 50% higher susceptibility for under-5s
         )
         self.update_pars(pars=pars, **kwargs)
 
@@ -68,6 +68,7 @@ class Diphtheria(SIR):
 
 
 if __name__ == '__main__':
+    import matplotlib.pyplot as plt
     diph = Diphtheria()
     sim = ss.Sim(
         n_agents=10000,
@@ -78,4 +79,5 @@ if __name__ == '__main__':
         )
     sim.run()
     sim.plot()
+    plt.show()
 
