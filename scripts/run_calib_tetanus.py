@@ -38,7 +38,7 @@ from starsim.calibration import Calibration
 from starsim.calib_components import Normal
 import matplotlib.dates as mdates
 from plots import plot_model_vs_data, plot_baseline_vs_data, plot_baseline_vs_intervention
-from simulations import make_tetanus
+from sim_tetanus import make_tetanus
 
 
 # ===============================

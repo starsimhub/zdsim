@@ -15,7 +15,9 @@ All functions require matplotlib and pandas.
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 
-
+# ================================================
+#    MODEL .VS. DATA
+# ================================================
 def plot_model_vs_data(model_dates, model_cases, data_dates, data_cases, filename=None):
     """
     Plot model-predicted cases vs. real data after calibration.
@@ -81,6 +83,9 @@ def plot_model_vs_data(model_dates, model_cases, data_dates, data_cases, filenam
     plt.show()
 
 
+# ================================================
+#    BASELINE .VS. DATA
+# ================================================
 def plot_baseline_vs_data(baseline_dates, baseline_cases, data_dates, data_cases):
     """
     Plot baseline model-predicted cases vs. real data before calibration.
@@ -132,7 +137,9 @@ def plot_baseline_vs_data(baseline_dates, baseline_cases, data_dates, data_cases
     plt.tight_layout()
     plt.show()
 
-
+# ================================================
+#    BASELINE .VS. INTERVENTION
+# ================================================
 def plot_baseline_vs_intervention(baseline_dates, baseline_cases, intervention_dates, intervention_cases, data_dates, data_cases):
     """
     Plot baseline and intervention model-predicted cases vs. real data after calibration/intervention.

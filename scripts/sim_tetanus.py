@@ -114,3 +114,9 @@ def make_tetanus(sim_pars=None, disease_pars=None):
     sim.pars.verbose = sim.pars.dt / 365
     return sim
 
+if __name__ == '__main__':
+    sim = make_tetanus()
+    sim.run()
+    sim.plot()
+    plt.show()
+    
