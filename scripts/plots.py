@@ -86,7 +86,7 @@ def plot_model_vs_data(model_dates, model_cases, data_dates, data_cases, filenam
 # ================================================
 #    BASELINE .VS. DATA
 # ================================================
-def plot_baseline_vs_data(baseline_dates, baseline_cases, data_dates, data_cases):
+def plot_baseline_vs_data(baseline_dates, baseline_cases, data_dates, data_cases, filename=None):
     """
     Plot baseline model-predicted cases vs. real data before calibration.
 
@@ -135,12 +135,21 @@ def plot_baseline_vs_data(baseline_dates, baseline_cases, data_dates, data_cases
     plt.title('Model before calibration')
     plt.legend()
     plt.tight_layout()
+    # Format the x-axis to show years clearly
+    plt.gca().xaxis.set_major_locator(mdates.YearLocator())
+    plt.gca().xaxis.set_major_formatter(mdates.DateFormatter('%Y'))
+    plt.gcf().autofmt_xdate()
+    # If a filename is provided, save the plot as an image file
+    if filename:
+        plt.savefig(filename)
+        print(f"Plot saved to {filename}")
+    # Show the plot on screen
     plt.show()
 
 # ================================================
 #    BASELINE .VS. INTERVENTION
 # ================================================
-def plot_baseline_vs_intervention(baseline_dates, baseline_cases, intervention_dates, intervention_cases, data_dates, data_cases):
+def plot_baseline_vs_intervention(baseline_dates, baseline_cases, intervention_dates, intervention_cases, data_dates, data_cases, filename=None):
     """
     Plot baseline and intervention model-predicted cases vs. real data after calibration/intervention.
 
@@ -196,4 +205,13 @@ def plot_baseline_vs_intervention(baseline_dates, baseline_cases, intervention_d
     plt.title('Model after calibration')
     plt.legend()
     plt.tight_layout()
+    # Format the x-axis to show years clearly
+    plt.gca().xaxis.set_major_locator(mdates.YearLocator())
+    plt.gca().xaxis.set_major_formatter(mdates.DateFormatter('%Y'))
+    plt.gcf().autofmt_xdate()
+    # If a filename is provided, save the plot as an image file
+    if filename:
+        plt.savefig(filename)
+        print(f"Plot saved to {filename}")
+    # Show the plot on screen
     plt.show() 

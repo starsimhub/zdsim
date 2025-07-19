@@ -23,7 +23,7 @@ class Tetanus(ss.Infection):
         super().__init__()
         self.define_pars(
             init_prev = ss.bernoulli(0.1),  # 10% initially infected for testing
-            beta = 1.3,                    # Infection rate (per month)
+            beta = ss.rate_prob(.25),      # Infection rate (per month)
             gamma = 0.25,                  # Recovery rate (per month, 3 months infectious period)
             waning = 0.055,                # Immunity waning rate (per month)
             vaccine_prob = 0.25,           # Probability of vaccination per month

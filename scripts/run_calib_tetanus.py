@@ -15,8 +15,8 @@ What this script does, step by step:
 - The file must have two columns: 'date' (YYYY-MM-DD) and 'cases' (number of cases for that month).
 - Example:
     date,cases
-    2019-01-31,12
-    2019-02-28,10
+    2018-01-31,12
+    2018-02-28,10
     ...
 
 **Outputs:**
@@ -76,7 +76,7 @@ def make_tetanus(sim_pars=None, disease_pars=None):
     """
     # Set up default simulation parameters
     sim_params = dict(
-        start=sc.date('2019-01-01'),  # Simulation start date
+        start=sc.date('2018-02-01'),  # Simulation start date
         stop=sc.date('2025-01-31'),   # Simulation end date
         dt=1/12,                      # Time step: 1/12 = monthly
     )
@@ -86,7 +86,7 @@ def make_tetanus(sim_pars=None, disease_pars=None):
 
     # Set up the vaccination intervention with real data parameters
     intervention = ZeroDoseVaccination(
-        start_year=2019,
+        start_year=2018,
         end_year=2025,
         target_age_min=0,
         target_age_max=5,
@@ -121,8 +121,10 @@ def make_tetanus(sim_pars=None, disease_pars=None):
     # Set up the simulation object
     sim = ss.Sim(
         n_agents=10000,  # Population size
+        networks=ss.RandomNet(dict(n_contacts=5, dur=0)),  # Random contact network: each person has 5 contacts
         diseases=tetanus,  # Add the tetanus disease
         interventions=intervention,  # Add the vaccination intervention
+        demographics=[ss.Births(dict(birth_rate=5)), ss.Deaths(dict(death_rate=5))], 
         pars=sim_params,  # Simulation parameters
         verbose=0.1  # Controls how much progress information is printed
     )
@@ -168,18 +170,23 @@ def run_calib():
     # Load real data from CSV
     try:
         # Read the CSV file with your real tetanus case data
-        data_df = pd.read_csv('tetanus_monthly_cases.csv')
-        print("Loaded input data from tetanus_monthly_cases.csv")
+        data_df = pd.read_csv('data/tetanus_monthly_cases.csv')
+        print("Loaded input data from data/tetanus_monthly_cases.csv")
     except Exception as e:
         # If the file is missing or not formatted correctly, print a clear error and stop
-        print("ERROR: Could not load 'tetanus_monthly_cases.csv'. Please ensure the file exists and is formatted correctly.")
-        print("Expected columns: 'date', 'cases'. Example row: 2019-01-31,12")
+        print("ERROR: Could not load 'data/tetanus_monthly_cases.csv'. Please ensure the file exists and is formatted correctly.")
+        print("Expected columns: 'date', 'cases'. Example row: 2018-01-31,12")
+        print("For detailed format requirements, see: docs/Tetanus_Data_Format_Specification.md")
+        print("To validate your data file, run: python scripts/validate_tetanus_data.py")
+        print("To extract tetanus data from zerodose_data.csv, run: python scripts/extract_tetanus_data.py")
         raise e
     
     # Convert the 'date' column to datetime objects for easier handling
     data_df['date'] = pd.to_datetime(data_df['date'])
+    
     # Do NOT sort the data; keep the order as in the CSV to match the model's timeline
     data_df = data_df.set_index('date')  # Set the date as the index (does not sort)
+    
     # Prepare calibration data: index must match model output (monthly)
     # This ensures the model and data are compared on the same timeline
     calib_data = data_df['cases'].values
@@ -197,9 +204,6 @@ def run_calib():
     # Define the build function for calibration
     # This function updates the simulation with the current set of parameters being tested
     def build_fn(sim, calib_pars=None, **kwargs):
-        if sim is None:
-            raise ValueError('build_fn received sim=None. Cannot proceed.')
-        
         # Create a deep copy of the simulation to avoid modifying the original
         sim = sc.dcp(sim)
         
@@ -226,8 +230,6 @@ def run_calib():
                     value = v['value'] if isinstance(v, dict) and 'value' in v else v
                     tetanus.pars.init_prev = ss.bernoulli(p=value)
         
-        if sim is None:
-            raise ValueError('build_fn is returning sim=None!')
         return sim
 
     # Set up the calibration component
@@ -236,14 +238,9 @@ def run_calib():
     
     def safe_extract_fn(sim):
         # This function extracts the number of infected people from the simulation results
-        if sim is None:
-            raise ValueError('extract_fn received sim=None. This usually means build_fn failed to return a valid simulation object.')
-        if not hasattr(sim, 'results') or sim.results is None:
-            raise ValueError('extract_fn: sim.results is None. Simulation may have failed to run.')
-        
         # Try different ways to access the results
         tetanus_results = None
-        if 'tetanus' in sim.results:
+        if hasattr(sim, 'results') and sim.results and 'tetanus' in sim.results:
             tetanus_results = sim.results['tetanus']
         elif hasattr(sim, 'diseases') and len(sim.diseases) > 0:
             # Try to get results from the first disease
@@ -319,31 +316,30 @@ def run_calib():
     
     # --- Output model results to CSV ---
     # Save the model's predictions to a CSV file for further analysis
-    # Try to extract results from the simulation
+    # Extract results from the simulation
     model_cases = []
-    if hasattr(sim, 'results') and sim.results:
-        if 'tetanus' in sim.results and 'n_infected' in sim.results['tetanus']:
-            model_cases = sim.results['tetanus']['n_infected']
-        else:
-            # Fallback: count infected individuals
-            for disease in sim.diseases.values() if isinstance(sim.diseases, dict) else sim.diseases:
-                if hasattr(disease, 'infected'):
-                    model_cases.append(np.sum(disease.infected))
-                else:
-                    model_cases.append(0)
+    if hasattr(sim, 'results') and sim.results and 'tetanus' in sim.results and 'n_infected' in sim.results['tetanus']:
+        model_cases = sim.results['tetanus']['n_infected']
     else:
-        # If no results, create dummy data
-        model_cases = np.zeros(len(calib_data))
+        # Fallback: count infected individuals
+        for disease in sim.diseases.values() if isinstance(sim.diseases, dict) else sim.diseases:
+            if hasattr(disease, 'infected'):
+                model_cases.append(np.sum(disease.infected))
+            else:
+                model_cases.append(0)
     
-    model_dates = pd.date_range(start='2019-01-01', periods=len(model_cases), freq='ME')
+    # Ensure results folder exists
+    os.makedirs('results', exist_ok=True)
+    
+    model_dates = pd.date_range(start='2018-02-01', periods=len(model_cases), freq='ME')
     model_df = pd.DataFrame({'date': model_dates, 'model_cases': model_cases})
-    model_df.to_csv('model_tetanus_cases.csv', index=False)
-    print("Model results saved to model_tetanus_cases.csv")
+    model_df.to_csv('results/model_tetanus_cases.csv', index=False)
+    print("Model results saved to results/model_tetanus_cases.csv")
 
     # --- Load real data from CSV again for plotting ---
     # This ensures the plot uses the original data
     try:
-        data_df = pd.read_csv('tetanus_monthly_cases.csv')
+        data_df = pd.read_csv('data/tetanus_monthly_cases.csv')
         data_df['date'] = pd.to_datetime(data_df['date'])
         data_dates = data_df['date']
         data_cases = data_df['cases']
@@ -354,7 +350,7 @@ def run_calib():
 
     # --- Plot model vs. data ---
     print("Plotting model vs. data after calibration...")
-    plot_model_vs_data(model_dates, model_cases, data_dates, data_cases, filename='model_vs_data_after_calibration.png')
+    plot_model_vs_data(model_dates, model_cases, data_dates, data_cases, filename='results/model_vs_data_after_calibration.png')
 
     # --- Baseline simulation (no intervention) ---
     print("Running baseline simulation (no intervention)...")
@@ -365,7 +361,7 @@ def run_calib():
     baseline_sim = ss.Sim(
         n_agents=10000,
         diseases=baseline_dis,
-        start='2019-01-01',
+        start='2018-02-01',
         stop='2025-01-31',
         dt=1/12,
         verbose=0.25  # Controls how much progress info is printed
@@ -374,19 +370,16 @@ def run_calib():
     
     # Extract baseline results
     baseline_cases = []
-    if hasattr(baseline_sim, 'results') and baseline_sim.results:
-        if 'tetanus' in baseline_sim.results and 'n_infected' in baseline_sim.results['tetanus']:
-            baseline_cases = baseline_sim.results['tetanus']['n_infected']
-        else:
-            for disease in baseline_sim.diseases.values() if isinstance(baseline_sim.diseases, dict) else baseline_sim.diseases:
-                if hasattr(disease, 'infected'):
-                    baseline_cases.append(np.sum(disease.infected))
-                else:
-                    baseline_cases.append(0)
+    if hasattr(baseline_sim, 'results') and baseline_sim.results and 'tetanus' in baseline_sim.results and 'n_infected' in baseline_sim.results['tetanus']:
+        baseline_cases = baseline_sim.results['tetanus']['n_infected']
     else:
-        baseline_cases = np.zeros(len(calib_data))
+        for disease in baseline_sim.diseases.values() if isinstance(baseline_sim.diseases, dict) else baseline_sim.diseases:
+            if hasattr(disease, 'infected'):
+                baseline_cases.append(np.sum(disease.infected))
+            else:
+                baseline_cases.append(0)
     
-    baseline_dates = pd.date_range(start='2019-01-01', periods=len(baseline_cases), freq='ME')
+    baseline_dates = pd.date_range(start='2018-02-01', periods=len(baseline_cases), freq='ME')
 
     # --- Intervention simulation (with vaccination) ---
     print("Running intervention simulation (with vaccination)...")
@@ -397,37 +390,34 @@ def run_calib():
     
     # Extract intervention results
     intervention_cases = []
-    if hasattr(intervention_sim, 'results') and intervention_sim.results:
-        if 'tetanus' in intervention_sim.results and 'n_infected' in intervention_sim.results['tetanus']:
-            intervention_cases = intervention_sim.results['tetanus']['n_infected']
-        else:
-            for disease in intervention_sim.diseases.values() if isinstance(intervention_sim.diseases, dict) else intervention_sim.diseases:
-                if hasattr(disease, 'infected'):
-                    intervention_cases.append(np.sum(disease.infected))
-                else:
-                    intervention_cases.append(0)
+    if hasattr(intervention_sim, 'results') and intervention_sim.results and 'tetanus' in intervention_sim.results and 'n_infected' in intervention_sim.results['tetanus']:
+        intervention_cases = intervention_sim.results['tetanus']['n_infected']
     else:
-        intervention_cases = np.zeros(len(calib_data))
+        for disease in intervention_sim.diseases.values() if isinstance(intervention_sim.diseases, dict) else intervention_sim.diseases:
+            if hasattr(disease, 'infected'):
+                intervention_cases.append(np.sum(disease.infected))
+            else:
+                intervention_cases.append(0)
     
-    intervention_dates = pd.date_range(start='2019-01-01', periods=len(intervention_cases), freq='ME')
+    intervention_dates = pd.date_range(start='2018-02-01', periods=len(intervention_cases), freq='ME')
 
     # -------------------------- Output both model results to CSV -------------
     
     # Save baseline and intervention results for comparison
     baseline_df = pd.DataFrame({'date': baseline_dates, 'baseline_cases': baseline_cases})
     intervention_df = pd.DataFrame({'date': intervention_dates, 'intervention_cases': intervention_cases})
-    baseline_df.to_csv('baseline_tetanus_cases.csv', index=False)
-    intervention_df.to_csv('intervention_tetanus_cases.csv', index=False)
-    print("Baseline results saved to baseline_tetanus_cases.csv")
-    print("Intervention results saved to intervention_tetanus_cases.csv")
+    baseline_df.to_csv('results/baseline_tetanus_cases.csv', index=False)
+    intervention_df.to_csv('results/intervention_tetanus_cases.csv', index=False)
+    print("Baseline results saved to results/baseline_tetanus_cases.csv")
+    print("Intervention results saved to results/intervention_tetanus_cases.csv")
 
     # --------------------------- Plot: Model before calibration ---
     print("Plotting baseline model vs. data (before calibration)...")
-    plot_baseline_vs_data(baseline_dates, baseline_cases, data_dates, data_cases)
+    plot_baseline_vs_data(baseline_dates, baseline_cases, data_dates, data_cases, filename='results/baseline_vs_data.png')
 
     # --------------------------- Plot: Model after calibration/intervention ---
     print("Plotting baseline vs. intervention vs. data (after calibration/intervention)...")
-    plot_baseline_vs_intervention(baseline_dates, baseline_cases, intervention_dates, intervention_cases, data_dates, data_cases)
+    plot_baseline_vs_intervention(baseline_dates, baseline_cases, intervention_dates, intervention_cases, data_dates, data_cases, filename='results/baseline_vs_intervention.png')
     print("\n=== Pipeline complete. See output CSVs and plots for results. ===\n")
 
 
