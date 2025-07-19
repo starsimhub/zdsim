@@ -16,12 +16,21 @@ class Diphtheria(SIR):
             dur_inf=ss.normal(loc=10),        # days
             p_death=ss.bernoulli(p=0.05),     # 5% case fatality
             under5_sus_factor=1.5,            # 50% higher susceptibility for under-5s
+            vaccine_efficacy=0.95,            # Vaccine efficacy
         )
         self.update_pars(pars=pars, **kwargs)
 
+        # Add vaccination states
+        self.define_states(
+            ss.State('vaccinated', label='Vaccinated'),  # Added vaccination state
+            ss.State('immune', label='Immune'),         # Added immunity state
+            ss.FloatArr('time_vaccinated', label='Time of vaccination'),  # Added vaccination time
+        )
+
     def make_new_cases(self):
         people = self.sim.people
-        sus = self.susceptible.uids
+        # Only susceptible, non-vaccinated, non-immune individuals can be infected
+        sus = (self.susceptible & ~self.vaccinated & ~self.immune).uids
         if len(sus) == 0:
             return
 
@@ -65,6 +74,32 @@ class Diphtheria(SIR):
         age = self.sim.people.age
         self.results.new_infections_u5[ti] = np.count_nonzero((self.ti_infected == ti) & (age < 5))
         self.results.new_deaths_u5[ti] = np.count_nonzero((self.ti_dead == ti) & (age < 5))
+
+    def step_die(self, uids):
+        # Reset all states for dead agents
+        for state in ['susceptible', 'infected', 'recovered', 'vaccinated', 'immune']:
+            self.statesdict[state][uids] = False
+        return
+
+    def vaccinate(self, uids):
+        """Vaccinate specified individuals"""
+        ti = self.ti
+        p = self.pars
+        
+        # Mark as vaccinated
+        self.vaccinated[uids] = True
+        self.time_vaccinated[uids] = ti
+        
+        # Apply vaccine efficacy to determine immunity
+        # Use numpy random instead of starsim distribution for simplicity
+        effective = np.random.random(len(uids)) < p.vaccine_efficacy
+        immune_uids = uids[effective]
+        self.immune[immune_uids] = True
+        
+        # Remove from susceptible if immune
+        self.susceptible[immune_uids] = False
+        
+        return len(immune_uids)
 
 
 if __name__ == '__main__':

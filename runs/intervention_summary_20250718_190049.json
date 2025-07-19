@@ -1,0 +1,14 @@
+{
+  "intervention_period": "2020-2025",
+  "population_size": 4954514,
+  "target_coverage_rate": 0.2196058433686629,
+  "actual_coverage_rate": 7.871609606916036e-06,
+  "total_vaccinations": 39,
+  "zero_dose_children_reached": 35,
+  "campaigns_conducted": 0,
+  "campaign_months": [
+    5,
+    7
+  ],
+  "vaccine_efficacy": 0.95
+}

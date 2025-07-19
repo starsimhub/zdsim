@@ -1,4 +1,5 @@
 import starsim as ss
+import numpy as np
 
 __all__ = ['Tetanus']
 
@@ -18,6 +19,7 @@ class Tetanus(ss.Infection):
             exposure_risk = ss.bernoulli(p=0.001),  # Daily risk of exposure for <5yo
             dur_inf = ss.normal(loc=ss.days(10)),   # Duration of illness (days)
             p_death = ss.bernoulli(p=0.2),          # Mortality rate
+            vaccine_efficacy = 0.95,                # Vaccine efficacy
         )
         self.update_pars(pars=pars, **kwargs)
 
@@ -27,9 +29,12 @@ class Tetanus(ss.Infection):
             ss.State('susceptible', default=True, label='Susceptible'),
             ss.State('infected', label='Infected'),
             ss.State('recovered', label='Recovered'),
+            ss.State('vaccinated', label='Vaccinated'),  # Added vaccination state
+            ss.State('immune', label='Immune'),         # Added immunity state
             ss.FloatArr('ti_infected', label='Time of infection'),
             ss.FloatArr('ti_recovered', label='Time of recovery'),
             ss.FloatArr('ti_dead', label='Time of death'),
+            ss.FloatArr('time_vaccinated', label='Time of vaccination'),  # Added vaccination time
         )
         return
 
@@ -37,9 +42,9 @@ class Tetanus(ss.Infection):
         super().step()
         sim = self.sim
 
-        # Identify susceptible children under age 5
+        # Identify susceptible children under age 5 (not vaccinated/immune)
         under5 = sim.people.age < 5
-        sus_under5 = self.susceptible & under5
+        sus_under5 = self.susceptible & under5 & ~self.vaccinated & ~self.immune
 
         # Apply environmental exposure risk
         exposed = self.pars.exposure_risk.rvs(sus_under5)
@@ -82,9 +87,29 @@ class Tetanus(ss.Infection):
         return
 
     def step_die(self, uids):
-        for state in ['susceptible', 'infected', 'recovered']:
+        for state in ['susceptible', 'infected', 'recovered', 'vaccinated', 'immune']:
             self.statesdict[state][uids] = False
         return
+
+    def vaccinate(self, uids):
+        """Vaccinate specified individuals"""
+        ti = self.ti
+        p = self.pars
+        
+        # Mark as vaccinated
+        self.vaccinated[uids] = True
+        self.time_vaccinated[uids] = ti
+        
+        # Apply vaccine efficacy to determine immunity
+        # Use numpy random instead of starsim distribution for simplicity
+        effective = np.random.random(len(uids)) < p.vaccine_efficacy
+        immune_uids = uids[effective]
+        self.immune[immune_uids] = True
+        
+        # Remove from susceptible if immune
+        self.susceptible[immune_uids] = False
+        
+        return len(immune_uids)
 
 
 if __name__ == '__main__':

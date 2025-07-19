@@ -80,25 +80,31 @@ def make_tetanus(sim_pars=None, disease_pars=None):
         sim_params.update(sim_pars)
 
     # Set up the vaccination intervention
-    # This intervention will run for 50 years (longer than the simulation, so it covers the whole period)
-    # Coverage is the proportion of people who get vaccinated; efficacy is how well the vaccine works
+    # This intervention will run for the simulation period with specified coverage and efficacy
     
-    """Zerodose Vaccination """
+    """Zero-Dose Vaccination Intervention """
     
-    inv = ZeroDoseVaccination(dict(
-        start_day=0,
-        end_day=365*50,  # 50 years
-        coverage=0.7,    # 70% of people get vaccinated
-        efficacy=0.95,   # 95% effective
-        year=[2020, 2021, 2022, 2023, 2024, 2025],  # Years when vaccination is active
-    ))
+    inv = ZeroDoseVaccination(
+        start_year=2020,
+        end_year=2025,
+        target_age_min=0,
+        target_age_max=5,
+        coverage_rate=0.7,    # 70% of people get vaccinated
+        vaccine_efficacy=0.95,   # 95% effective
+        campaign_frequency=2,  # 2 campaigns per year
+        seasonal_timing=True
+    )
 
     # Create a population of 10,000 people (agents)
     pop = ss.People(n_agents=10000)
     # Set up the disease (tetanus) with default or user-provided parameters
     tt = Tetanus(disease_pars or dict(
-        beta=5.0,         # Transmission rate (per year)
-        init_prev=0.3,    # Initial prevalence (proportion infected at start)
+        init_prev=ss.bernoulli(0.1),  # 10% initially infected
+        beta=1.3,                     # Infection rate (per month)
+        gamma=0.25,                   # Recovery rate (per month)
+        waning=0.055,                 # Immunity waning rate (per month)
+        vaccine_prob=0.25,            # Probability of vaccination per month
+        vaccine_efficacy=0.9,         # Vaccine efficacy
     ))
 
     # Set up the simulation object

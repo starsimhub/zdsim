@@ -5,6 +5,7 @@ Original version by @alina-muellenmeister, @domdelport, and @RomeshA
 """
 
 import starsim as ss
+import numpy as np
 
 __all__ = ['Measles']
 
@@ -23,13 +24,17 @@ class Measles(ss.diseases.SIR):
             dur_exp = ss.normal(loc=ss.days(8)),        # (days) - source: US CDC
             dur_inf = ss.normal(loc=ss.days(11)),       # (days) - source: US CDC
             p_death = ss.bernoulli(p=0.005), # Probability of death
+            vaccine_efficacy = 0.95,                    # Vaccine efficacy
         )
         self.update_pars(pars=pars, **kwargs)
 
         # SIR are added automatically, here we add E
         self.define_states(
             ss.State('exposed', label='Exposed'),
+            ss.State('vaccinated', label='Vaccinated'),  # Added vaccination state
+            ss.State('immune', label='Immune'),         # Added immunity state
             ss.FloatArr('ti_exposed', label='Time of exposure'),
+            ss.FloatArr('time_vaccinated', label='Time of vaccination'),  # Added vaccination time
         )
 
         return
@@ -85,9 +90,29 @@ class Measles(ss.diseases.SIR):
 
     def step_die(self, uids):
         # Reset infected/recovered flags for dead agents
-        for state in ['susceptible', 'exposed', 'infected', 'recovered']:
+        for state in ['susceptible', 'exposed', 'infected', 'recovered', 'vaccinated', 'immune']:
             self.statesdict[state][uids] = False
         return
+
+    def vaccinate(self, uids):
+        """Vaccinate specified individuals"""
+        ti = self.ti
+        p = self.pars
+        
+        # Mark as vaccinated
+        self.vaccinated[uids] = True
+        self.time_vaccinated[uids] = ti
+        
+        # Apply vaccine efficacy to determine immunity
+        # Use numpy random instead of starsim distribution for simplicity
+        effective = np.random.random(len(uids)) < p.vaccine_efficacy
+        immune_uids = uids[effective]
+        self.immune[immune_uids] = True
+        
+        # Remove from susceptible if immune
+        self.susceptible[immune_uids] = False
+        
+        return len(immune_uids)
 
 
 if __name__ == '__main__':
