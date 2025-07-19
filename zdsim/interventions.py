@@ -147,7 +147,7 @@ class ZeroDoseVaccination(ss.Intervention):
         print(f"  Campaign frequency: {self.campaign_frequency} per year")
         
         return
-
+    
     def _setup_campaign_schedule(self, sim):
         """Set up the campaign schedule based on simulation parameters"""
         # Convert start year to datetime if it's an integer
