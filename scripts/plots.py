@@ -18,7 +18,7 @@ import matplotlib.dates as mdates
 # ================================================
 #    MODEL .VS. DATA
 # ================================================
-def plot_model_vs_data(model_dates, model_cases, data_dates, data_cases, filename=None):
+def plot_model_vs_data(model_dates, model_cases, data_dates, data_cases, filename=None, title=''):
     """
     Plot model-predicted cases vs. real data after calibration.
 
@@ -67,7 +67,7 @@ def plot_model_vs_data(model_dates, model_cases, data_dates, data_cases, filenam
     plt.xlabel('Date')
     plt.ylabel('Monthly Tetanus Cases')
     # Add a title to explain what the plot shows
-    plt.title('Model after calibration')
+    plt.title('Model after calibration ' + title) 
     # Add a legend so users know which line is which
     plt.legend()
     plt.tight_layout()
@@ -86,7 +86,7 @@ def plot_model_vs_data(model_dates, model_cases, data_dates, data_cases, filenam
 # ================================================
 #    BASELINE .VS. DATA
 # ================================================
-def plot_baseline_vs_data(baseline_dates, baseline_cases, data_dates, data_cases, filename=None):
+def plot_baseline_vs_data(baseline_dates, baseline_cases, data_dates, data_cases, filename=None, title=''):
     """
     Plot baseline model-predicted cases vs. real data before calibration.
 
@@ -132,7 +132,7 @@ def plot_baseline_vs_data(baseline_dates, baseline_cases, data_dates, data_cases
         plt.plot(data_dates, data_cases, 'ko-', label='Data')
     plt.xlabel('Date')
     plt.ylabel('Monthly Tetanus Cases')
-    plt.title('Model before calibration')
+    plt.title('Model before calibration '+title)
     plt.legend()
     plt.tight_layout()
     # Format the x-axis to show years clearly
@@ -149,7 +149,7 @@ def plot_baseline_vs_data(baseline_dates, baseline_cases, data_dates, data_cases
 # ================================================
 #    BASELINE .VS. INTERVENTION
 # ================================================
-def plot_baseline_vs_intervention(baseline_dates, baseline_cases, intervention_dates, intervention_cases, data_dates, data_cases, filename=None):
+def plot_baseline_vs_intervention(baseline_dates, baseline_cases, intervention_dates, intervention_cases, data_dates, data_cases, filename=None, title=''):
     """
     Plot baseline and intervention model-predicted cases vs. real data after calibration/intervention.
 
@@ -202,7 +202,7 @@ def plot_baseline_vs_intervention(baseline_dates, baseline_cases, intervention_d
         plt.plot(data_dates, data_cases, 'ko-', label='Data')
     plt.xlabel('Date')
     plt.ylabel('Monthly Tetanus Cases')
-    plt.title('Model after calibration')
+    plt.title('Model after calibration '+title)
     plt.legend()
     plt.tight_layout()
     # Format the x-axis to show years clearly

@@ -36,22 +36,23 @@ import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 import os
 import sys
-sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
-
+import json
+import glob
+import pathlib
+from starsim.calib_components import Normal
+from starsim.calibration import Calibration
 from zdsim.disease_models.tetanus import Tetanus
 from zdsim.interventions import ZeroDoseVaccination
 from plots import plot_model_vs_data, plot_baseline_vs_data, plot_baseline_vs_intervention
 
-from starsim.calibration import Calibration
-from starsim.calib_components import Normal
-CALIBRATION_AVAILABLE = True
-
+sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
+TOTAL_TRIALS=5
 
 # ===============================
 # Simulation Construction
 # ===============================
 
-def make_tetanus_baseline(sim_pars=None, disease_pars=None):
+def make_tetanus_baseline(sim_pars=None, disease_pars=None, rand_seed=None):
     """
     Create and configure a tetanus simulation WITHOUT interventions for calibration.
     """
@@ -62,6 +63,8 @@ def make_tetanus_baseline(sim_pars=None, disease_pars=None):
         stop=sc.date('2025-01-31'),   # Simulation end date
         dt=1/12,                      # Time step: 1/12 = monthly
     )
+    if rand_seed is not None:
+        sim_params['rand_seed'] = rand_seed
     # If the user provides custom simulation parameters, update the defaults
     if sim_pars:
         sim_params.update(sim_pars)
@@ -95,14 +98,14 @@ def make_tetanus_baseline(sim_pars=None, disease_pars=None):
         n_agents=10000,  # Population size
         networks=ss.RandomNet(dict(n_contacts=5, dur=0)),  # Random contact network: each person has 5 contacts
         diseases=tetanus,  # Add the tetanus disease
-        demographics=[ss.Births(dict(birth_rate=250)), ss.Deaths(dict(death_rate=10))], 
+        demographics=[ss.Births(dict(birth_rate=20)), ss.Deaths(dict(death_rate=10))], 
         pars=sim_params,  # Simulation parameters
         verbose=0.1  # Controls how much progress information is printed
     )
     
     return sim
 
-def make_tetanus(sim_pars=None, disease_pars=None):
+def make_tetanus(sim_pars=None, disease_pars=None, rand_seed=None):
     """
     Create and configure a tetanus simulation using Starsim WITH interventions.
     """
@@ -113,6 +116,8 @@ def make_tetanus(sim_pars=None, disease_pars=None):
         stop=sc.date('2025-01-31'),   # Simulation end date
         dt=1/12,                      # Time step: 1/12 = monthly
     )
+    if rand_seed is not None:
+        sim_params['rand_seed'] = rand_seed
     # If the user provides custom simulation parameters, update the defaults
     if sim_pars:
         sim_params.update(sim_pars)
@@ -131,7 +136,7 @@ def make_tetanus(sim_pars=None, disease_pars=None):
 
     # Set up the disease (tetanus) with default or user-provided parameters
     default_disease_pars = dict(
-        beta=ss.rate_prob(1.3),           # Transmission rate (Beta)
+        beta=ss.rate_prob(01.3),           # Transmission rate (Beta)
         gamma=ss.rate_prob(3/12),         # Recovery rate (Gamma) - 3 months
         waning=ss.rate_prob(0.055),       # Immunity waning rate
         p_death=ss.bernoulli(p=0.05),     # Case fatality rate
@@ -159,7 +164,7 @@ def make_tetanus(sim_pars=None, disease_pars=None):
         networks=ss.RandomNet(dict(n_contacts=5, dur=0)),  # Random contact network: each person has 5 contacts
         diseases=tetanus,  # Add the tetanus disease
         interventions=intervention,  # Add the vaccination intervention
-        demographics=[ss.Births(dict(birth_rate=250)), ss.Deaths(dict(death_rate=10))], 
+        # demographics=[ss.Births(dict(birth_rate=10)), ss.Deaths(dict(death_rate=5))], 
         pars=sim_params,  # Simulation parameters
         verbose=0.1  # Controls how much progress information is printed
     )
@@ -204,34 +209,53 @@ def run_calib():
     date_suffix = datetime.now().strftime('%Y%m%d_%H%M%S')
     resdr = 'results'
     try:
-        data_df = pd.read_csv('data/tetanus_monthly_cases.csv')
+        ttn_monthly_cases = pd.read_csv('data/tetanus_monthly_cases.csv')
     except Exception as e:
-        print("ERROR: Could not load 'data/tetanus_monthly_cases.csv'. Please ensure the file exists and is formatted correctly.")
         print("Expected columns: 'date', 'cases'. Example row: 2018-01-31,12")
         print("To validate your data file, run: python scripts/validate_tetanus_data.py")
-        print("To extract tetanus data from zerodose_data.csv, run: python scripts/extract_tetanus_data.py")
         raise e
     
     # Convert the 'date' column to datetime objects for easier handling
-    data_df['date'] = pd.to_datetime(data_df['date'])
+    ttn_monthly_cases['date'] = pd.to_datetime(ttn_monthly_cases['date'])
     
     # Do NOT sort the data; keep the order as in the CSV to match the model's timeline
-    data_df = data_df.set_index('date')  # Set the date as the index (does not sort)
+    ttn_monthly_cases = ttn_monthly_cases.set_index('date')  # Set the date as the index (does not sort)
     
     # Prepare calibration data: index must match model output (monthly)
     # This ensures the model and data are compared on the same timeline
-    calib_data = data_df['cases'].values
-    # calib_dates = data_df.index
-    calib_df = pd.DataFrame({'t': np.arange(len(calib_data)), 'x': calib_data})
+    calib_data = ttn_monthly_cases['cases'].values
+    
+    # calib_dates = ttn_monthly_cases.index
+    calib_df = pd.DataFrame({'t': np.arange(len(calib_data)), 'x': calib_data}) 
     calib_df = calib_df.set_index('t')
 
+    # Load latest best-fit params if available
+    def load_latest_best_fit_params():
+        try:
+            with open(f'{resdr}/best_fit_params_latest.json', 'r') as f:
+                return json.load(f)
+        except Exception as e:
+            print(f'Could not load latest best-fit params: {e}')
+            return None
+
+    latest_best = load_latest_best_fit_params()
+    rand_seed = None
+    if latest_best is not None and 'rand_seed' in latest_best:
+        rand_seed = int(latest_best['rand_seed'])
+
     # Define which parameters to calibrate (fit to data)
-    # Using the specified model parameters from the specifications
-    calib_pars = dict(
-        beta=dict(low=1.0, high=2.0, guess=1.3),           # Transmission rate (Beta)
-        gamma=dict(low=0.2, high=0.4, guess=0.25),         # Recovery rate (Gamma) - 3 months = 0.25
-        waning=dict(low=0.01, high=0.1, guess=0.055),      # Immunity waning rate
-    )
+    # If latest best-fit params exist, use them as guess, and set low/high as guess-0.5/guess+0.5
+    if latest_best is not None:
+        calib_pars = {}
+        for k in ['beta', 'gamma', 'waning']:
+            guess = float(latest_best[k])
+            calib_pars[k] = dict(low=max(0, guess-0.5), high=guess+0.5, guess=guess)
+    else:
+        calib_pars = dict(
+            beta=dict(low=1.0, high=2.0, guess=1.3),           # Transmission rate (Beta)
+            gamma=dict(low=0.2, high=0.4, guess=0.25),         # Recovery rate (Gamma) - 3 months = 0.25
+            waning=dict(low=0.01, high=0.1, guess=0.055),      # Immunity waning rate
+        )
 
     # Define the build function for calibration
     # This function updates the simulation with the current set of parameters being tested
@@ -290,73 +314,60 @@ def run_calib():
     expected = calib_df.reset_index()[['t', 'x']]
     
     def safe_extract_fn(sim):
-        # This function extracts the number of infected people from the simulation results
-        # Try different ways to access the results
-        tetanus_results = None
-        if hasattr(sim, 'results') and sim.results and 'tetanus' in sim.results:
-            tetanus_results = sim.results['tetanus']
-        elif hasattr(sim, 'diseases') and len(sim.diseases) > 0:
-            # Try to get results from the first disease
-            first_disease = list(sim.diseases.values())[0] if isinstance(sim.diseases, dict) else sim.diseases[0]
-            if hasattr(first_disease, 'results'):
-                tetanus_results = first_disease.results
-        
-        if tetanus_results is None or 'n_infected' not in tetanus_results:
-            # Fallback: count infected individuals directly
-            infected_count = []
-            for disease in sim.diseases.values() if isinstance(sim.diseases, dict) else sim.diseases:
-                if hasattr(disease, 'infected'):
-                    infected_count.append(np.sum(disease.infected))
-                else:
-                    infected_count.append(0)
-            infected_data = np.array(infected_count)
+        # Use Starsim's results.flatten() to extract all available results
+        if hasattr(sim, 'results') and sim.results is not None:
+            flat = sim.results.flatten()
+            # Try to get 'n_infected' from any key (case-insensitive)
+            n_infected_key = next((k for k in flat if 'n_infected' in k), None)
+            if n_infected_key is not None:
+                n_infected = flat[n_infected_key].values
+            else:
+                # Fallback: sum infected from all diseases
+                n_infected = np.array([np.sum(d.infected) for d in (sim.diseases.values() if isinstance(sim.diseases, dict) else sim.diseases)])
         else:
-            infected_data = tetanus_results['n_infected']
-        
+            n_infected = np.array([])
         return pd.DataFrame({
-            't': np.arange(len(infected_data)),
-            'x': infected_data,
+            't': np.arange(len(n_infected)),
+            'x': n_infected,
             'rand_seed': getattr(sim.pars, 'rand_seed', 0)
         })
     
     # Use calibration components if available
-    if CALIBRATION_AVAILABLE:
-        component = Normal(
-            name='n_infected',
-            expected=expected,
-            extract_fn=safe_extract_fn,
-            conform='none',
-            weight=1.0
-        )
 
-        # Create the base simulation with default parameters (no interventions for calibration)
-        base_sim = make_tetanus_baseline()
+    component = Normal(
+        name='n_infected',
+        expected=expected,
+        extract_fn=safe_extract_fn,
+        conform='none',
+        weight=1.0
+    )
 
-        # Set up and run the calibration
-        calib = Calibration(
-            sim=base_sim,
-            calib_pars=calib_pars,
-            build_fn=build_fn,
-            components=[component],
-            total_trials=200,  # Number of different parameter sets to try; increase for better fit
-            n_workers=1,      # Number of parallel workers; increase if you have a powerful computer
-            verbose=True      # Print progress information
-        )
-        calib.calibrate()
-        # Check the fit visually (shows a plot)
-        calib.check_fit(do_plot=False)
+    # Create the base simulation with default parameters (no interventions for calibration)
+    base_sim = make_tetanus_baseline(rand_seed=rand_seed)
 
-        # Use the best-fit parameters found during calibration
-        best_pars = calib.best_pars
+    # Set up and run the calibration
+    calib = Calibration(
+        sim=base_sim,
+        calib_pars=calib_pars,
+        build_fn=build_fn,
+        components=[component],
+        total_trials=TOTAL_TRIALS,  # Number of different parameter sets to try; increase for better fit
+        n_workers=1,      # Number of parallel workers; increase if you have a powerful computer
+        verbose=True      # Print progress information
+    )
+    calib.calibrate()
+    # Check the fit visually (shows a plot)
+    calib.check_fit(do_plot=False)
+
+    # Use the best-fit parameters found during calibration
+    best_pars = calib.best_pars
         
-    else:
-        print("Warning: Starsim calibration not available. Using default parameters.")
-        best_pars = {'exposure_risk': 0.001, 'init_prev': 0.3}
+
     
     # Create a new simulation with the best-fit parameters
     # Filter out rand_seed from disease parameters
     disease_pars = {k: v for k, v in best_pars.items() if k != 'rand_seed'}
-    sim = make_tetanus(disease_pars=disease_pars)
+    sim = make_tetanus(disease_pars=disease_pars, rand_seed=rand_seed)
     sim.run()
     
     # --- Output model results to CSV ---
@@ -383,17 +394,21 @@ def run_calib():
     # --- Load real data from CSV again for plotting ---
     # This ensures the plot uses the original data
     try:
-        data_df = pd.read_csv('data/tetanus_monthly_cases.csv')
-        data_df['date'] = pd.to_datetime(data_df['date'])
-        data_dates = data_df['date']
-        data_cases = data_df['cases']
+        ttn_monthly_cases = pd.read_csv('data/tetanus_monthly_cases.csv')
+        ttn_monthly_cases['date'] = pd.to_datetime(ttn_monthly_cases['date'])
+        data_dates = ttn_monthly_cases['date']
+        data_cases = ttn_monthly_cases['cases']
     except Exception as e:
         print('Could not load real data:', e)
         data_dates = []
         data_cases = []
 
     # --- Plot model vs. data ---
-    plot_model_vs_data(model_dates, model_cases, data_dates, data_cases, filename=f'{resdr}/model_vs_data_after_calibration_{date_suffix}.png')
+    plot_model_vs_data(
+        model_dates, model_cases, data_dates, data_cases,
+        filename=f'{resdr}/model_vs_data_after_calibration_{date_suffix}_seed{rand_seed}.png',
+        title=f'Model vs Data (rand_seed={rand_seed})'
+    )
 
     # --- Baseline simulation (no intervention) ---
     baseline_dis = Tetanus(dict(
@@ -429,7 +444,7 @@ def run_calib():
 
     # --- Intervention simulation (with vaccination) ---
     # Create intervention simulation with vaccination
-    intervention_sim = make_tetanus(disease_pars=disease_pars)
+    intervention_sim = make_tetanus(disease_pars=disease_pars, rand_seed=rand_seed)
     intervention_sim.run()
     
     # Extract intervention results
@@ -456,8 +471,39 @@ def run_calib():
 
     baseline_df.to_csv(f'{resdr}/baseline_tetanus_cases_{date_suffix}.csv', index=False)
     intervention_df.to_csv(f'{resdr}/intervention_tetanus_cases_{date_suffix}.csv', index=False)
-    plot_baseline_vs_data(baseline_dates, baseline_cases, data_dates, data_cases, filename=f'{resdr}/baseline_vs_data_{date_suffix}.png')   #Plot: Model before calibration
-    plot_baseline_vs_intervention(baseline_dates, baseline_cases, intervention_dates, intervention_cases, data_dates, data_cases, filename=f'{resdr}/baseline_vs_intervention_{date_suffix}.png')  # Plot: Model after calibration/intervention
+    plot_baseline_vs_data(
+        baseline_dates, baseline_cases, data_dates, data_cases,
+        filename=f'{resdr}/baseline_vs_data_{date_suffix}_seed{rand_seed}.png',
+        title=f'Baseline vs Data (rand_seed={rand_seed})'
+    )   #Plot: Model before calibration
+    plot_baseline_vs_intervention(
+        baseline_dates, baseline_cases, intervention_dates, intervention_cases, data_dates, data_cases,
+        filename=f'{resdr}/baseline_vs_intervention_{date_suffix}_seed{rand_seed}.png',
+        title=f'Baseline vs Intervention (rand_seed={rand_seed})'
+    )  # Plot: Model after calibration/intervention
+
+    # After calibration, save best-fit parameters to JSON
+    best_fit_json = f'{resdr}/best_fit_params_{date_suffix}.json'
+    with open(best_fit_json, 'w') as f:
+        json.dump(best_pars, f, indent=2)
+
+    # Create/update symlink to latest best-fit params
+    latest_symlink = pathlib.Path(f'{resdr}/best_fit_params_latest.json')
+    try:
+        if latest_symlink.exists() or latest_symlink.is_symlink():
+            latest_symlink.unlink()
+        latest_symlink.symlink_to(pathlib.Path(best_fit_json).resolve())
+    except Exception as e:
+        print(f'Warning: Could not create symlink for latest best-fit params: {e}')
+
+    # Utility function to load latest best-fit params
+    def load_latest_best_fit_params():
+        try:
+            with open(f'{resdr}/best_fit_params_latest.json', 'r') as f:
+                return json.load(f)
+        except Exception as e:
+            print(f'Could not load latest best-fit params: {e}')
+            return None
 
 
 # ===============================
