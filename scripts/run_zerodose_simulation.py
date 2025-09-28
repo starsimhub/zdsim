@@ -10,6 +10,7 @@ import numpy as np
 import starsim as ss
 import zdsim as zds
 import matplotlib.pyplot as plt
+import seaborn as sns
 
 def make_baseline_sim():
     """Create baseline simulation without vaccination"""
@@ -225,6 +226,28 @@ def main():
     
     # Create plots
     fig = plot_comparison(baseline_results, vaccination_results, impact_metrics)
+    
+    # Create tetanus-focused plots
+    print("\n" + "="*60)
+    print("TETANUS-FOCUSED ANALYSIS")
+    print("="*60)
+    
+    # Use the new tetanus plotting functions
+    try:
+        fig_tetanus_baseline = zds.plots.plot_tetanus_focus(baseline_sim, "BASELINE - TETANUS FOCUS")
+        plt.show()
+        
+        fig_tetanus_vaccination = zds.plots.plot_tetanus_focus(vaccination_sim, "VACCINATION - TETANUS FOCUS")
+        plt.show()
+        
+        fig_tetanus_comparison = zds.plots.plot_tetanus_comparison(baseline_sim, vaccination_sim, "TETANUS COMPARISON")
+        plt.show()
+        
+        print("Tetanus-focused plots created successfully!")
+        
+    except Exception as e:
+        print(f"Note: Tetanus-focused plots could not be created: {e}")
+        print("This is expected if the plotting functions are not yet available.")
     
     # Print summary
     print_summary(impact_metrics)
