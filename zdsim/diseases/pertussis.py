@@ -1,16 +1,16 @@
 """
-Diphtheria disease module for zero-dose vaccination simulation.
+Pertussis (Whooping Cough) disease module for zero-dose vaccination simulation.
 """
 
 import starsim as ss
 import numpy as np
 
-class Diphtheria(ss.Infection):
+class Pertussis(ss.Infection):
     """
-    Diphtheria disease module.
+    Pertussis disease module.
     
-    Diphtheria is a bacterial infection that can cause severe respiratory illness.
-    The zero-dose vaccine (DTP) provides protection against diphtheria.
+    Pertussis (whooping cough) is a highly contagious respiratory disease.
+    The zero-dose vaccine (DTP) provides protection against pertussis.
     """
     
     def __init__(self, pars=None, **kwargs):
@@ -18,15 +18,16 @@ class Diphtheria(ss.Infection):
         
         # Define disease-specific parameters
         self.define_pars(
-            beta=ss.peryear(0.15),  # Transmission rate per year
-            init_prev=ss.bernoulli(p=0.01),  # Initial prevalence
-            dur_inf=ss.lognorm_ex(mean=ss.years(0.5)),  # Duration of infection (weeks to months)
-            p_death=ss.bernoulli(p=0.05),  # Case fatality rate (5% without treatment)
-            p_severe=ss.bernoulli(p=0.1),  # Probability of severe disease
-            age_susceptibility=ss.bernoulli(p=0.8),  # Higher susceptibility in children
+            beta=ss.peryear(0.25),  # High transmission rate
+            init_prev=ss.bernoulli(p=0.02),  # Initial prevalence
+            dur_inf=ss.lognorm_ex(mean=ss.years(0.25)),  # Duration of infection (weeks)
+            p_death=ss.bernoulli(p=0.01),  # Low case fatality rate in general population
+            p_severe=ss.bernoulli(p=0.05),  # Probability of severe disease
+            age_susceptibility=ss.bernoulli(p=0.9),  # Very high susceptibility in children
+            waning_immunity=ss.peryear(0.1),  # Immunity wanes over time
         )
         
-        # Define all states for diphtheria
+        # Define all states for pertussis
         self.define_states(
             ss.BoolState('susceptible', default=True, label='Susceptible'),
             ss.BoolState('infected', label='Infected'),
@@ -45,6 +46,39 @@ class Diphtheria(ss.Infection):
         
         self.update_pars(pars, **kwargs)
         return
+    
+    def step_state(self):
+        """Handle state transitions and immunity waning"""
+        sim = self.sim
+        ti = sim.ti
+        
+        # Progress infectious -> recovered
+        recovered = (self.infected & (self.ti_recovered <= ti)).uids
+        if len(recovered):
+            self.infected[recovered] = False
+            self.recovered[recovered] = True
+            # Natural immunity after recovery
+            self.immunity[recovered] = 0.7
+        
+        # Handle immunity waning
+        self.update_immunity()
+        
+        # Trigger deaths
+        deaths = (self.ti_dead <= ti).uids
+        if len(deaths):
+            sim.people.request_death(deaths)
+        
+        return
+    
+    def update_immunity(self):
+        """Update immunity levels with waning"""
+        waning_rate = self.pars.waning_immunity.to_prob(self.sim.t.dt)
+        has_immunity = (self.immunity > 0).uids
+        if len(has_immunity):
+            # Immunity wanes exponentially
+            self.immunity[has_immunity] *= (1 - waning_rate)
+            # Update relative susceptibility based on immunity
+            self.rel_sus[has_immunity] = np.maximum(0, 1 - self.immunity[has_immunity])
     
     def set_prognoses(self, uids, sources=None):
         """Set prognoses upon infection"""
@@ -69,26 +103,6 @@ class Diphtheria(ss.Infection):
         rec_uids = uids[~will_die]
         self.ti_dead[dead_uids] = ti + dur_inf[will_die]
         self.ti_recovered[rec_uids] = ti + dur_inf[~will_die]
-        
-        return
-    
-    def step_state(self):
-        """Handle state transitions"""
-        sim = self.sim
-        ti = sim.ti
-        
-        # Progress infectious -> recovered
-        recovered = (self.infected & (self.ti_recovered <= ti)).uids
-        if len(recovered):
-            self.infected[recovered] = False
-            self.recovered[recovered] = True
-            # Natural immunity after recovery
-            self.immunity[recovered] = 0.8
-        
-        # Trigger deaths
-        deaths = (self.ti_dead <= ti).uids
-        if len(deaths):
-            sim.people.request_death(deaths)
         
         return
     

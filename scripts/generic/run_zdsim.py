@@ -9,8 +9,8 @@ import zdsim as zds
 def make_sim(sim_pars=None):
     """Create and configure a tetanus simulation."""
     sim_params = dict(
-        start=sc.date('1940-01-01'),
-        stop=sc.date('2025-12-31')
+        start=1940,
+        stop=2025
     )
     if sim_pars:
         sim_params.update(sim_pars)
@@ -39,7 +39,7 @@ def make_sim(sim_pars=None):
         demographics=[ss.Births(dict(birth_rate=5)), ss.Deaths(dict(death_rate=5))],
         pars=sim_params,
     )
-    sim.pars.verbose = sim.pars.dt / 365
+    sim.pars.verbose = 1/52
     return sim
 
 if __name__ == '__main__':

@@ -7,7 +7,7 @@ import zdsim as zds
 
 def build_hivsim():
     # --------- Disease ----------
-    pne = zds.Pneumonia()
+    pne = zds.Diphtheria()
     
     # --------- People ----------
     n_agents = 10_000

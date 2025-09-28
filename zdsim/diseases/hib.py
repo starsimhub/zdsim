@@ -1,17 +1,17 @@
 """
-Tetanus disease module for zero-dose vaccination simulation.
+Haemophilus influenzae type b (Hib) disease module for zero-dose vaccination simulation.
 """
 
 import starsim as ss
 import numpy as np
 
-class Tetanus(ss.Infection):
+class Hib(ss.Infection):
     """
-    Tetanus disease module.
+    Hib disease module.
     
-    Tetanus is caused by Clostridium tetani bacteria and is not directly transmissible
-    between people. It occurs through wound contamination. The zero-dose vaccine (DTP)
-    provides protection against tetanus.
+    Haemophilus influenzae type b (Hib) is a bacterial infection that can cause
+    meningitis, pneumonia, and other serious diseases, especially in children.
+    The zero-dose vaccine provides protection against Hib.
     """
     
     def __init__(self, pars=None, **kwargs):
@@ -19,15 +19,16 @@ class Tetanus(ss.Infection):
         
         # Define disease-specific parameters
         self.define_pars(
-            beta=ss.peryear(0.02),  # Low transmission rate (environmental exposure)
-            init_prev=ss.bernoulli(p=0.001),  # Very low initial prevalence
+            beta=ss.peryear(0.12),  # Moderate transmission rate
+            init_prev=ss.bernoulli(p=0.01),  # Initial prevalence
             dur_inf=ss.lognorm_ex(mean=ss.years(0.1)),  # Duration of infection (weeks)
-            p_death=ss.bernoulli(p=0.1),  # High case fatality rate (10% without treatment)
-            p_severe=ss.bernoulli(p=0.3),  # High probability of severe disease
-            wound_rate=ss.peryear(0.1),  # Annual wound exposure rate
+            p_death=ss.bernoulli(p=0.03),  # Case fatality rate
+            p_severe=ss.bernoulli(p=0.15),  # High probability of severe disease
+            p_meningitis=ss.bernoulli(p=0.1),  # Probability of meningitis
+            age_susceptibility=ss.bernoulli(p=0.95),  # Very high susceptibility in children
         )
         
-        # Define all states for tetanus
+        # Define all states for Hib
         self.define_states(
             ss.BoolState('susceptible', default=True, label='Susceptible'),
             ss.BoolState('infected', label='Infected'),
@@ -38,49 +39,15 @@ class Tetanus(ss.Infection):
             ss.FloatArr('rel_sus', default=1.0, label='Relative susceptibility'),
             ss.FloatArr('rel_trans', default=1.0, label='Relative transmission'),
             ss.BoolState('severe', label='Severe disease'),
+            ss.BoolState('meningitis', label='Meningitis'),
             ss.BoolState('vaccinated', default=False, label='Vaccinated'),
             ss.FloatArr('ti_vaccinated', label='Time of vaccination'),
             ss.FloatArr('immunity', default=0.0, label='Immunity level'),
-            ss.FloatArr('ti_wound', label='Time of wound exposure'),
             reset=True
         )
         
         self.update_pars(pars, **kwargs)
         return
-    
-    def step(self):
-        """Handle tetanus-specific transmission (wound exposure)"""
-        # Tetanus is not directly transmissible, but occurs through wound exposure
-        # Simulate wound exposure events
-        sim = self.sim
-        ti = sim.ti
-        
-        # Check for new wound exposures
-        wound_rate = self.pars.wound_rate.to_prob(sim.t.dt)
-        susceptible = self.susceptible & ~self.vaccinated
-        if len(susceptible):
-            # Simple random selection for wound exposure
-            susceptible_uids = susceptible.uids
-            n_susceptible = len(susceptible_uids)
-            n_wounds = int(n_susceptible * wound_rate)
-            if n_wounds > 0:
-                np.random.seed(int(ti))  # Ensure reproducibility
-                selected_indices = np.random.choice(n_susceptible, size=n_wounds, replace=False)
-                wound_exposure = susceptible_uids[selected_indices]
-                self.ti_wound[wound_exposure] = ti
-                
-                # Not all wounds lead to tetanus - depends on immunity
-                immunity_protection = self.immunity[wound_exposure]
-                tetanus_risk = 1 - immunity_protection
-                
-                # Simple random selection for tetanus cases
-                n_tetanus = int(len(wound_exposure) * np.mean(tetanus_risk))
-                if n_tetanus > 0:
-                    tetanus_indices = np.random.choice(len(wound_exposure), size=n_tetanus, replace=False)
-                    tetanus_cases = wound_exposure[tetanus_indices]
-                    self.set_prognoses(tetanus_cases, sources=-1)  # Environmental source
-        
-        return ss.uids()
     
     def set_prognoses(self, uids, sources=None):
         """Set prognoses upon infection"""
@@ -93,6 +60,10 @@ class Tetanus(ss.Infection):
         # Determine disease severity
         severe = self.pars.p_severe.rvs(uids)
         self.severe[uids] = severe
+        
+        # Determine meningitis
+        meningitis = self.pars.p_meningitis.rvs(uids)
+        self.meningitis[uids] = meningitis
         
         p = self.pars
         
@@ -119,7 +90,7 @@ class Tetanus(ss.Infection):
             self.infected[recovered] = False
             self.recovered[recovered] = True
             # Natural immunity after recovery
-            self.immunity[recovered] = 0.9
+            self.immunity[recovered] = 0.8
         
         # Trigger deaths
         deaths = (self.ti_dead <= ti).uids
