@@ -20,31 +20,31 @@ class ModelCalibrator:
         self.target_data = {
             'diphtheria': {
                 'r0': 3.0,  # Literature R0
-                'cfr': 0.10,  # Case fatality rate
+                'cfr': 0.10,  # Case Fatality Rate (CFR)
                 'age_peak': (5, 15),  # Peak age group
                 'vaccination_impact': 0.95  # 95% reduction
             },
             'tetanus': {
                 'r0': 0.0,  # Not directly transmissible
-                'cfr': 0.15,  # Case fatality rate
+                'cfr': 0.15,  # Case Fatality Rate (CFR)
                 'age_peak': (15, 45),  # Peak age group
                 'vaccination_impact': 0.90  # 90% reduction
             },
             'pertussis': {
                 'r0': 10.0,  # High transmissibility
-                'cfr': 0.005,  # Low case fatality rate
+                'cfr': 0.005,  # Case Fatality Rate (CFR)
                 'age_peak': (0, 5),  # Peak age group
                 'vaccination_impact': 0.70  # 70% reduction
             },
             'hepatitis_b': {
                 'r0': 1.0,  # Moderate transmissibility
-                'cfr': 0.03,  # Case fatality rate
+                'cfr': 0.03,  # Case Fatality Rate (CFR)
                 'age_peak': (20, 40),  # Peak age group
                 'vaccination_impact': 0.85  # 85% reduction
             },
             'hib': {
                 'r0': 1.5,  # Moderate transmissibility
-                'cfr': 0.03,  # Case fatality rate
+                'cfr': 0.03,  # Case Fatality Rate (CFR)
                 'age_peak': (0, 2),  # Peak age group
                 'vaccination_impact': 0.90  # 90% reduction
             }
