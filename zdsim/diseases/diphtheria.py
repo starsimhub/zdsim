@@ -21,7 +21,7 @@ class Diphtheria(ss.Infection):
             beta=ss.peryear(0.15),  # Transmission rate per year
             init_prev=ss.bernoulli(p=0.01),  # Initial prevalence
             dur_inf=ss.lognorm_ex(mean=ss.years(0.5)),  # Duration of infection (weeks to months)
-            p_death=ss.bernoulli(p=0.05),  # Case fatality rate (5% without treatment)
+            p_death=ss.bernoulli(p=0.05),  # Case Fatality Rate (CFR): 5% without treatment
             p_severe=ss.bernoulli(p=0.1),  # Probability of severe disease
             age_susceptibility=ss.bernoulli(p=0.8),  # Higher susceptibility in children
         )
