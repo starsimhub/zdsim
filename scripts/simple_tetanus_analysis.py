@@ -31,7 +31,7 @@ def create_tetanus_simulation(n_agents=10000, start=2020, stop=2030):
         beta=ss.peryear(0.02),  # Environmental exposure rate
         init_prev=ss.bernoulli(p=0.001),  # Initial prevalence
         dur_inf=ss.lognorm_ex(mean=ss.years(0.1)),  # Duration
-        p_death=ss.bernoulli(p=0.1),  # Case fatality rate
+        p_death=ss.bernoulli(p=0.1),  # Case Fatality Rate (CFR): 10% without treatment
         p_severe=ss.bernoulli(p=0.3),  # Severe disease probability
         wound_rate=ss.peryear(0.1),  # Annual wound exposure rate
     ))

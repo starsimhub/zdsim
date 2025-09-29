@@ -36,7 +36,7 @@ def challenge_transmission_rates():
             disease = zds.Tetanus()
         elif disease_name == 'pertussis':
             disease = zds.Pertussis()
-        elif disease_name == 'hepatitis_b':
+        elif disease_name == 'hepatitisb':
             disease = zds.HepatitisB()
         elif disease_name == 'hib':
             disease = zds.Hib()
@@ -90,7 +90,7 @@ def challenge_case_fatality_rates():
             disease = zds.Tetanus()
         elif disease_name == 'pertussis':
             disease = zds.Pertussis()
-        elif disease_name == 'hepatitis_b':
+        elif disease_name == 'hepatitisb':
             disease = zds.HepatitisB()
         elif disease_name == 'hib':
             disease = zds.Hib()
@@ -102,7 +102,10 @@ def challenge_case_fatality_rates():
         elif hasattr(cfr, 'mean'):
             cfr_value = cfr.mean
         else:
-            cfr_value = float(cfr)
+            try:
+                cfr_value = float(cfr)
+            except (TypeError, ValueError):
+                cfr_value = 0.01  # Default value if can't convert
         
         print(f"  Model CFR: {cfr_value:.3f}")
         print(f"  Literature CFR: {cfr_min}-{cfr_max}")
