@@ -78,7 +78,7 @@ def validate_age_distribution():
         'pertussis': {'peak_age': (0, 5), 'children_under_5_pct': 0.8},
         'hib': {'peak_age': (0, 2), 'children_under_5_pct': 0.9},
         'tetanus': {'peak_age': (15, 45), 'children_under_5_pct': 0.1},  # Adults more at risk
-        'hepatitis_b': {'peak_age': (20, 40), 'children_under_5_pct': 0.2}
+        'hepatitisb': {'peak_age': (20, 40), 'children_under_5_pct': 0.2}
     }
     
     results = {}
@@ -95,7 +95,7 @@ def validate_age_distribution():
             disease = zds.Hib(dict(beta=ss.peryear(0.15), init_prev=ss.bernoulli(p=0.01)))
         elif disease_name == 'tetanus':
             disease = zds.Tetanus(dict(beta=ss.peryear(0.02), init_prev=ss.bernoulli(p=0.001)))
-        elif disease_name == 'hepatitis_b':
+        elif disease_name == 'hepatitisb':
             disease = zds.HepatitisB(dict(beta=ss.peryear(0.08), init_prev=ss.bernoulli(p=0.005)))
         
         # Run simulation
@@ -162,7 +162,7 @@ def validate_herd_immunity():
         'diphtheria': 0.85,
         'tetanus': 0.80,
         'pertussis': 0.92,
-        'hepatitis_b': 0.80,
+        'hepatitisb': 0.80,
         'hib': 0.80
     }
     
@@ -216,7 +216,7 @@ def validate_vaccine_waning():
         'diphtheria': {'waning_rate': 0.05, 'duration_years': 10},
         'tetanus': {'waning_rate': 0.02, 'duration_years': 10},
         'pertussis': {'waning_rate': 0.10, 'duration_years': 5},  # Faster waning
-        'hepatitis_b': {'waning_rate': 0.01, 'duration_years': 20},  # Long-lasting
+        'hepatitisb': {'waning_rate': 0.01, 'duration_years': 20},  # Long-lasting
         'hib': {'waning_rate': 0.03, 'duration_years': 5}
     }
     
@@ -306,7 +306,7 @@ def _run_coverage_test(disease_name, coverage):
         disease = zds.Tetanus(dict(beta=ss.peryear(0.02), init_prev=ss.bernoulli(p=0.001)))
     elif disease_name == 'pertussis':
         disease = zds.Pertussis(dict(beta=ss.peryear(0.25), init_prev=ss.bernoulli(p=0.02)))
-    elif disease_name == 'hepatitis_b':
+    elif disease_name == 'hepatitisb':
         disease = zds.HepatitisB(dict(beta=ss.peryear(0.08), init_prev=ss.bernoulli(p=0.005)))
     elif disease_name == 'hib':
         disease = zds.Hib(dict(beta=ss.peryear(0.12), init_prev=ss.bernoulli(p=0.01)))
@@ -343,7 +343,7 @@ def _run_waning_test(disease_name):
         disease = zds.Tetanus(dict(beta=ss.peryear(0.02), init_prev=ss.bernoulli(p=0.001)))
     elif disease_name == 'pertussis':
         disease = zds.Pertussis(dict(beta=ss.peryear(0.25), init_prev=ss.bernoulli(p=0.02)))
-    elif disease_name == 'hepatitis_b':
+    elif disease_name == 'hepatitisb':
         disease = zds.HepatitisB(dict(beta=ss.peryear(0.08), init_prev=ss.bernoulli(p=0.005)))
     elif disease_name == 'hib':
         disease = zds.Hib(dict(beta=ss.peryear(0.12), init_prev=ss.bernoulli(p=0.01)))

@@ -19,7 +19,7 @@ class ScientificValidator:
         self.validation_data = {
             'diphtheria': {
                 'r0_range': (1.7, 4.3),  # Basic reproduction number
-                'cfr_range': (0.05, 0.20),  # Case fatality rate
+                'cfr_range': (0.05, 0.20),  # Case Fatality Rate (CFR) range
                 'incubation_days': (2, 5),
                 'duration_days': (14, 28),
                 'vaccine_efficacy': 0.95,  # DTP vaccine efficacy
@@ -27,7 +27,7 @@ class ScientificValidator:
             },
             'tetanus': {
                 'r0_range': (0, 0),  # Not directly transmissible
-                'cfr_range': (0.10, 0.20),  # High CFR without treatment
+                'cfr_range': (0.10, 0.20),  # Case Fatality Rate (CFR) range - high without treatment
                 'incubation_days': (3, 21),
                 'duration_days': (14, 28),
                 'vaccine_efficacy': 0.95,
@@ -35,15 +35,15 @@ class ScientificValidator:
             },
             'pertussis': {
                 'r0_range': (5.5, 17.5),  # Very high transmissibility
-                'cfr_range': (0.001, 0.01),  # Low CFR in general population
+                'cfr_range': (0.001, 0.01),  # Case Fatality Rate (CFR) range - low in general population
                 'incubation_days': (7, 10),
                 'duration_days': (21, 42),
                 'vaccine_efficacy': 0.85,  # Wanes over time
                 'age_susceptibility': 'infants_children'
             },
-            'hepatitis_b': {
+            'hepatitisb': {
                 'r0_range': (0.5, 1.5),  # Moderate transmissibility
-                'cfr_range': (0.01, 0.05),  # Low acute CFR
+                'cfr_range': (0.01, 0.05),  # Case Fatality Rate (CFR) range - low acute phase
                 'chronic_rate': 0.05,  # 5% become chronic
                 'incubation_days': (45, 180),
                 'duration_days': (30, 90),
@@ -52,7 +52,7 @@ class ScientificValidator:
             },
             'hib': {
                 'r0_range': (1.0, 2.5),  # Moderate transmissibility
-                'cfr_range': (0.02, 0.05),  # Moderate CFR
+                'cfr_range': (0.02, 0.05),  # Case Fatality Rate (CFR) range - moderate with meningitis
                 'meningitis_rate': 0.10,  # 10% develop meningitis
                 'incubation_days': (2, 4),
                 'duration_days': (7, 14),
@@ -66,7 +66,7 @@ class ScientificValidator:
             'diphtheria_coverage': 0.90,  # 90% coverage target
             'tetanus_coverage': 0.90,
             'pertussis_coverage': 0.90,
-            'hepatitis_b_coverage': 0.90,
+            'hepatitisb_coverage': 0.90,
             'hib_coverage': 0.90
         }
         
@@ -75,7 +75,7 @@ class ScientificValidator:
             'diphtheria_reduction': (0.60, 0.95),  # 60-95% reduction
             'tetanus_reduction': (0.80, 0.99),   # 80-99% reduction
             'pertussis_reduction': (0.70, 0.90),  # 70-90% reduction
-            'hepatitis_b_reduction': (0.80, 0.95), # 80-95% reduction
+            'hepatitisb_reduction': (0.80, 0.95), # 80-95% reduction
             'hib_reduction': (0.85, 0.98)        # 85-98% reduction
         }
     
@@ -96,7 +96,7 @@ class ScientificValidator:
                 disease = zds.Tetanus()
             elif disease_name == 'pertussis':
                 disease = zds.Pertussis()
-            elif disease_name == 'hepatitis_b':
+            elif disease_name == 'hepatitisb':
                 disease = zds.HepatitisB()
             elif disease_name == 'hib':
                 disease = zds.Hib()
@@ -169,7 +169,7 @@ class ScientificValidator:
         # Compare results
         impact_results = {}
         
-        for disease_name in ['diphtheria', 'tetanus', 'pertussis', 'hepatitis_b', 'hib']:
+        for disease_name in ['diphtheria', 'tetanus', 'pertussis', 'hepatitisb', 'hib']:
             if disease_name in baseline_sim.diseases:
                 baseline_cum = baseline_sim.diseases[disease_name].results.cum_infections[-1]
                 vaccination_cum = vaccination_sim.diseases[disease_name].results.cum_infections[-1]
@@ -262,7 +262,7 @@ class ScientificValidator:
             'diphtheria': 0.85,  # 85% vaccination needed
             'tetanus': 0.80,     # 80% vaccination needed
             'pertussis': 0.92,   # 92% vaccination needed (high R0)
-            'hepatitis_b': 0.80, # 80% vaccination needed
+            'hepatitisb': 0.80, # 80% vaccination needed
             'hib': 0.80          # 80% vaccination needed
         }
         
@@ -304,7 +304,7 @@ class ScientificValidator:
             'diphtheria': 0.95,
             'tetanus': 0.95,
             'pertussis': 0.85,  # Wanes over time
-            'hepatitis_b': 0.95,
+            'hepatitisb': 0.95,
             'hib': 0.95
         }
         
@@ -401,7 +401,7 @@ class ScientificValidator:
             disease = zds.Tetanus(dict(beta=ss.peryear(0.02), init_prev=ss.bernoulli(p=0.001)))
         elif disease_name == 'pertussis':
             disease = zds.Pertussis(dict(beta=ss.peryear(0.25), init_prev=ss.bernoulli(p=0.02)))
-        elif disease_name == 'hepatitis_b':
+        elif disease_name == 'hepatitisb':
             disease = zds.HepatitisB(dict(beta=ss.peryear(0.08), init_prev=ss.bernoulli(p=0.005)))
         elif disease_name == 'hib':
             disease = zds.Hib(dict(beta=ss.peryear(0.12), init_prev=ss.bernoulli(p=0.01)))
@@ -438,7 +438,7 @@ class ScientificValidator:
             disease = zds.Tetanus(dict(beta=ss.peryear(0.02), init_prev=ss.bernoulli(p=0.001)))
         elif disease_name == 'pertussis':
             disease = zds.Pertussis(dict(beta=ss.peryear(0.25), init_prev=ss.bernoulli(p=0.02)))
-        elif disease_name == 'hepatitis_b':
+        elif disease_name == 'hepatitisb':
             disease = zds.HepatitisB(dict(beta=ss.peryear(0.08), init_prev=ss.bernoulli(p=0.005)))
         elif disease_name == 'hib':
             disease = zds.Hib(dict(beta=ss.peryear(0.12), init_prev=ss.bernoulli(p=0.01)))

@@ -18,31 +18,31 @@ def validate_model_parameters():
     scientific_facts = {
         'diphtheria': {
             'r0_literature': (1.7, 4.3),
-            'cfr_literature': (0.05, 0.20),
+            'cfr_literature': (0.05, 0.20),  # Case Fatality Rate (CFR) literature range
             'peak_age': (5, 15),
             'vaccine_efficacy': 0.95
         },
         'tetanus': {
             'r0_literature': (0, 0),  # Not directly transmissible
-            'cfr_literature': (0.10, 0.20),
+            'cfr_literature': (0.10, 0.20),  # Case Fatality Rate (CFR) literature range
             'peak_age': (15, 45),
             'vaccine_efficacy': 0.95
         },
         'pertussis': {
             'r0_literature': (5.5, 17.5),
-            'cfr_literature': (0.001, 0.01),
+            'cfr_literature': (0.001, 0.01),  # Case Fatality Rate (CFR) literature range
             'peak_age': (0, 5),
             'vaccine_efficacy': 0.85
         },
         'hepatitis_b': {
             'r0_literature': (0.5, 1.5),
-            'cfr_literature': (0.01, 0.05),
+            'cfr_literature': (0.01, 0.05),  # Case Fatality Rate (CFR) literature range
             'peak_age': (20, 40),
             'vaccine_efficacy': 0.95
         },
         'hib': {
             'r0_literature': (1.0, 2.5),
-            'cfr_literature': (0.02, 0.05),
+            'cfr_literature': (0.02, 0.05),  # Case Fatality Rate (CFR) literature range
             'peak_age': (0, 2),
             'vaccine_efficacy': 0.95
         }
