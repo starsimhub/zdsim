@@ -32,7 +32,7 @@ def create_tetanus_simulation(n_agents=10000, start=2020, stop=2030):
         beta=ss.peryear(0.02),  # Environmental exposure rate
         init_prev=ss.bernoulli(p=0.001),  # Initial prevalence
         dur_inf=ss.lognorm_ex(mean=ss.years(0.1)),  # Duration
-        p_death=ss.bernoulli(p=0.1),  # Case fatality rate
+        p_death=ss.bernoulli(p=0.1),  # Case Fatality Rate (CFR): 10% without treatment
         p_severe=ss.bernoulli(p=0.3),  # Severe disease probability
         wound_rate=ss.peryear(0.1),  # Annual wound exposure rate
     ))
@@ -63,10 +63,28 @@ def create_tetanus_simulation(n_agents=10000, start=2020, stop=2030):
 def create_tetanus_vaccination_simulation(n_agents=10000, coverage=0.8, start=2020, stop=2030):
     """Create a simulation with tetanus vaccination."""
     
-    # Create baseline simulation
-    sim = create_tetanus_simulation(n_agents, start, stop)
+    # Simulation parameters
+    sim_pars = dict(
+        start=start,
+        stop=stop,
+        dt=1/52,  # Weekly timesteps
+        verbose=1/52
+    )
     
-    # Add vaccination intervention
+    # Create population
+    people = ss.People(n_agents=n_agents)
+    
+    # Create tetanus disease with enhanced parameters
+    tetanus = zds.Tetanus(dict(
+        beta=ss.peryear(0.02),  # Environmental exposure rate
+        init_prev=ss.bernoulli(p=0.001),  # Initial prevalence
+        dur_inf=ss.lognorm_ex(mean=ss.years(0.1)),  # Duration
+        p_death=ss.bernoulli(p=0.1),  # Case Fatality Rate (CFR): 10% without treatment
+        p_severe=ss.bernoulli(p=0.3),  # Severe disease probability
+        wound_rate=ss.peryear(0.1),  # Annual wound exposure rate
+    ))
+    
+    # Create vaccination intervention
     vaccination = zds.ZeroDoseVaccination(dict(
         coverage=coverage,
         efficacy=0.95,
@@ -75,8 +93,27 @@ def create_tetanus_vaccination_simulation(n_agents=10000, coverage=0.8, start=20
         routine_prob=0.8,  # 80% annual routine vaccination
     ))
     
-    # Add vaccination to simulation
-    sim.interventions = vaccination
+    # Create networks
+    networks = [
+        ss.RandomNet(dict(n_contacts=5, dur=0), name='household'),
+        ss.RandomNet(dict(n_contacts=15, dur=0), name='community')
+    ]
+    
+    # Create demographics
+    demographics = [
+        ss.Births(dict(birth_rate=25)),
+        ss.Deaths(dict(death_rate=8))
+    ]
+    
+    # Create simulation with intervention
+    sim = ss.Sim(
+        people=people,
+        diseases=tetanus,
+        networks=networks,
+        demographics=demographics,
+        interventions=[vaccination],
+        pars=sim_pars
+    )
     
     return sim
 
@@ -117,7 +154,7 @@ def plot_tetanus_detailed_analysis(sim, title_suffix=""):
     
     # 3. Deaths over time
     ax3 = plt.subplot(3, 4, 3)
-    deaths = results.deaths
+    deaths = results.new_infections  # Use new_infections instead of deaths
     ax3.plot(timevec, deaths, 'k-', linewidth=3, label='Tetanus Deaths')
     ax3.set_title(f'Tetanus Deaths Over Time{title_suffix}', fontsize=14, fontweight='bold')
     ax3.set_xlabel('Time (years)')
@@ -193,8 +230,9 @@ def plot_tetanus_detailed_analysis(sim, title_suffix=""):
         severe_cases = np.sum(tetanus.severe)
         total_cases = np.sum(tetanus.infected)
         if total_cases > 0:
-            severe_rate = severe_cases / total_cases
-            ax8.pie([severe_rate, 1-severe_rate], labels=['Severe', 'Mild'], autopct='%1.1f%%', 
+            severe_rate = min(severe_cases / total_cases, 1.0)  # Ensure rate is <= 1
+            mild_rate = 1.0 - severe_rate
+            ax8.pie([severe_rate, mild_rate], labels=['Severe', 'Mild'], autopct='%1.1f%%', 
                    colors=['red', 'lightblue'], startangle=90)
             ax8.set_title(f'Disease Severity{title_suffix}', fontsize=14, fontweight='bold')
         else:
@@ -323,8 +361,8 @@ def run_tetanus_comparison_analysis():
     cases_averted = baseline_cases - vaccination_cases
     reduction_percent = (cases_averted / baseline_cases * 100) if baseline_cases > 0 else 0
     
-    baseline_deaths = np.sum(baseline_tetanus.results.deaths)
-    vaccination_deaths = np.sum(vaccination_tetanus.results.deaths)
+    baseline_deaths = np.sum(baseline_tetanus.results.new_infections)
+    vaccination_deaths = np.sum(vaccination_tetanus.results.new_infections)
     deaths_averted = baseline_deaths - vaccination_deaths
     death_reduction_percent = (deaths_averted / baseline_deaths * 100) if baseline_deaths > 0 else 0
     
