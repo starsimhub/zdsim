@@ -32,27 +32,27 @@ def get_parameter_ranges():
     
     ranges = {
         'diphtheria': {
-            'beta': (0.1, 0.3),
+            'beta': (3.0, 12.0),  # Updated for R0 1.7-4.3 (was 0.1-0.3)
             'p_death': (0.05, 0.20),
             'dur_inf': (14, 42)
         },
         'tetanus': {
-            'beta': (0.01, 0.05),
+            'beta': (0.0, 0.1),  # Updated for R0 0 (was 0.01-0.05)
             'p_death': (0.10, 0.20),
             'dur_inf': (7, 21)
         },
         'pertussis': {
-            'beta': (0.2, 0.4),
+            'beta': (20.0, 80.0),  # Updated for R0 5.5-17.5 (was 0.2-0.4)
             'p_death': (0.001, 0.01),
             'dur_inf': (21, 42)
         },
         'hepatitis_b': {
-            'beta': (0.05, 0.15),
+            'beta': (0.2, 2.0),  # Updated for R0 0.5-1.5 (was 0.05-0.15)
             'p_death': (0.01, 0.05),
             'dur_inf': (30, 90)
         },
         'hib': {
-            'beta': (0.08, 0.20),
+            'beta': (8.0, 30.0),  # Updated for R0 1.0-2.5 (was 0.08-0.20)
             'p_death': (0.02, 0.05),
             'dur_inf': (7, 14)
         }
