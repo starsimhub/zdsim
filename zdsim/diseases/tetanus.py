@@ -18,13 +18,15 @@ class Tetanus(ss.Infection):
         super().__init__()
         
         # Define disease-specific parameters
+        # Document requirements: Beta=1.3, gamma=3/12, waning=0.055
         self.define_pars(
-            beta=ss.peryear(0.02),  # Low transmission rate (environmental exposure)
+            beta=ss.peryear(1.3),  # Document requirement: Beta=1.3
             init_prev=ss.bernoulli(p=0.001),  # Very low initial prevalence
-            dur_inf=ss.lognorm_ex(mean=ss.years(0.1)),  # Duration of infection (weeks)
-            p_death=ss.bernoulli(p=0.1),  # High case fatality rate (10% without treatment)
+            dur_inf=ss.lognorm_ex(mean=ss.years(3/12)),  # Document requirement: gamma=3/12 (3 months)
+            p_death=ss.bernoulli(p=0.1),  # Case Fatality Rate (CFR): 10% without treatment
             p_severe=ss.bernoulli(p=0.3),  # High probability of severe disease
             wound_rate=ss.peryear(0.1),  # Annual wound exposure rate
+            waning=ss.peryear(0.055),  # Document requirement: waning=0.055
         )
         
         # Define all states for tetanus
@@ -120,6 +122,24 @@ class Tetanus(ss.Infection):
             self.recovered[recovered] = True
             # Natural immunity after recovery
             self.immunity[recovered] = 0.9
+        
+        # Handle waning immunity (document requirement: waning=0.055)
+        waning_rate = self.pars.waning.to_prob(sim.t.dt)
+        immune_agents = (self.immunity > 0).uids
+        if len(immune_agents):
+            # Use numpy random instead of creating new bernoulli distribution
+            waning_events = np.random.random(len(immune_agents)) < waning_rate
+            waning_uids = immune_agents[waning_events]
+            if len(waning_uids):
+                # Reduce immunity level
+                self.immunity[waning_uids] *= 0.5  # Reduce immunity by half
+                # If immunity drops below threshold, become susceptible again
+                low_immunity = self.immunity[waning_uids] < 0.1
+                if np.any(low_immunity):
+                    susceptible_again = waning_uids[low_immunity]
+                    self.immunity[susceptible_again] = 0.0
+                    self.susceptible[susceptible_again] = True
+                    self.recovered[susceptible_again] = False
         
         # Trigger deaths
         deaths = (self.ti_dead <= ti).uids

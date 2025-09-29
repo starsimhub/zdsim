@@ -80,6 +80,8 @@ class ZeroDoseVaccination(ss.Intervention):
     def step(self):
         """Deliver vaccination on eligible timesteps"""
         sim = self.sim
+        if sim is None:
+            return ss.uids()
         ti = sim.ti
         
         if ti not in self.timepoints:
