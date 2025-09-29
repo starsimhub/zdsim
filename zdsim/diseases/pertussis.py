@@ -21,7 +21,7 @@ class Pertussis(ss.Infection):
             beta=ss.peryear(0.25),  # High transmission rate
             init_prev=ss.bernoulli(p=0.02),  # Initial prevalence
             dur_inf=ss.lognorm_ex(mean=ss.years(0.25)),  # Duration of infection (weeks)
-            p_death=ss.bernoulli(p=0.01),  # Low case fatality rate in general population
+            p_death=ss.bernoulli(p=0.01),  # Case Fatality Rate (CFR): 1% in general population
             p_severe=ss.bernoulli(p=0.05),  # Probability of severe disease
             age_susceptibility=ss.bernoulli(p=0.9),  # Very high susceptibility in children
             waning_immunity=ss.peryear(0.1),  # Immunity wanes over time

@@ -21,7 +21,7 @@ class HepatitisB(ss.Infection):
             beta=ss.peryear(0.08),  # Moderate transmission rate
             init_prev=ss.bernoulli(p=0.005),  # Initial prevalence
             dur_inf=ss.lognorm_ex(mean=ss.years(2.0)),  # Long duration of infection
-            p_death=ss.bernoulli(p=0.02),  # Case fatality rate
+            p_death=ss.bernoulli(p=0.02),  # Case Fatality Rate (CFR): 2% acute phase
             p_chronic=ss.bernoulli(p=0.05),  # Probability of chronic infection
             p_severe=ss.bernoulli(p=0.1),  # Probability of severe acute disease
             age_susceptibility=ss.bernoulli(p=0.7),  # Susceptibility varies by age

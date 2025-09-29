@@ -22,7 +22,7 @@ class Hib(ss.Infection):
             beta=ss.peryear(0.12),  # Moderate transmission rate
             init_prev=ss.bernoulli(p=0.01),  # Initial prevalence
             dur_inf=ss.lognorm_ex(mean=ss.years(0.1)),  # Duration of infection (weeks)
-            p_death=ss.bernoulli(p=0.03),  # Case fatality rate
+            p_death=ss.bernoulli(p=0.03),  # Case Fatality Rate (CFR): 3% with meningitis
             p_severe=ss.bernoulli(p=0.15),  # High probability of severe disease
             p_meningitis=ss.bernoulli(p=0.1),  # Probability of meningitis
             age_susceptibility=ss.bernoulli(p=0.95),  # Very high susceptibility in children
