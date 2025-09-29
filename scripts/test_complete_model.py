@@ -94,7 +94,7 @@ def test_full_model():
     print(f"Vaccination coverage: {total_vaccinated/len(people):.2%}")
     
     # Create comparison plots
-    fig, axes = plt.subplots(2, 3, figsize=(15, 10))
+    fig, axes = plt.subplots(2, 3, figsize=(12, 8))
     axes = axes.flatten()
     
     disease_names = ['diphtheria', 'tetanus', 'pertussis', 'hepatitis_b', 'hib']

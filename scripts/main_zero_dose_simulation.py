@@ -144,7 +144,7 @@ def plot_comparison(baseline_results, vaccination_results, impact_metrics):
     n_diseases = len(diseases)
     
     # Create figure with subplots
-    fig, axes = plt.subplots(2, 3, figsize=(15, 10))
+    fig, axes = plt.subplots(2, 3, figsize=(12, 8))
     axes = axes.flatten()
     
     # Plot prevalence for each disease

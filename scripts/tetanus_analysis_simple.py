@@ -68,10 +68,10 @@ def plot_tetanus_enhanced(sim, title_suffix=""):
     
     # Set style for better visualization
     plt.style.use('seaborn-v0_8')
-    sns.set_palette("husl")
+    sns.set_palette("viridis")
     
     # Create comprehensive figure (more compact)
-    fig, axes = plt.subplots(2, 3, figsize=(15, 10))
+    fig, axes = plt.subplots(2, 3, figsize=(12, 8))
     fig.suptitle(f'TETANUS FOCUSED ANALYSIS{title_suffix}', fontsize=16, fontweight='bold')
     
     timevec = results.timevec

@@ -51,7 +51,7 @@ def example_basic_simulation():
     sim.run()
     
     # Plot results
-    fig, ax = plt.subplots(figsize=(10, 6))
+    fig, ax = plt.subplots(figsize=(12, 8))
     timevec = sim.diseases['diphtheria'].results.timevec
     prevalence = sim.diseases['diphtheria'].results.prevalence
     
@@ -121,7 +121,7 @@ def example_with_vaccination():
     sim.run()
     
     # Plot results
-    fig, axes = plt.subplots(1, 2, figsize=(15, 5))
+    fig, axes = plt.subplots(1, 2, figsize=(12, 8))
     
     for i, disease_name in enumerate(['diphtheria', 'pertussis']):
         ax = axes[i]
@@ -192,7 +192,7 @@ def example_parameter_sensitivity():
         }
     
     # Plot sensitivity results
-    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 5))
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 8))
     
     # Plot prevalence over time
     for coverage, result in results.items():

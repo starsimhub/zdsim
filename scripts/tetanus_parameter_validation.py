@@ -78,7 +78,7 @@ def main():
     plt.style.use('seaborn-v0_8')
     
     # Create figure
-    fig, axes = plt.subplots(2, 2, figsize=(15, 10))
+    fig, axes = plt.subplots(2, 2, figsize=(12, 8))
     fig.suptitle('Tetanus Model Document Validation\n(All Requirements Met)', 
                  fontsize=16, fontweight='bold')
     

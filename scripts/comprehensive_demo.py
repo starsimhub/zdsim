@@ -104,7 +104,7 @@ def run_baseline_vs_vaccination():
     print(f"  Coverage: {total_vaccinated/3000:.2%}")
     
     # === CREATE PLOTS ===
-    fig, axes = plt.subplots(1, 2, figsize=(15, 6))
+    fig, axes = plt.subplots(1, 2, figsize=(12, 8))
     
     for i, disease_name in enumerate(['diphtheria', 'pertussis']):
         ax = axes[i]

@@ -62,7 +62,7 @@ def plot_results(flat_results, keywords=None, exclude=['15']):
         # If there are more than 5 metrics, use a grid of 5 columns
         n_cols = 5
         n_rows = int(np.ceil(n_metrics / n_cols))
-        fig, axs = plt.subplots(n_rows, n_cols, figsize=(20, n_rows*2))
+        fig, axs = plt.subplots(n_rows, n_cols, figsize=(12, 8))
         axs = axs.flatten()
         
     cmap = plt.cm.get_cmap('tab10', len(flat_results))
@@ -143,10 +143,10 @@ def plot_tetanus_focus(sim, title_prefix="TETANUS FOCUS"):
     
     # Set style for better visualization
     plt.style.use('seaborn-v0_8')
-    sns.set_palette("husl")
+    sns.set_palette("viridis")
     
     # Create figure with enhanced layout (more compact)
-    fig, axes = plt.subplots(2, 3, figsize=(15, 10))
+    fig, axes = plt.subplots(2, 3, figsize=(12, 8))
     fig.suptitle(f'{title_prefix}: Comprehensive Tetanus Analysis', fontsize=16, fontweight='bold')
     
     timevec = results.timevec

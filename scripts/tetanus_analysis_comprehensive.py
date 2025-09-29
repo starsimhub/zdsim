@@ -125,11 +125,11 @@ def plot_tetanus_detailed_analysis(sim, title_suffix=""):
     results = tetanus.results
     
     # Create comprehensive figure
-    fig = plt.figure(figsize=(20, 15))
+    fig = plt.figure(figsize=(12, 8))
     
     # Set style
     plt.style.use('seaborn-v0_8')
-    sns.set_palette("husl")
+    sns.set_palette("viridis")
     
     # 1. Prevalence over time
     ax1 = plt.subplot(3, 4, 1)
@@ -378,7 +378,7 @@ def run_tetanus_comparison_analysis():
     print(f"Death Reduction: {death_reduction_percent:.1f}%")
     
     # Create comparison plot
-    fig, axes = plt.subplots(2, 2, figsize=(15, 10))
+    fig, axes = plt.subplots(2, 2, figsize=(12, 8))
     
     # Prevalence comparison
     ax1 = axes[0, 0]

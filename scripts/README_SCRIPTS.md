@@ -1,170 +1,208 @@
 # Zero-Dose Vaccination Simulation Scripts
 
 ## Overview
-This directory contains the most important scripts for the zero-dose vaccination simulation model. Redundant and less essential scripts have been removed to keep only the core functionality.
+This directory contains the most important scripts for the zero-dose vaccination simulation model. All scripts have been clearly named to immediately indicate their purpose and functionality.
 
 ## Core Scripts
 
 ### **1. Main Simulation Scripts**
 
-#### **`run_zerodose_simulation.py`** - **MOST IMPORTANT**
+#### **`main_zero_dose_simulation.py`** - **MOST IMPORTANT**
 - **Purpose**: Main simulation script for zero-dose vaccination model
 - **Features**: Runs baseline vs vaccination scenarios for all 5 diseases
-- **Usage**: `python scripts/run_zerodose_simulation.py`
+- **Usage**: `python scripts/main_zero_dose_simulation.py`
 - **Output**: Comprehensive results and plots for all diseases
 
-#### **`test_full_model.py`**
+#### **`test_complete_model.py`**
 - **Purpose**: Tests the complete zero-dose vaccination model
 - **Features**: Full model validation and testing
-- **Usage**: `python scripts/test_full_model.py`
+- **Usage**: `python scripts/test_complete_model.py`
 
-#### **`final_demo.py`**
+#### **`comprehensive_demo.py`**
 - **Purpose**: Comprehensive demonstration of the model
 - **Features**: Baseline vs vaccination comparison with detailed plots
-- **Usage**: `python scripts/final_demo.py`
+- **Usage**: `python scripts/comprehensive_demo.py`
+
+#### **`basic_usage_examples.py`**
+- **Purpose**: Basic usage examples and tutorials
+- **Features**: Simple examples for getting started
+- **Usage**: `python scripts/basic_usage_examples.py`
 
 ### **2. Disease-Specific Analysis**
 
-#### **`simple_tetanus_analysis.py`** - **TETANUS FOCUS**
-- **Purpose**: Enhanced tetanus-focused analysis
-- **Features**: Detailed tetanus simulation with enhanced plots
-- **Usage**: `python scripts/simple_tetanus_analysis.py`
+#### **`tetanus_analysis_simple.py`** - **TETANUS FOCUS**
+- **Purpose**: Simple tetanus-focused analysis
+- **Features**: Single tetanus simulation with enhanced plots
+- **Usage**: `python scripts/tetanus_analysis_simple.py`
 
-#### **`tetanus_focused_analysis.py`**
+#### **`tetanus_analysis_comprehensive.py`**
 - **Purpose**: Comprehensive tetanus analysis
 - **Features**: Baseline vs vaccination tetanus comparison
-- **Usage**: `python scripts/tetanus_focused_analysis.py`
+- **Usage**: `python scripts/tetanus_analysis_comprehensive.py`
 
-#### **`tetanus_parameter_check.py`** - **VALIDATION**
+#### **`tetanus_parameter_validation.py`** - **VALIDATION**
 - **Purpose**: Validates tetanus model against document requirements
 - **Features**: Parameter validation and outcome verification
-- **Usage**: `python scripts/tetanus_parameter_check.py`
+- **Usage**: `python scripts/tetanus_parameter_validation.py`
 
 ### **3. Calibration and Validation**
 
-#### **`calibration_system.py`** - **CALIBRATION**
+#### **`parameter_calibration_system.py`** - **CALIBRATION**
 - **Purpose**: Calibrates disease parameters against real-world data
 - **Features**: Parameter optimization and calibration
-- **Usage**: `python scripts/calibration_system.py`
+- **Usage**: `python scripts/parameter_calibration_system.py`
 
-#### **`calibrated_parameters_violin.py`** - **VIOLIN PLOTS**
-- **Purpose**: Creates violin plots for calibrated parameters
+#### **`parameter_distribution_plots.py`** - **VIOLIN PLOTS**
+- **Purpose**: Creates violin plots of calibrated parameters
 - **Features**: Parameter distribution visualization
-- **Usage**: `python scripts/calibrated_parameters_violin.py`
+- **Usage**: `python scripts/parameter_distribution_plots.py`
 
-### **4. Validation Scripts**
+#### **`scientific_parameter_validation.py`** - **SCIENTIFIC VALIDATION**
+- **Purpose**: Validates parameters against scientific literature
+- **Features**: Literature-based parameter validation
+- **Usage**: `python scripts/scientific_parameter_validation.py`
 
-#### **`scientific_validation.py`**
-- **Purpose**: Scientific validation of model parameters
-- **Features**: Validates against literature values
-- **Usage**: `python scripts/scientific_validation.py`
+#### **`epidemiological_analysis.py`** - **EPIDEMIOLOGICAL VALIDATION**
+- **Purpose**: Validates epidemiological aspects of the model
+- **Features**: Age distribution and transmission validation
+- **Usage**: `python scripts/epidemiological_analysis.py`
 
-#### **`epidemiological_validation.py`**
-- **Purpose**: Epidemiological validation of model
-- **Features**: Age distribution and disease pattern validation
-- **Usage**: `python scripts/epidemiological_validation.py`
+#### **`real_world_data_validation.py`** - **REAL-WORLD VALIDATION**
+- **Purpose**: Validates model against real-world data and WHO targets
+- **Features**: Real-world data comparison and validation
+- **Usage**: `python scripts/real_world_data_validation.py`
 
-#### **`real_world_validation.py`**
-- **Purpose**: Real-world data validation
-- **Features**: Validates against WHO targets and real data
-- **Usage**: `python scripts/real_world_validation.py`
+#### **`basic_model_validation.py`** - **BASIC VALIDATION**
+- **Purpose**: Basic model validation and testing
+- **Features**: Simple validation of parameters and vaccination impact
+- **Usage**: `python scripts/basic_model_validation.py`
 
-#### **`simple_validation.py`**
-- **Purpose**: Simple model validation
-- **Features**: Basic parameter and outcome validation
-- **Usage**: `python scripts/simple_validation.py`
+#### **`model_limitations_analysis.py`** - **LIMITATIONS ANALYSIS**
+- **Purpose**: Identifies and analyzes model challenges and limitations
+- **Features**: Model constraint assessment and limitation documentation
+- **Usage**: `python scripts/model_limitations_analysis.py`
 
-### **5. Analysis and Reporting**
+#### **`validation_results_summary.py`** - **VALIDATION SUMMARY**
+- **Purpose**: Summarizes validation results and provides recommendations
+- **Features**: Comprehensive validation summary and recommendations
+- **Usage**: `python scripts/validation_results_summary.py`
 
-#### **`model_challenges.py`**
-- **Purpose**: Identifies model challenges and limitations
-- **Features**: Scientific fact checking and challenge identification
-- **Usage**: `python scripts/model_challenges.py`
+### **4. Key Features Demonstration**
 
-#### **`final_validation_summary.py`**
-- **Purpose**: Comprehensive validation summary
-- **Features**: Summarizes all validation results
-- **Usage**: `python scripts/final_validation_summary.py`
+#### **`key_features_demonstration.py`** - **KEY FEATURES DEMO**
+- **Purpose**: Comprehensive demonstration of all model key features
+- **Features**: Disease-specific modeling, vaccination strategies, results analysis
+- **Usage**: `python scripts/key_features_demonstration.py`
 
-### **6. Examples and Utilities**
+### **5. Data-Driven Analysis Scripts**
 
-#### **`example_usage.py`**
-- **Purpose**: Example usage of the simulation
-- **Features**: Basic usage examples and plotting
-- **Usage**: `python scripts/example_usage.py`
+#### **`real_data_loader.py`** - **REAL DATA ANALYSIS**
+- **Purpose**: Loads and analyzes real-world epidemiological data
+- **Features**: Real data loading, disease burden analysis, policy insights
+- **Usage**: `python scripts/real_data_loader.py`
 
-#### **`generic/run_zdsim.py`**
-- **Purpose**: Generic simulation runner
-- **Features**: Flexible simulation execution
-- **Usage**: `python scripts/generic/run_zdsim.py`
+#### **`data_driven_calibration.py`** - **DATA-DRIVEN CALIBRATION**
+- **Purpose**: Calibrates model parameters against real-world data
+- **Features**: Parameter calibration, model validation, policy recommendations
+- **Usage**: `python scripts/data_driven_calibration.py`
+
+#### **`policy_decision_support.py`** - **POLICY DECISION SUPPORT**
+- **Purpose**: Comprehensive policy analysis and decision support
+- **Features**: Scenario analysis, cost-effectiveness, decision dashboard
+- **Usage**: `python scripts/policy_decision_support.py`
+
+#### **`policy_implementation_guide.py`** - **POLICY IMPLEMENTATION GUIDE**
+- **Purpose**: Comprehensive guide for implementing zero-dose vaccination policies
+- **Features**: Implementation roadmap, resource requirements, risk mitigation
+- **Usage**: `python scripts/policy_implementation_guide.py`
+
+### **6. Generic Scripts**
+
+#### **`generic/run_generic_simulation.py`** - **GENERIC RUNNER**
+- **Purpose**: Generic script for running zero-dose vaccination simulations
+- **Features**: Flexible parameter setting and basic simulation execution
+- **Usage**: `python scripts/generic/run_generic_simulation.py`
 
 ## Script Categories
 
-### **Essential Scripts (Must Keep)**
-1. **`run_zerodose_simulation.py`** - Main simulation
-2. **`tetanus_parameter_check.py`** - Document validation
-3. **`calibration_system.py`** - Parameter calibration
-4. **`calibrated_parameters_violin.py`** - Parameter visualization
+### **Main Simulation Scripts (4 scripts)**
+- Core simulation functionality
+- Baseline vs vaccination scenarios
+- Comprehensive results and analysis
 
-### **Important Scripts (Recommended)**
-1. **`simple_tetanus_analysis.py`** - Tetanus focus
-2. **`test_full_model.py`** - Model testing
-3. **`final_demo.py`** - Comprehensive demo
-4. **`scientific_validation.py`** - Scientific validation
+### **Disease-Specific Analysis (3 scripts)**
+- Tetanus-focused analysis
+- Parameter validation
+- Disease-specific insights
 
-### **Supporting Scripts (Optional)**
-1. **`epidemiological_validation.py`** - Epidemiological validation
-2. **`real_world_validation.py`** - Real-world validation
-3. **`model_challenges.py`** - Challenge identification
-4. **`example_usage.py`** - Usage examples
+### **Calibration and Validation (8 scripts)**
+- Parameter calibration system
+- Scientific validation
+- Real-world data validation
+- Model limitations analysis
+
+### **Key Features Demonstration (1 script)**
+- Comprehensive feature demonstration
+- All model capabilities shown
+
+### **Data-Driven Analysis Scripts (4 scripts)**
+- Real-world data integration
+- Evidence-based parameter calibration
+- Policy decision support
+- Implementation guidance
+
+### **Generic Scripts (1 script)**
+- Flexible simulation running
 
 ## Usage Recommendations
 
-### **For Basic Usage**:
-```bash
-# Run main simulation
-python scripts/run_zerodose_simulation.py
+### **For Basic Usage:**
+1. Start with `main_zero_dose_simulation.py` for complete simulation
+2. Use `basic_usage_examples.py` for basic examples
+3. Use `tetanus_analysis_simple.py` for tetanus-specific analysis
 
-# Validate tetanus parameters
-python scripts/tetanus_parameter_check.py
+### **For Advanced Analysis:**
+1. Use `tetanus_analysis_comprehensive.py` for comprehensive tetanus analysis
+2. Use `parameter_calibration_system.py` for parameter calibration
+3. Use validation scripts for model validation
 
-# Run tetanus-focused analysis
-python scripts/simple_tetanus_analysis.py
-```
+### **For Model Validation:**
+1. Run all validation scripts to ensure model accuracy
+2. Use `validation_results_summary.py` for comprehensive validation
+3. Check `model_limitations_analysis.py` for model limitations
 
-### **For Calibration**:
-```bash
-# Calibrate parameters
-python scripts/calibration_system.py
+### **For Key Features Demonstration:**
+1. Use `key_features_demonstration.py` to see all model capabilities
+2. Demonstrates disease-specific modeling, vaccination strategies, and results analysis
 
-# View calibrated parameter distributions
-python scripts/calibrated_parameters_violin.py
-```
+### **For Data-Driven Policy Analysis:**
+1. Use `real_data_loader.py` to analyze real-world epidemiological data
+2. Use `data_driven_calibration.py` to calibrate model against real data
+3. Use `policy_decision_support.py` for comprehensive policy analysis
+4. Use `policy_implementation_guide.py` for implementation guidance
 
-### **For Validation**:
-```bash
-# Scientific validation
-python scripts/scientific_validation.py
+## Key Features Demonstrated
 
-# Full model testing
-python scripts/test_full_model.py
-```
+All scripts demonstrate the key features of the zero-dose vaccination model:
 
-## Removed Scripts
+1. **Disease-Specific Modeling** - Each disease has unique characteristics
+2. **Vaccination Strategies** - Multiple vaccination approaches
+3. **Results and Analysis** - Comprehensive metrics and outputs
+4. **Model Validation** - Scientific and real-world validation
+5. **Parameter Calibration** - Calibrated against real-world data
 
-The following scripts were removed as they were redundant or less essential:
+## Clear Naming Convention
 
-- `simple_tetanus_validation.py` (redundant with tetanus_parameter_check.py)
-- `tetanus_document_validation.py` (redundant with tetanus_parameter_check.py)
-- `simple_violin_plots.py` (redundant with calibrated_parameters_violin.py)
-- `violin_plots_comparison.py` (redundant with calibrated_parameters_violin.py)
-- `enhanced_calibrated_violin.py` (redundant with calibrated_parameters_violin.py)
-- `demo_violin_plots.py` (redundant with calibrated_parameters_violin.py)
-- `simple_test.py` (redundant with test_full_model.py)
-- `debug_disease.py` (debugging script, not needed for production)
-- `run_pneumonia.py` (pneumonia not implemented)
-- `test_zerodose.py` (redundant with test_full_model.py)
+All scripts now have clear, descriptive names that immediately indicate their purpose:
 
-## Summary
+- **`main_`** - Main/core functionality
+- **`test_`** - Testing and validation
+- **`comprehensive_`** - Full-featured analysis
+- **`basic_`** - Simple/basic functionality
+- **`tetanus_`** - Tetanus-specific analysis
+- **`parameter_`** - Parameter-related functionality
+- **`validation_`** - Validation and testing
+- **`analysis_`** - Analysis and insights
+- **`demonstration_`** - Feature demonstration
 
-The scripts directory now contains only the most important and essential scripts for the zero-dose vaccination simulation model. This provides a clean, organized structure with clear purposes for each script while removing redundancy and less essential functionality.
+The scripts are now clearly named and organized for easy understanding and use. Each script name immediately indicates its purpose and functionality.
