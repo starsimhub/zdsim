@@ -18,8 +18,11 @@ class Hib(ss.Infection):
         super().__init__()
         
         # Define disease-specific parameters
+        # Literature R0: 1.0-2.5 for Kenya
+        # Target R0 ≈ 1.75 (mid-range), with duration ≈ 0.1 years
+        # Beta = R0 / duration = 1.75 / 0.1 = 17.5 per year
         self.define_pars(
-            beta=ss.peryear(0.12),  # Moderate transmission rate
+            beta=ss.peryear(17.5),  # Moderate transmission rate (increased for literature R0)
             init_prev=ss.bernoulli(p=0.01),  # Initial prevalence
             dur_inf=ss.lognorm_ex(mean=ss.years(0.1)),  # Duration of infection (weeks)
             p_death=ss.bernoulli(p=0.03),  # Case Fatality Rate (CFR): 3% with meningitis

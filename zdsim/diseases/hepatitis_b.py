@@ -17,8 +17,11 @@ class HepatitisB(ss.Infection):
         super().__init__()
         
         # Define disease-specific parameters
+        # Literature R0: 0.5-1.5 for Kenya
+        # Target R0 ≈ 1.0 (mid-range), with duration ≈ 2.0 years
+        # Beta = R0 / duration = 1.0 / 2.0 = 0.5 per year
         self.define_pars(
-            beta=ss.peryear(0.08),  # Moderate transmission rate
+            beta=ss.peryear(0.5),  # Moderate transmission rate (increased for literature R0)
             init_prev=ss.bernoulli(p=0.005),  # Initial prevalence
             dur_inf=ss.lognorm_ex(mean=ss.years(2.0)),  # Long duration of infection
             p_death=ss.bernoulli(p=0.02),  # Case Fatality Rate (CFR): 2% acute phase

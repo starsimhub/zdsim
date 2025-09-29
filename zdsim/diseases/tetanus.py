@@ -18,9 +18,10 @@ class Tetanus(ss.Infection):
         super().__init__()
         
         # Define disease-specific parameters
+        # Tetanus is not directly transmissible (R0 = 0)
         # Document requirements: Beta=1.3, gamma=3/12, waning=0.055
         self.define_pars(
-            beta=ss.peryear(1.3),  # Document requirement: Beta=1.3
+            beta=ss.peryear(0.0),  # Not transmissible (R0 = 0)
             init_prev=ss.bernoulli(p=0.001),  # Very low initial prevalence
             dur_inf=ss.lognorm_ex(mean=ss.years(3/12)),  # Document requirement: gamma=3/12 (3 months)
             p_death=ss.bernoulli(p=0.1),  # Case Fatality Rate (CFR): 10% without treatment

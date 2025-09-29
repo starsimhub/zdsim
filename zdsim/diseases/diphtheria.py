@@ -17,8 +17,11 @@ class Diphtheria(ss.Infection):
         super().__init__()
         
         # Define disease-specific parameters
+        # Literature R0: 1.7-4.3 for Kenya
+        # Target R0 ≈ 3.0 (mid-range), with duration ≈ 0.5 years
+        # Beta = R0 / duration = 3.0 / 0.5 = 6.0 per year
         self.define_pars(
-            beta=ss.peryear(0.15),  # Transmission rate per year
+            beta=ss.peryear(6.0),  # Transmission rate per year (increased for literature R0)
             init_prev=ss.bernoulli(p=0.01),  # Initial prevalence
             dur_inf=ss.lognorm_ex(mean=ss.years(0.5)),  # Duration of infection (weeks to months)
             p_death=ss.bernoulli(p=0.05),  # Case Fatality Rate (CFR): 5% without treatment

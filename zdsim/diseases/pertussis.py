@@ -17,8 +17,11 @@ class Pertussis(ss.Infection):
         super().__init__()
         
         # Define disease-specific parameters
+        # Literature R0: 5.5-17.5 for Kenya (highly transmissible)
+        # Target R0 ≈ 11.5 (mid-range), with duration ≈ 0.25 years
+        # Beta = R0 / duration = 11.5 / 0.25 = 46.0 per year
         self.define_pars(
-            beta=ss.peryear(0.25),  # High transmission rate
+            beta=ss.peryear(46.0),  # High transmission rate (increased for literature R0)
             init_prev=ss.bernoulli(p=0.02),  # Initial prevalence
             dur_inf=ss.lognorm_ex(mean=ss.years(0.25)),  # Duration of infection (weeks)
             p_death=ss.bernoulli(p=0.01),  # Case Fatality Rate (CFR): 1% in general population
