@@ -36,7 +36,7 @@ def validate_against_who_targets():
             'age_target': (0, 24),
             'expected_reduction': 0.70  # 70% reduction
         },
-        'hepatitis_b': {
+        'hepatitisb': {
             'coverage_target': 0.90,
             'efficacy_target': 0.95,
             'age_target': (0, 24),
@@ -95,27 +95,27 @@ def validate_against_disease_burden_data():
         'diphtheria': {
             'endemic_rate': 0.1,  # Very low in vaccinated populations
             'outbreak_rate': 5.0,  # Higher during outbreaks
-            'cfr': 0.05  # 5% case fatality rate
+            'cfr': 0.05  # Case Fatality Rate (CFR): 5%
         },
         'tetanus': {
             'endemic_rate': 0.5,  # Environmental exposure
             'outbreak_rate': 2.0,  # Limited outbreaks
-            'cfr': 0.10  # 10% case fatality rate
+            'cfr': 0.10  # Case Fatality Rate (CFR): 10%
         },
         'pertussis': {
             'endemic_rate': 10.0,  # Higher endemic rate
             'outbreak_rate': 50.0,  # Significant outbreaks
-            'cfr': 0.001  # Very low CFR
+            'cfr': 0.001  # Case Fatality Rate (CFR): 0.1%
         },
-        'hepatitis_b': {
+        'hepatitisb': {
             'endemic_rate': 2.0,  # Moderate endemic rate
             'outbreak_rate': 10.0,  # Limited outbreaks
-            'cfr': 0.01  # Low acute CFR
+            'cfr': 0.01  # Case Fatality Rate (CFR): 1% acute phase
         },
         'hib': {
             'endemic_rate': 1.0,  # Low endemic rate
             'outbreak_rate': 5.0,  # Limited outbreaks
-            'cfr': 0.02  # 2% CFR
+            'cfr': 0.02  # Case Fatality Rate (CFR): 2%
         }
     }
     
@@ -175,7 +175,7 @@ def validate_against_vaccination_impact_studies():
             'study_period': '1990-2010',
             'coverage_achieved': 0.85
         },
-        'hepatitis_b': {
+        'hepatitisb': {
             'study_reduction': 0.85,  # 85% reduction
             'study_period': '1990-2010',
             'coverage_achieved': 0.80
@@ -249,7 +249,7 @@ def validate_against_age_specific_data():
             'children_under_5_pct': 0.1,
             'adults_over_15_pct': 0.8
         },
-        'hepatitis_b': {
+        'hepatitisb': {
             'peak_age_group': (20, 40),
             'children_under_5_pct': 0.2,
             'adults_over_15_pct': 0.7
@@ -328,7 +328,7 @@ def _run_who_target_simulation(disease_name, targets):
         disease = zds.Tetanus(dict(beta=ss.peryear(0.02), init_prev=ss.bernoulli(p=0.001)))
     elif disease_name == 'pertussis':
         disease = zds.Pertussis(dict(beta=ss.peryear(0.25), init_prev=ss.bernoulli(p=0.02)))
-    elif disease_name == 'hepatitis_b':
+    elif disease_name == 'hepatitisb':
         disease = zds.HepatitisB(dict(beta=ss.peryear(0.08), init_prev=ss.bernoulli(p=0.005)))
     elif disease_name == 'hib':
         disease = zds.Hib(dict(beta=ss.peryear(0.12), init_prev=ss.bernoulli(p=0.01)))
@@ -366,7 +366,7 @@ def _run_burden_simulation(disease_name):
         disease = zds.Tetanus(dict(beta=ss.peryear(0.02), init_prev=ss.bernoulli(p=0.001)))
     elif disease_name == 'pertussis':
         disease = zds.Pertussis(dict(beta=ss.peryear(0.25), init_prev=ss.bernoulli(p=0.02)))
-    elif disease_name == 'hepatitis_b':
+    elif disease_name == 'hepatitisb':
         disease = zds.HepatitisB(dict(beta=ss.peryear(0.08), init_prev=ss.bernoulli(p=0.005)))
     elif disease_name == 'hib':
         disease = zds.Hib(dict(beta=ss.peryear(0.12), init_prev=ss.bernoulli(p=0.01)))
@@ -394,7 +394,7 @@ def _run_study_simulation(disease_name, study_data):
         disease = zds.Tetanus(dict(beta=ss.peryear(0.02), init_prev=ss.bernoulli(p=0.001)))
     elif disease_name == 'pertussis':
         disease = zds.Pertussis(dict(beta=ss.peryear(0.25), init_prev=ss.bernoulli(p=0.02)))
-    elif disease_name == 'hepatitis_b':
+    elif disease_name == 'hepatitisb':
         disease = zds.HepatitisB(dict(beta=ss.peryear(0.08), init_prev=ss.bernoulli(p=0.005)))
     elif disease_name == 'hib':
         disease = zds.Hib(dict(beta=ss.peryear(0.12), init_prev=ss.bernoulli(p=0.01)))
@@ -432,7 +432,7 @@ def _run_age_simulation(disease_name):
         disease = zds.Tetanus(dict(beta=ss.peryear(0.02), init_prev=ss.bernoulli(p=0.001)))
     elif disease_name == 'pertussis':
         disease = zds.Pertussis(dict(beta=ss.peryear(0.25), init_prev=ss.bernoulli(p=0.02)))
-    elif disease_name == 'hepatitis_b':
+    elif disease_name == 'hepatitisb':
         disease = zds.HepatitisB(dict(beta=ss.peryear(0.08), init_prev=ss.bernoulli(p=0.005)))
     elif disease_name == 'hib':
         disease = zds.Hib(dict(beta=ss.peryear(0.12), init_prev=ss.bernoulli(p=0.01)))
