@@ -57,6 +57,7 @@ import numpy as np
 sys.path.insert(0, os.path.join(parent_dir, '09_utilities'))
 from data_loader import load_zerodose_data
 from age_group_calculator import AGE_GROUPS
+from data_source_citation import add_data_source_page_to_pdf
 
 # Set plotting style
 sns.set_style('whitegrid')
@@ -352,6 +353,9 @@ KEY FINDINGS:
         pdf.savefig(fig, bbox_inches='tight')
         plt.close()
         
+        # PAGE 3: Data Source and Methods
+        add_data_source_page_to_pdf(pdf, include_age_disclaimer=True)
+        
         # Set PDF metadata
         d = pdf.infodict()
         d['Title'] = 'Tuberculosis Burden Analysis - Kenya 2018-2024'
@@ -361,7 +365,7 @@ KEY FINDINGS:
         d['CreationDate'] = datetime.now()
     
     print(f"\n✓ Comprehensive PDF report saved to: {output_file}")
-    print(f"  - 2 pages with TB analysis and visualizations")
+    print(f"  - 3 pages with TB analysis, visualizations, and data sources")
 
 
 def export_to_excel(data, yearly, tb_by_age, total_tb, bcg_coverage):

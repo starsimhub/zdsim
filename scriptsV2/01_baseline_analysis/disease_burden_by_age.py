@@ -56,6 +56,7 @@ import numpy as np
 sys.path.insert(0, os.path.join(parent_dir, '09_utilities'))
 from data_loader import load_zerodose_data
 from age_group_calculator import AGE_GROUPS, get_age_specific_cfr
+from data_source_citation import add_data_source_page_to_pdf
 
 # Set plotting style
 sns.set_style('whitegrid')
@@ -64,18 +65,18 @@ plt.rcParams['figure.figsize'] = (12, 8)
 def analyze_disease_burden_by_age():
     """Main analysis function"""
     
-    print("\n"\n=" + "="*80)
-    print("\n"DISEASE BURDEN BY AGE GROUP")
-    print("\n"Based on real data (2018-2024)")
-    print("\n"="*80)
+    print("\n" + "=" + "="*80)
+    print("DISEASE BURDEN BY AGE GROUP")
+    print("Based on real data (2018-2024)")
+    print("="*80)
     
     # Load data
     data = load_zerodose_data(verbose=True)
     
     # Extract disease data
-    print("\n"\n=" + "="*80)
-    print("\n"DISEASE DATA SUMMARY (7 years)")
-    print("\n"="*80)
+    print("\n" + "=" + "="*80)
+    print("DISEASE DATA SUMMARY (7 years)")
+    print("="*80)
     
     # Tetanus (age-specific data available)
     total_tetanus = data['tetanus'].sum()
@@ -101,9 +102,9 @@ def analyze_disease_burden_by_age():
     print(f"  Lower RTI (Pertussis-related): {lower_rti:>8,.0f}")
     
     # Calculate age-stratified disease burden
-    print("\n"\n=" + "="*80)
-    print("\n"AGE-STRATIFIED DISEASE BURDEN")
-    print("\n"="*80)
+    print("\n" + "=" + "="*80)
+    print("AGE-STRATIFIED DISEASE BURDEN")
+    print("="*80)
     
     # Tetanus by age (from real data + estimates)
     tetanus_by_age = {
@@ -156,9 +157,9 @@ def analyze_disease_burden_by_age():
     }
     
     # Calculate deaths using age-specific CFR
-    print("\n"\n=" + "="*80)
-    print("\n"ESTIMATED DEATHS BY AGE (using age-specific CFR)")
-    print("\n"="*80)
+    print("\n" + "=" + "="*80)
+    print("ESTIMATED DEATHS BY AGE (using age-specific CFR)")
+    print("="*80)
     
     tetanus_cfr = get_age_specific_cfr('tetanus')
     diphtheria_cfr = get_age_specific_cfr('diphtheria')
@@ -181,7 +182,7 @@ def analyze_disease_burden_by_age():
     
     # Print disease burden table
     print(f"\n{'Age Group':<20} {'Tetanus':<12} {'Deaths':<10} {'CFR':<8}")
-    print("\n"-"*80)
+    print("-"*80)
     for age_group in AGE_GROUPS.keys():
         cases = tetanus_by_age[age_group]
         deaths = tetanus_deaths[age_group]
@@ -192,10 +193,10 @@ def analyze_disease_burden_by_age():
           f"{sum(tetanus_deaths.values()):>8,.0f}")
     
     # Priority ranking
-    print("\n"\n=" + "="*80)
-    print("\n"AGE GROUP PRIORITY RANKING")
-    print("\n"="*80)
-    print("\n"\nBased on total disease burden (all 5 Pentavalent diseases):")
+    print("\n" + "=" + "="*80)
+    print("AGE GROUP PRIORITY RANKING")
+    print("="*80)
+    print("\nBased on total disease burden (all 5 Pentavalent diseases):")
     
     total_burden = {}
     total_deaths = {}
@@ -220,7 +221,7 @@ def analyze_disease_burden_by_age():
     sorted_ages = sorted(total_deaths.items(), key=lambda x: x[1], reverse=True)
     
     print(f"\n{'Rank':<6} {'Age Group':<20} {'Total Cases':<15} {'Total Deaths':<15} {'Priority'}")
-    print("\n"-"*80)
+    print("-"*80)
     
     priorities = ['CRITICAL', 'VERY HIGH', 'HIGH', 'MEDIUM', 'LOW', 'LOW']
     for rank, (age_group, deaths) in enumerate(sorted_ages, 1):
@@ -256,9 +257,9 @@ def create_comprehensive_pdf_report(data, tetanus_by_age, diphtheria_by_age, hep
                                    total_burden, total_deaths, sorted_ages):
     """Create comprehensive PDF report"""
     
-    print("\n"\n=" + "="*80)
-    print("\n"CREATING COMPREHENSIVE PDF REPORT")
-    print("\n"="*80)
+    print("\n" + "=" + "="*80)
+    print("CREATING COMPREHENSIVE PDF REPORT")
+    print("="*80)
     
     output_file = 'scriptsV2/outputs/disease_burden_by_age_report.pdf'
     
@@ -458,6 +459,9 @@ KEY FINDINGS:
         pdf.savefig(fig, bbox_inches='tight')
         plt.close()
         
+        # PAGE 4: Data Source and Methods
+        add_data_source_page_to_pdf(pdf, include_age_disclaimer=True)
+        
         # Set PDF metadata
         d = pdf.infodict()
         d['Title'] = 'Disease Burden by Age Group - Kenya 2018-2024'
@@ -467,7 +471,7 @@ KEY FINDINGS:
         d['CreationDate'] = datetime.now()
     
     print(f"\n✓ Comprehensive PDF report saved to: {output_file}")
-    print(f"  - 3 pages with age-stratified analysis")
+    print(f"  - 4 pages with age-stratified analysis and data sources")
 
 
 def export_to_excel(tetanus_by_age, diphtheria_by_age, hep_b_by_age,
@@ -477,9 +481,9 @@ def export_to_excel(tetanus_by_age, diphtheria_by_age, hep_b_by_age,
                    total_burden, total_deaths):
     """Export results to Excel"""
     
-    print("\n"\n=" + "="*80)
-    print("\n"EXPORTING TO EXCEL")
-    print("\n"="*80)
+    print("\n" + "=" + "="*80)
+    print("EXPORTING TO EXCEL")
+    print("="*80)
     
     output_file = 'scriptsV2/outputs/disease_burden_by_age.xlsx'
     
@@ -519,16 +523,16 @@ def export_to_excel(tetanus_by_age, diphtheria_by_age, hep_b_by_age,
         deaths_df.to_excel(writer, sheet_name='Deaths by Disease', index=False)
     
     print(f"\n✓ Excel report saved to: {output_file}")
-    print("\n"\nExcel file contains 3 sheets:")
-    print("\n"  1. Summary - Total burden by age")
-    print("\n"  2. Cases by Disease - Disease-specific cases")
-    print("\n"  3. Deaths by Disease - Disease-specific deaths")
+    print("\nExcel file contains 3 sheets:")
+    print("  1. Summary - Total burden by age")
+    print("  2. Cases by Disease - Disease-specific cases")
+    print("  3. Deaths by Disease - Disease-specific deaths")
 
 
 def main():
     """Main execution function"""
     
-    print("\n"""
+    print("""
 ╔════════════════════════════════════════════════════════════════════════╗
 ║              DISEASE BURDEN BY AGE GROUP ANALYSIS ⭐                   ║
 ║                     ScriptsV2 Analysis Suite                           ║
@@ -538,35 +542,34 @@ def main():
     try:
         total_burden, total_deaths = analyze_disease_burden_by_age()
         
-        print("\n"\n=" + "="*80)
-        print("\n"✓ ANALYSIS COMPLETE")
-        print("\n"="*80)
-        print("\n"\nOutputs created:")
-        print("\n"  1. scriptsV2/outputs/disease_burden_by_age_report.pdf (3-page report)")
-        print("\n"  2. scriptsV2/outputs/disease_burden_by_age.xlsx (3-sheet workbook)")
-        print("\n"\nKey insights:")
-        print("\n"  - Age-stratified disease burden calculated")
-        print("\n"  - Priority ranking based on deaths")
-        print("\n"  - Age-specific CFR applied")
-        print("\n"\nNext steps:")
-        print("\n"  - Review age priority ranking")
-        print("\n"  - Use for targeting interventions")
-        print("\n"  - Run compare_age_groups.py for detailed age analysis")
+        print("\n" + "=" + "="*80)
+        print("✓ ANALYSIS COMPLETE")
+        print("="*80)
+        print("\nOutputs created:")
+        print("  1. scriptsV2/outputs/disease_burden_by_age_report.pdf (3-page report)")
+        print("  2. scriptsV2/outputs/disease_burden_by_age.xlsx (3-sheet workbook)")
+        print("\nKey insights:")
+        print("  - Age-stratified disease burden calculated")
+        print("  - Priority ranking based on deaths")
+        print("  - Age-specific CFR applied")
+        print("\nNext steps:")
+        print("  - Review age priority ranking")
+        print("  - Use for targeting interventions")
+        print("  - Run compare_age_groups.py for detailed age analysis")
                 
         # Print data source citation
-        print("\n"
-=" + "="*80)
-        print("\n"DATA SOURCE")
-        print("\n"="*80)
-        print("\n"""
+        print("\n" + "="*80)
+        print("DATA SOURCE")
+        print("="*80)
+        print("""
 Primary Data: Kenya national health facility data (zerodose_data.dta)
-Period: 2018-2024 (84 months)  
+Period: 2018-2024 (84 months)
 Variables: Vaccination coverage, disease cases, population estimates
 
 Note: All disease case numbers are actual surveillance data.
 Age-stratified estimates based on WHO/published epidemiological patterns.
 """)
-        print("\n"="*80)
+        print("="*80)
 
         return 0
 

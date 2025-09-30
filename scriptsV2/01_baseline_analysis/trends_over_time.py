@@ -63,10 +63,10 @@ plt.rcParams['figure.figsize'] = (12, 8)
 def analyze_comprehensive_trends():
     """Main analysis function"""
     
-    print("\n"\n=" + "="*80)
-    print("\n"COMPREHENSIVE TRENDS ANALYSIS")
-    print("\n"7-Year Trends (2018-2024)")
-    print("\n"="*80)
+    print("\n" + "="*80)
+    print("COMPREHENSIVE TRENDS ANALYSIS")
+    print("7-Year Trends (2018-2024)")
+    print("="*80)
     
     # Load data
     data, yearly, summary = load_and_prepare_data(verbose=True)
@@ -76,9 +76,9 @@ def analyze_comprehensive_trends():
     yearly['zero_dose_rate'] = yearly['zero_dose'] / yearly['estimated_lb']
     
     # Trend analysis for each metric
-    print("\n"\n=" + "="*80)
-    print("\n"TREND ANALYSIS SUMMARY")
-    print("\n"="*80)
+    print("\n" + "="*80)
+    print("TREND ANALYSIS SUMMARY")
+    print("="*80)
     
     metrics = {
         'Zero-dose rate': yearly['zero_dose_rate'].values * 100,
@@ -94,7 +94,7 @@ def analyze_comprehensive_trends():
     
     trends = {}
     print(f"\n{'Metric':<25} {'2018':<12} {'2024':<12} {'Change':<12} {'Trend'}")
-    print("\n"-"*80)
+    print("-"*80)
     
     for metric_name, values in metrics.items():
         start_val = values[0]
@@ -132,11 +132,11 @@ def analyze_comprehensive_trends():
                   f"{change:>+11,.0f}  {trend}")
     
     # Key findings
-    print("\n"\n=" + "="*80)
-    print("\n"KEY FINDINGS")
-    print("\n"="*80)
+    print("\n" + "="*80)
+    print("KEY FINDINGS")
+    print("="*80)
     
-    print("\n"\n1. VACCINATION COVERAGE TRENDS:")
+    print("\n1. VACCINATION COVERAGE TRENDS:")
     dpt3_trend = trends['DPT3 coverage']
     if dpt3_trend['change'] > 2:
         print(f"   ✓ IMPROVING: DPT3 coverage increased by {dpt3_trend['change']:.1f}pp")
@@ -145,7 +145,7 @@ def analyze_comprehensive_trends():
     else:
         print(f"   → STABLE: DPT3 coverage relatively unchanged ({dpt3_trend['change']:+.1f}pp)")
     
-    print("\n"\n2. ZERO-DOSE TRENDS:")
+    print("\n2. ZERO-DOSE TRENDS:")
     zd_trend = trends['Zero-dose rate']
     if zd_trend['change'] < -2:
         print(f"   ✓ IMPROVING: Zero-dose rate decreased by {abs(zd_trend['change']):.1f}pp")
@@ -154,7 +154,7 @@ def analyze_comprehensive_trends():
     else:
         print(f"   → STABLE: Zero-dose rate relatively unchanged ({zd_trend['change']:+.1f}pp)")
     
-    print("\n"\n3. DISEASE BURDEN TRENDS:")
+    print("\n3. DISEASE BURDEN TRENDS:")
     tetanus_trend = trends['Tetanus cases']
     if tetanus_trend['pct_change'] < -10:
         print(f"   ✓ DECLINING: Tetanus cases decreased by {abs(tetanus_trend['pct_change']):.1f}%")
@@ -163,7 +163,7 @@ def analyze_comprehensive_trends():
     else:
         print(f"   → STABLE: Tetanus cases relatively unchanged ({tetanus_trend['pct_change']:+.1f}%)")
     
-    print("\n"\n4. DROPOUT PATTERNS:")
+    print("\n4. DROPOUT PATTERNS:")
     dropout_trend = trends['Dropout rate']
     avg_dropout = yearly['dropout_rate'].mean() * 100
     print(f"   Average dropout rate: {avg_dropout:.1f}%")
@@ -175,9 +175,9 @@ def analyze_comprehensive_trends():
         print(f"   ✓ LOW DROPOUT: Dropout rate under 10%")
     
     # Monthly patterns
-    print("\n"\n=" + "="*80)
-    print("\n"SEASONAL PATTERNS (Monthly)")
-    print("\n"="*80)
+    print("\n" + "="*80)
+    print("SEASONAL PATTERNS (Monthly)")
+    print("="*80)
     
     # Group by month name
     data['month_num'] = pd.to_datetime(data['month'], format='%B').dt.month
@@ -190,18 +190,18 @@ def analyze_comprehensive_trends():
     month_names = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 
                    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
     
-    print("\n"\nAverage vaccination coverage by month:")
+    print("\nAverage vaccination coverage by month:")
     print(f"{'Month':<8} {'DPT1 Cov.':<12} {'DPT3 Cov.':<12} {'Tetanus Cases'}")
-    print("\n"-"*80)
+    print("-"*80)
     for _, row in monthly_avg.iterrows():
         month_idx = int(row['month_num']) - 1
         print(f"{month_names[month_idx]:<8} {row['dpt1_coverage']*100:>10.1f}%  "
               f"{row['dpt3_coverage']*100:>10.1f}%  {row['tetanus']:>13,.0f}")
     
     # Performance against targets
-    print("\n"\n=" + "="*80)
-    print("\n"PERFORMANCE AGAINST WHO TARGETS")
-    print("\n"="*80)
+    print("\n" + "="*80)
+    print("PERFORMANCE AGAINST WHO TARGETS")
+    print("="*80)
     
     who_target = 90.0
     current_dpt3 = yearly.iloc[-1]['dpt3_coverage'] * 100
@@ -233,9 +233,9 @@ def analyze_comprehensive_trends():
 def create_comprehensive_pdf_report(data, yearly, trends, monthly_avg, month_names):
     """Create comprehensive PDF report"""
     
-    print("\n"\n=" + "="*80)
-    print("\n"CREATING COMPREHENSIVE PDF REPORT")
-    print("\n"="*80)
+    print("\n" + "="*80)
+    print("CREATING COMPREHENSIVE PDF REPORT")
+    print("="*80)
     
     output_file = 'scriptsV2/outputs/comprehensive_trends_report.pdf'
     
@@ -449,9 +449,9 @@ KEY METRICS TRENDS:
 def export_to_excel(data, yearly, trends, monthly_avg):
     """Export results to Excel"""
     
-    print("\n"\n=" + "="*80)
-    print("\n"EXPORTING TO EXCEL")
-    print("\n"="*80)
+    print("\n" + "="*80)
+    print("EXPORTING TO EXCEL")
+    print("="*80)
     
     output_file = 'scriptsV2/outputs/comprehensive_trends.xlsx'
     
@@ -503,17 +503,17 @@ def export_to_excel(data, yearly, trends, monthly_avg):
         monthly_detail.to_excel(writer, sheet_name='Monthly Details', index=False)
     
     print(f"\n✓ Excel report saved to: {output_file}")
-    print("\n"\nExcel file contains 4 sheets:")
-    print("\n"  1. Trend Summary - All metrics with trend direction")
-    print("\n"  2. Yearly Data - Annual aggregated data")
-    print("\n"  3. Monthly Patterns - Seasonal patterns")
-    print("\n"  4. Monthly Details - Full 84-month data")
+    print("\nExcel file contains 4 sheets:")
+    print("  1. Trend Summary - All metrics with trend direction")
+    print("  2. Yearly Data - Annual aggregated data")
+    print("  3. Monthly Patterns - Seasonal patterns")
+    print("  4. Monthly Details - Full 84-month data")
 
 
 def main():
     """Main execution function"""
     
-    print("\n"""
+    print("""
 ╔════════════════════════════════════════════════════════════════════════╗
 ║              COMPREHENSIVE TRENDS ANALYSIS                             ║
 ║                   ScriptsV2 Analysis Suite                             ║
@@ -523,28 +523,27 @@ def main():
     try:
         yearly, trends = analyze_comprehensive_trends()
         
-        print("\n"\n=" + "="*80)
-        print("\n"✓ ANALYSIS COMPLETE")
-        print("\n"="*80)
-        print("\n"\nOutputs created:")
-        print("\n"  1. scriptsV2/outputs/comprehensive_trends_report.pdf (4-page report)")
-        print("\n"  2. scriptsV2/outputs/comprehensive_trends.xlsx (4-sheet workbook)")
-        print("\n"\nKey insights:")
-        print("\n"  - 7-year trends for all metrics")
-        print("\n"  - Statistical trend analysis")
-        print("\n"  - Seasonal patterns identified")
-        print("\n"  - Performance vs WHO targets")
-        print("\n"\nNext steps:")
-        print("\n"  - Review trend directions")
-        print("\n"  - Identify areas needing intervention")
-        print("\n"  - Use for strategic planning")
+        print("\n" + "="*80)
+        print("✓ ANALYSIS COMPLETE")
+        print("="*80)
+        print("\nOutputs created:")
+        print("  1. scriptsV2/outputs/comprehensive_trends_report.pdf (4-page report)")
+        print("  2. scriptsV2/outputs/comprehensive_trends.xlsx (4-sheet workbook)")
+        print("\nKey insights:")
+        print("  - 7-year trends for all metrics")
+        print("  - Statistical trend analysis")
+        print("  - Seasonal patterns identified")
+        print("  - Performance vs WHO targets")
+        print("\nNext steps:")
+        print("  - Review trend directions")
+        print("  - Identify areas needing intervention")
+        print("  - Use for strategic planning")
                 
         # Print data source citation
-        print("\n"
-=" + "="*80)
-        print("\n"DATA SOURCE")
-        print("\n"="*80)
-        print("\n"""
+        print("\n" + "="*80)
+        print("DATA SOURCE")
+        print("="*80)
+        print("""
 Primary Data: Kenya national health facility data (zerodose_data.dta)
 Period: 2018-2024 (84 months)  
 Variables: Vaccination coverage, disease cases, population estimates
@@ -552,7 +551,7 @@ Variables: Vaccination coverage, disease cases, population estimates
 Note: All disease case numbers are actual surveillance data.
 Age-stratified estimates based on WHO/published epidemiological patterns.
 """)
-        print("\n"="*80)
+        print("="*80)
 
         return 0
 

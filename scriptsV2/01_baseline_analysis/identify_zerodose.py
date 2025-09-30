@@ -60,18 +60,18 @@ plt.rcParams['figure.figsize'] = (12, 8)
 def analyze_zerodose_children():
     """Main analysis function"""
     
-    print("\n"\n=" + "="*80)
-    print("\n"ZERO-DOSE CHILDREN IDENTIFICATION")
-    print("\n"Based on 84 months of real data (2018-2024)")
-    print("\n"="*80)
+    print("\n" + "="*80)
+    print("ZERO-DOSE CHILDREN IDENTIFICATION")
+    print("Based on 84 months of real data (2018-2024)")
+    print("="*80)
     
     # Load data
     data, yearly, summary = load_and_prepare_data(verbose=False)
     
     # Overall statistics
-    print("\n"\n=" + "="*80)
-    print("\n"OVERALL STATISTICS (7-year period)")
-    print("\n"="*80)
+    print("\n" + "="*80)
+    print("OVERALL STATISTICS (7-year period)")
+    print("="*80)
     
     total_births = summary['total_births']
     total_dpt1 = summary['total_dpt1']
@@ -84,11 +84,11 @@ def analyze_zerodose_children():
     print(f"Zero-dose rate: {zero_dose_rate:>21.1f}%")
     
     # Yearly breakdown
-    print("\n"\n=" + "="*80)
-    print("\n"YEARLY BREAKDOWN")
-    print("\n"="*80)
+    print("\n" + "="*80)
+    print("YEARLY BREAKDOWN")
+    print("="*80)
     print(f"\n{'Year':<10} {'Births':<15} {'Zero-Dose':<15} {'Rate':<10} {'DPT1 Cov.':<12}")
-    print("\n"-"*80)
+    print("-"*80)
     
     for _, row in yearly.iterrows():
         year = int(row['year'])
@@ -101,9 +101,9 @@ def analyze_zerodose_children():
               f"{rate:>8.1f}%  {dpt1_cov:>10.1f}%")
     
     # Trend analysis
-    print("\n"\n=" + "="*80)
-    print("\n"TREND ANALYSIS")
-    print("\n"="*80)
+    print("\n" + "="*80)
+    print("TREND ANALYSIS")
+    print("="*80)
     
     first_year_rate = yearly.iloc[0]['zero_dose_rate'] * 100
     last_year_rate = yearly.iloc[-1]['zero_dose_rate'] * 100
@@ -121,9 +121,9 @@ def analyze_zerodose_children():
         print(f"\n→ STABLE: No significant change in zero-dose rate")
     
     # Key insights
-    print("\n"\n=" + "="*80)
-    print("\n"KEY INSIGHTS")
-    print("\n"="*80)
+    print("\n" + "="*80)
+    print("KEY INSIGHTS")
+    print("="*80)
     
     avg_dpt1 = summary['avg_dpt1_coverage'] * 100
     avg_dpt3 = summary['avg_dpt3_coverage'] * 100
@@ -151,11 +151,11 @@ def analyze_zerodose_children():
     print(f"   - These children remain vulnerable to all 5 Pentavalent diseases")
     
     # Age group estimates (using demographic assumptions)
-    print("\n"\n=" + "="*80)
-    print("\n"ESTIMATED AGE GROUP BREAKDOWN")
-    print("\n"="*80)
-    print("\n"\nNote: Based on standard demographic distribution")
-    print("\n"-"*80)
+    print("\n" + "="*80)
+    print("ESTIMATED AGE GROUP BREAKDOWN")
+    print("="*80)
+    print("\nNote: Based on standard demographic distribution")
+    print("-"*80)
     
     # Typical age distribution of zero-dose children
     age_distribution = {
@@ -166,14 +166,14 @@ def analyze_zerodose_children():
     }
     
     print(f"\n{'Age Group':<25} {'Zero-Dose Count':<20} {'Percentage':<15}")
-    print("\n"-"*80)
+    print("-"*80)
     
     for age_group, proportion in age_distribution.items():
         count = avg_annual_zerodose * proportion
         pct = proportion * 100
         print(f"{age_group:<25} {count:>18,.0f}  {pct:>13.0f}%")
     
-    print("\n"-"*80)
+    print("-"*80)
     print(f"{'TOTAL (Annual Average)':<25} {avg_annual_zerodose:>18,.0f}  {'100%':>13}")
     
     # Create comprehensive PDF report with statistics and plots
@@ -192,9 +192,9 @@ def create_comprehensive_pdf_report(data, yearly, summary, age_distribution, avg
                                    avg_dpt1, avg_dpt3, dropout):
     """Create comprehensive PDF report with statistics and plots"""
     
-    print("\n"\n=" + "="*80)
-    print("\n"CREATING COMPREHENSIVE PDF REPORT")
-    print("\n"="*80)
+    print("\n" + "="*80)
+    print("CREATING COMPREHENSIVE PDF REPORT")
+    print("="*80)
     
     output_file = 'scriptsV2/outputs/zero_dose_comprehensive_report.pdf'
     
@@ -521,9 +521,9 @@ KEY FINDINGS:
 def create_visualizations(yearly, avg_annual_zerodose, age_distribution):
     """Create PDF visualizations"""
     
-    print("\n"\n=" + "="*80)
-    print("\n"CREATING VISUALIZATIONS")
-    print("\n"="*80)
+    print("\n" + "="*80)
+    print("CREATING VISUALIZATIONS")
+    print("="*80)
     
     fig = plt.figure(figsize=(14, 10))
     
@@ -588,9 +588,9 @@ def create_visualizations(yearly, avg_annual_zerodose, age_distribution):
 def export_to_excel(data, yearly, summary, age_distribution, avg_annual_zerodose):
     """Export results to Excel"""
     
-    print("\n"\n=" + "="*80)
-    print("\n"EXPORTING TO EXCEL")
-    print("\n"="*80)
+    print("\n" + "="*80)
+    print("EXPORTING TO EXCEL")
+    print("="*80)
     
     output_file = 'scriptsV2/outputs/zero_dose_identification.xlsx'
     
@@ -643,17 +643,17 @@ def export_to_excel(data, yearly, summary, age_distribution, avg_annual_zerodose
         monthly_export.to_excel(writer, sheet_name='Monthly Data', index=False)
     
     print(f"\n✓ Excel report saved to: {output_file}")
-    print("\n"\nExcel file contains 4 sheets:")
-    print("\n"  1. Summary - Overall statistics")
-    print("\n"  2. Yearly Data - Annual trends")
-    print("\n"  3. Age Distribution - Zero-dose by age")
-    print("\n"  4. Monthly Data - Detailed monthly records")
+    print("\nExcel file contains 4 sheets:")
+    print("  1. Summary - Overall statistics")
+    print("  2. Yearly Data - Annual trends")
+    print("  3. Age Distribution - Zero-dose by age")
+    print("  4. Monthly Data - Detailed monthly records")
 
 
 def main():
     """Main execution function"""
     
-    print("\n"""
+    print("""
 ╔════════════════════════════════════════════════════════════════════════╗
 ║                 ZERO-DOSE CHILDREN IDENTIFICATION                      ║
 ║                        ScriptsV2 Analysis Suite                        ║
@@ -663,31 +663,30 @@ def main():
     try:
         yearly, summary = analyze_zerodose_children()
         
-        print("\n"\n=" + "="*80)
-        print("\n"✓ ANALYSIS COMPLETE")
-        print("\n"="*80)
-        print("\n"\nOutputs created:")
-        print("\n"  1. scriptsV2/outputs/zero_dose_comprehensive_report.pdf (5-page report)")
-        print("\n"  2. scriptsV2/outputs/zero_dose_identification.xlsx (4-sheet workbook)")
-        print("\n"  3. scriptsV2/outputs/zero_dose_identification.pdf (4-plot summary)")
-        print("\n"\nWhat's in the comprehensive report:")
-        print("\n"  • Page 1: Executive Summary with key statistics")
-        print("\n"  • Page 2: Yearly breakdown table (2018-2024)")
-        print("\n"  • Page 3: Trend and coverage plots")
-        print("\n"  • Page 4: Monthly data visualization (84 months)")
-        print("\n"  • Page 5: Age group analysis with tables and charts")
-        print("\n"\nNext steps:")
-        print("\n"  - Review the comprehensive PDF report first")
-        print("\n"  - Check the Excel file for detailed numbers")
-        print("\n"  - Run disease_burden_by_age.py to see health impact")
-        print("\n"  - Run compare_age_groups.py for age-specific analysis")
+        print("\n" + "="*80)
+        print("✓ ANALYSIS COMPLETE")
+        print("="*80)
+        print("\nOutputs created:")
+        print("  1. scriptsV2/outputs/zero_dose_comprehensive_report.pdf (5-page report)")
+        print("  2. scriptsV2/outputs/zero_dose_identification.xlsx (4-sheet workbook)")
+        print("  3. scriptsV2/outputs/zero_dose_identification.pdf (4-plot summary)")
+        print("\nWhat's in the comprehensive report:")
+        print("  • Page 1: Executive Summary with key statistics")
+        print("  • Page 2: Yearly breakdown table (2018-2024)")
+        print("  • Page 3: Trend and coverage plots")
+        print("  • Page 4: Monthly data visualization (84 months)")
+        print("  • Page 5: Age group analysis with tables and charts")
+        print("\nNext steps:")
+        print("  - Review the comprehensive PDF report first")
+        print("  - Check the Excel file for detailed numbers")
+        print("  - Run disease_burden_by_age.py to see health impact")
+        print("  - Run compare_age_groups.py for age-specific analysis")
                 
         # Print data source citation
-        print("\n"
-=" + "="*80)
-        print("\n"DATA SOURCE")
-        print("\n"="*80)
-        print("\n"""
+        print("\n" + "="*80)
+        print("DATA SOURCE")
+        print("="*80)
+        print("""
 Primary Data: Kenya national health facility data (zerodose_data.dta)
 Period: 2018-2024 (84 months)  
 Variables: Vaccination coverage, disease cases, population estimates
@@ -695,7 +694,7 @@ Variables: Vaccination coverage, disease cases, population estimates
 Note: All disease case numbers are actual surveillance data.
 Age-stratified estimates based on WHO/published epidemiological patterns.
 """)
-        print("\n"="*80)
+        print("="*80)
 
         return 0
 

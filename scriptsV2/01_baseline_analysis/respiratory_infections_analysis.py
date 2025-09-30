@@ -60,6 +60,7 @@ import numpy as np
 sys.path.insert(0, os.path.join(parent_dir, '09_utilities'))
 from data_loader import load_zerodose_data
 from age_group_calculator import AGE_GROUPS
+from data_source_citation import add_data_source_page_to_pdf
 
 # Set plotting style
 sns.set_style('whitegrid')
@@ -68,18 +69,18 @@ plt.rcParams['figure.figsize'] = (12, 8)
 def analyze_respiratory_infections():
     """Main analysis function"""
     
-    print("\n"\n=" + "="*80)
-    print("\n"RESPIRATORY INFECTIONS BURDEN ANALYSIS")
-    print("\n"Based on real data (2018-2024)")
-    print("\n"="*80)
+    print("\n" + "=" + "="*80)
+    print("RESPIRATORY INFECTIONS BURDEN ANALYSIS")
+    print("Based on real data (2018-2024)")
+    print("="*80)
     
     # Load data
     data = load_zerodose_data(verbose=True)
     
     # Extract respiratory infection data
-    print("\n"\n=" + "="*80)
-    print("\n"RESPIRATORY INFECTION DATA SUMMARY (7 years)")
-    print("\n"="*80)
+    print("\n" + "=" + "="*80)
+    print("RESPIRATORY INFECTION DATA SUMMARY (7 years)")
+    print("="*80)
     
     # Respiratory cases by type
     urti = data['urti'].sum()
@@ -108,9 +109,9 @@ def analyze_respiratory_infections():
     print(f"  RTI rate per 1,000 births: {total_rti/total_births*1000:>11.1f}")
     
     # Yearly trends
-    print("\n"\n=" + "="*80)
-    print("\n"YEARLY RTI TRENDS")
-    print("\n"="*80)
+    print("\n" + "=" + "="*80)
+    print("YEARLY RTI TRENDS")
+    print("="*80)
     
     yearly = data.groupby('year').agg({
         'urti': 'sum',
@@ -126,7 +127,7 @@ def analyze_respiratory_infections():
     yearly['rti_rate_per_1000'] = yearly['total_rti'] / yearly['estimated_lb'] * 1000
     
     print(f"\n{'Year':<8} {'Total URTI':<14} {'Total LRTI':<14} {'Total RTI':<14} {'RTI/1000'}")
-    print("\n"-"*80)
+    print("-"*80)
     
     for _, row in yearly.iterrows():
         year = int(row['year'])
@@ -134,9 +135,9 @@ def analyze_respiratory_infections():
               f"{row['total_rti']:>12,.0f}  {row['rti_rate_per_1000']:>10.1f}")
     
     # Trend analysis
-    print("\n"\n=" + "="*80)
-    print("\n"TREND ANALYSIS")
-    print("\n"="*80)
+    print("\n" + "=" + "="*80)
+    print("TREND ANALYSIS")
+    print("="*80)
     
     first_year = yearly.iloc[0]
     last_year = yearly.iloc[-1]
@@ -156,9 +157,9 @@ def analyze_respiratory_infections():
         print(f"\n→ STABLE: RTI cases relatively unchanged ({rti_pct_change:+.1f}%)")
     
     # Seasonal analysis
-    print("\n"\n=" + "="*80)
-    print("\n"SEASONAL PATTERNS")
-    print("\n"="*80)
+    print("\n" + "=" + "="*80)
+    print("SEASONAL PATTERNS")
+    print("="*80)
     
     # Map month names to numbers
     month_name_to_num = {
@@ -194,10 +195,10 @@ def analyze_respiratory_infections():
     print(f"Seasonal variation: {(monthly_avg['total_rti'].max() / monthly_avg['total_rti'].min()):.1f}x")
     
     # Age-specific burden estimates
-    print("\n"\n=" + "="*80)
-    print("\n"ESTIMATED RTI BURDEN BY AGE GROUP")
-    print("\n"="*80)
-    print("\n"\nBased on epidemiological patterns:")
+    print("\n" + "=" + "="*80)
+    print("ESTIMATED RTI BURDEN BY AGE GROUP")
+    print("="*80)
+    print("\nBased on epidemiological patterns:")
     
     # RTI burden is highest in young children
     rti_by_age = {
@@ -216,7 +217,7 @@ def analyze_respiratory_infections():
     estimated_deaths = (total_urti * urti_cfr) + (total_lrti * lrti_cfr)
     
     print(f"\n{'Age Group':<20} {'Estimated Cases':<18} {'Estimated Deaths':<18} {'% of Total'}")
-    print("\n"-"*80)
+    print("-"*80)
     
     for age_group, cases in rti_by_age.items():
         # Death rate higher in younger children
@@ -230,7 +231,7 @@ def analyze_respiratory_infections():
         pct = cases / total_rti * 100
         print(f"{age_group:<20} {cases:>16,.0f}  {deaths:>16,.0f}  {pct:>10.1f}%")
     
-    print("\n"-"*80)
+    print("-"*80)
     total_deaths = sum([cases * (0.015 if 'Neonates' in ag else 
                                   0.012 if ('Infants' in ag or 'Toddlers' in ag) else 
                                   0.008) 
@@ -238,9 +239,9 @@ def analyze_respiratory_infections():
     print(f"{'TOTAL':<20} {total_rti:>16,.0f}  {total_deaths:>16,.0f}  {'100.0%':>10}")
     
     # Key insights
-    print("\n"\n=" + "="*80)
-    print("\n"KEY INSIGHTS")
-    print("\n"="*80)
+    print("\n" + "=" + "="*80)
+    print("KEY INSIGHTS")
+    print("="*80)
     
     print(f"\n1. DISEASE BURDEN:")
     print(f"   - Average RTI cases per year: {annual_rti:,.0f}")
@@ -278,9 +279,9 @@ def create_comprehensive_pdf_report(data, yearly, monthly_avg, rti_by_age,
                                    total_rti, total_urti, total_lrti, total_deaths):
     """Create comprehensive PDF report"""
     
-    print("\n"\n=" + "="*80)
-    print("\n"CREATING COMPREHENSIVE PDF REPORT")
-    print("\n"="*80)
+    print("\n" + "=" + "="*80)
+    print("CREATING COMPREHENSIVE PDF REPORT")
+    print("="*80)
     
     output_file = 'scriptsV2/outputs/respiratory_infections_report.pdf'
     
@@ -422,6 +423,9 @@ KEY FINDINGS:
         pdf.savefig(fig, bbox_inches='tight')
         plt.close()
         
+        # PAGE 3: Data Source and Methods
+        add_data_source_page_to_pdf(pdf, include_age_disclaimer=True)
+        
         # Set PDF metadata
         d = pdf.infodict()
         d['Title'] = 'Respiratory Infections Analysis - Kenya 2018-2024'
@@ -431,16 +435,16 @@ KEY FINDINGS:
         d['CreationDate'] = datetime.now()
     
     print(f"\n✓ Comprehensive PDF report saved to: {output_file}")
-    print(f"  - 2 pages with RTI analysis and visualizations")
+    print(f"  - 3 pages with RTI analysis, visualizations, and data sources")
 
 
 def export_to_excel(data, yearly, monthly_avg, rti_by_age, 
                    total_rti, total_urti, total_lrti):
     """Export results to Excel"""
     
-    print("\n"\n=" + "="*80)
-    print("\n"EXPORTING TO EXCEL")
-    print("\n"="*80)
+    print("\n" + "=" + "="*80)
+    print("EXPORTING TO EXCEL")
+    print("="*80)
     
     output_file = 'scriptsV2/outputs/respiratory_infections_analysis.xlsx'
     
@@ -503,18 +507,18 @@ def export_to_excel(data, yearly, monthly_avg, rti_by_age,
         monthly_data.to_excel(writer, sheet_name='Monthly Data', index=False)
     
     print(f"\n✓ Excel report saved to: {output_file}")
-    print("\n"\nExcel file contains 5 sheets:")
-    print("\n"  1. Summary - Overall RTI statistics")
-    print("\n"  2. Yearly Data - Annual RTI trends")
-    print("\n"  3. Seasonal Pattern - Average by month")
-    print("\n"  4. Age Distribution - RTI by age group")
-    print("\n"  5. Monthly Data - 84 months of RTI data")
+    print("\nExcel file contains 5 sheets:")
+    print("  1. Summary - Overall RTI statistics")
+    print("  2. Yearly Data - Annual RTI trends")
+    print("  3. Seasonal Pattern - Average by month")
+    print("  4. Age Distribution - RTI by age group")
+    print("  5. Monthly Data - 84 months of RTI data")
 
 
 def main():
     """Main execution function"""
     
-    print("\n"""
+    print("""
 ╔════════════════════════════════════════════════════════════════════════╗
 ║           RESPIRATORY INFECTIONS BURDEN ANALYSIS                       ║
 ║                     ScriptsV2 Analysis Suite                           ║
@@ -524,29 +528,28 @@ def main():
     try:
         yearly, rti_by_age = analyze_respiratory_infections()
         
-        print("\n"\n=" + "="*80)
-        print("\n"✓ ANALYSIS COMPLETE")
-        print("\n"="*80)
-        print("\n"\nOutputs created:")
-        print("\n"  1. scriptsV2/outputs/respiratory_infections_report.pdf (2-page report)")
-        print("\n"  2. scriptsV2/outputs/respiratory_infections_analysis.xlsx (5-sheet workbook)")
-        print("\n"\nKey insights:")
-        print("\n"  - RTI burden quantified (URTI vs LRTI)")
-        print("\n"  - Seasonal patterns identified")
-        print("\n"  - Age-specific burden estimated")
-        print("\n"  - 7-year trends analyzed")
-        print("\n"\nNext steps:")
-        print("\n"  - Review seasonal patterns for intervention timing")
-        print("\n"  - Focus on high-risk age groups (infants)")
-        print("\n"  - Consider influenza vaccination programs")
-        print("\n"  - Strengthen LRTI treatment protocols")
+        print("\n" + "=" + "="*80)
+        print("✓ ANALYSIS COMPLETE")
+        print("="*80)
+        print("\nOutputs created:")
+        print("  1. scriptsV2/outputs/respiratory_infections_report.pdf (2-page report)")
+        print("  2. scriptsV2/outputs/respiratory_infections_analysis.xlsx (5-sheet workbook)")
+        print("\nKey insights:")
+        print("  - RTI burden quantified (URTI vs LRTI)")
+        print("  - Seasonal patterns identified")
+        print("  - Age-specific burden estimated")
+        print("  - 7-year trends analyzed")
+        print("\nNext steps:")
+        print("  - Review seasonal patterns for intervention timing")
+        print("  - Focus on high-risk age groups (infants)")
+        print("  - Consider influenza vaccination programs")
+        print("  - Strengthen LRTI treatment protocols")
                 
         # Print data source citation
-        print("\n"
-=" + "="*80)
-        print("\n"DATA SOURCE")
-        print("\n"="*80)
-        print("\n"""
+        print("\n" + "="*80)
+        print("DATA SOURCE")
+        print("="*80)
+        print("""
 Primary Data: Kenya national health facility data (zerodose_data.dta)
 Period: 2018-2024 (84 months)  
 Variables: Vaccination coverage, disease cases, population estimates
@@ -554,7 +557,7 @@ Variables: Vaccination coverage, disease cases, population estimates
 Note: All disease case numbers are actual surveillance data.
 Age-stratified estimates based on WHO/published epidemiological patterns.
 """)
-        print("\n"="*80)
+        print("="*80)
 
         return 0
 

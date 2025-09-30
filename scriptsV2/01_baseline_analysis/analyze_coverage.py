@@ -52,6 +52,7 @@ import numpy as np
 sys.path.insert(0, os.path.join(parent_dir, '09_utilities'))
 from data_loader import load_and_prepare_data
 from age_group_calculator import AGE_GROUPS
+from data_source_citation import add_data_source_page_to_pdf
 
 # Set plotting style
 sns.set_style('whitegrid')
@@ -60,10 +61,10 @@ plt.rcParams['figure.figsize'] = (12, 8)
 def analyze_vaccination_coverage():
     """Main analysis function"""
     
-    print("\n"\n=" + "="*80)
-    print("\n"VACCINATION COVERAGE ANALYSIS")
-    print("\n"DPT1, DPT2, DPT3 Coverage (2018-2024)")
-    print("\n"="*80)
+    print("\n" + "="*80)
+    print("VACCINATION COVERAGE ANALYSIS")
+    print("DPT1, DPT2, DPT3 Coverage (2018-2024)")
+    print("="*80)
     
     # Load data
     data, yearly, summary = load_and_prepare_data(verbose=False)
@@ -74,9 +75,9 @@ def analyze_vaccination_coverage():
     yearly['dropout_dpt2_dpt3'] = (yearly['dpt2'] - yearly['dpt3']) / yearly['dpt2']
     
     # Overall statistics
-    print("\n"\n=" + "="*80)
-    print("\n"OVERALL COVERAGE STATISTICS (7-year period)")
-    print("\n"="*80)
+    print("\n" + "="*80)
+    print("OVERALL COVERAGE STATISTICS (7-year period)")
+    print("="*80)
     
     total_births = summary['total_births']
     total_dpt1 = summary['total_dpt1']
@@ -93,9 +94,9 @@ def analyze_vaccination_coverage():
     print(f"DPT3 doses given: {total_dpt3:>25,.0f} ({dpt3_cov:>5.1f}%)")
     
     # Dropout analysis
-    print("\n"\n=" + "="*80)
-    print("\n"DROPOUT ANALYSIS")
-    print("\n"="*80)
+    print("\n" + "="*80)
+    print("DROPOUT ANALYSIS")
+    print("="*80)
     
     dropout_1_2 = total_dpt1 - total_dpt2
     dropout_2_3 = total_dpt2 - total_dpt3
@@ -116,11 +117,11 @@ def analyze_vaccination_coverage():
         print(f"\n✓ LOW DROPOUT: {total_dropout_rate:.1f}% dropout rate")
     
     # Yearly breakdown
-    print("\n"\n=" + "="*80)
-    print("\n"YEARLY COVERAGE BREAKDOWN")
-    print("\n"="*80)
+    print("\n" + "="*80)
+    print("YEARLY COVERAGE BREAKDOWN")
+    print("="*80)
     print(f"\n{'Year':<8} {'DPT1 Cov.':<12} {'DPT2 Cov.':<12} {'DPT3 Cov.':<12} {'Dropout 1→3':<15}")
-    print("\n"-"*80)
+    print("-"*80)
     
     for _, row in yearly.iterrows():
         year = int(row['year'])
@@ -133,9 +134,9 @@ def analyze_vaccination_coverage():
               f"{dpt3_cov:>10.1f}%  {dropout:>13.1f}%")
     
     # WHO target comparison
-    print("\n"\n=" + "="*80)
-    print("\n"WHO TARGET COMPARISON")
-    print("\n"="*80)
+    print("\n" + "="*80)
+    print("WHO TARGET COMPARISON")
+    print("="*80)
     
     who_target = 90.0
     current_dpt3 = summary['avg_dpt3_coverage'] * 100
@@ -152,10 +153,10 @@ def analyze_vaccination_coverage():
         print(f"\n⚠ BELOW TARGET: Need to reach additional {children_needed:,.0f} children/year")
     
     # Age-specific coverage estimates
-    print("\n"\n=" + "="*80)
-    print("\n"AGE-SPECIFIC COVERAGE ESTIMATES")
-    print("\n"="*80)
-    print("\n"\nBased on real data fields:")
+    print("\n" + "="*80)
+    print("AGE-SPECIFIC COVERAGE ESTIMATES")
+    print("="*80)
+    print("\nBased on real data fields:")
     
     # Extract age-specific immunization data
     if 'fic_under_1yr' in data.columns:
@@ -183,9 +184,9 @@ def analyze_vaccination_coverage():
         print(f"  {age_group:<25} {coverage:>10.1f}%")
     
     # Trend analysis
-    print("\n"\n=" + "="*80)
-    print("\n"TREND ANALYSIS")
-    print("\n"="*80)
+    print("\n" + "="*80)
+    print("TREND ANALYSIS")
+    print("="*80)
     
     first_year = yearly.iloc[0]
     last_year = yearly.iloc[-1]
@@ -221,9 +222,9 @@ def create_comprehensive_pdf_report(data, yearly, summary, age_coverage,
                                    dropout_1_2, dropout_2_3, total_dropout):
     """Create comprehensive PDF report"""
     
-    print("\n"\n=" + "="*80)
-    print("\n"CREATING COMPREHENSIVE PDF REPORT")
-    print("\n"="*80)
+    print("\n" + "="*80)
+    print("CREATING COMPREHENSIVE PDF REPORT")
+    print("="*80)
     
     output_file = 'scriptsV2/outputs/vaccination_coverage_report.pdf'
     
@@ -402,6 +403,9 @@ KEY FINDINGS:
         pdf.savefig(fig, bbox_inches='tight')
         plt.close()
         
+        # PAGE 4: Data Source and Methods
+        add_data_source_page_to_pdf(pdf, include_age_disclaimer=True)
+        
         # Set PDF metadata
         d = pdf.infodict()
         d['Title'] = 'Vaccination Coverage Analysis Report - Kenya 2018-2024'
@@ -411,15 +415,15 @@ KEY FINDINGS:
         d['CreationDate'] = datetime.now()
     
     print(f"\n✓ Comprehensive PDF report saved to: {output_file}")
-    print(f"  - 3 pages with statistics and visualizations")
+    print(f"  - 4 pages with statistics, visualizations, and data sources")
 
 
 def export_to_excel(data, yearly, summary, age_coverage):
     """Export results to Excel"""
     
-    print("\n"\n=" + "="*80)
-    print("\n"EXPORTING TO EXCEL")
-    print("\n"="*80)
+    print("\n" + "="*80)
+    print("EXPORTING TO EXCEL")
+    print("="*80)
     
     output_file = 'scriptsV2/outputs/vaccination_coverage.xlsx'
     
@@ -477,17 +481,17 @@ def export_to_excel(data, yearly, summary, age_coverage):
         monthly_export.to_excel(writer, sheet_name='Monthly Data', index=False)
     
     print(f"\n✓ Excel report saved to: {output_file}")
-    print("\n"\nExcel file contains 4 sheets:")
-    print("\n"  1. Summary - Overall statistics")
-    print("\n"  2. Yearly Data - Annual trends")
-    print("\n"  3. Age Coverage - Coverage by age")
-    print("\n"  4. Monthly Data - Detailed monthly records")
+    print("\nExcel file contains 4 sheets:")
+    print("  1. Summary - Overall statistics")
+    print("  2. Yearly Data - Annual trends")
+    print("  3. Age Coverage - Coverage by age")
+    print("  4. Monthly Data - Detailed monthly records")
 
 
 def main():
     """Main execution function"""
     
-    print("\n"""
+    print("""
 ╔════════════════════════════════════════════════════════════════════════╗
 ║               VACCINATION COVERAGE ANALYSIS                            ║
 ║                     ScriptsV2 Analysis Suite                           ║
@@ -497,23 +501,22 @@ def main():
     try:
         yearly, summary = analyze_vaccination_coverage()
         
-        print("\n"\n=" + "="*80)
-        print("\n"✓ ANALYSIS COMPLETE")
-        print("\n"="*80)
-        print("\n"\nOutputs created:")
-        print("\n"  1. scriptsV2/outputs/vaccination_coverage_report.pdf (3-page report)")
-        print("\n"  2. scriptsV2/outputs/vaccination_coverage.xlsx (4-sheet workbook)")
-        print("\n"\nNext steps:")
-        print("\n"  - Review the PDF report for trends and patterns")
-        print("\n"  - Check the Excel file for detailed numbers")
-        print("\n"  - Run disease_burden_by_age.py to see health impact")
+        print("\n" + "="*80)
+        print("✓ ANALYSIS COMPLETE")
+        print("="*80)
+        print("Outputs created:")
+        print("  1. scriptsV2/outputs/vaccination_coverage_report.pdf (3-page report)")
+        print("  2. scriptsV2/outputs/vaccination_coverage.xlsx (4-sheet workbook)")
+        print("\nNext steps:")
+        print("  - Review the PDF report for trends and patterns")
+        print("  - Check the Excel file for detailed numbers")
+        print("  - Run disease_burden_by_age.py to see health impact")
                 
         # Print data source citation
-        print("\n"
-=" + "="*80)
-        print("\n"DATA SOURCE")
-        print("\n"="*80)
-        print("\n"""
+        print("\n" + "="*80)
+        print("DATA SOURCE")
+        print("="*80)
+        print("""
 Primary Data: Kenya national health facility data (zerodose_data.dta)
 Period: 2018-2024 (84 months)  
 Variables: Vaccination coverage, disease cases, population estimates
@@ -521,7 +524,7 @@ Variables: Vaccination coverage, disease cases, population estimates
 Note: All disease case numbers are actual surveillance data.
 Age-stratified estimates based on WHO/published epidemiological patterns.
 """)
-        print("\n"="*80)
+        print("="*80)
 
         return 0
 
