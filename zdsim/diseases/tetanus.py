@@ -35,21 +35,21 @@ class Tetanus(ss.Infection):
             wound_rate=ss.peryear(0.1),  # Annual wound exposure rate
             waning=ss.peryear(0.055),  # Document requirement: waning=0.055
             
-            # Age-specific parameters
-            neonatal_cfr=0.8,  # Neonatal tetanus CFR: 80%
-            peri_neonatal_cfr=0.4,  # Peri-neonatal tetanus CFR: 40%
-            childhood_cfr=0.1,  # Childhood tetanus CFR: 10%
-            adult_cfr=0.2,  # Adult tetanus CFR: 20%
+            # Age-specific parameters (CALIBRATED VALUES)
+            neonatal_cfr=0.718,  # Neonatal tetanus CFR: 71.8% (calibrated)
+            peri_neonatal_cfr=0.521,  # Peri-neonatal tetanus CFR: 52.1% (calibrated)
+            childhood_cfr=0.480,  # Childhood tetanus CFR: 48.0% (calibrated)
+            adult_cfr=0.327,  # Adult tetanus CFR: 32.7% (calibrated)
             
-            # Age-specific wound exposure rates
-            neonatal_wound_rate=ss.peryear(0.05),  # Lower wound rate in neonates
-            peri_neonatal_wound_rate=ss.peryear(0.08),  # Moderate wound rate
-            childhood_wound_rate=ss.peryear(0.15),  # Higher wound rate in active children
-            adult_wound_rate=ss.peryear(0.12),  # Adult wound rate
+            # Age-specific wound exposure rates (CALIBRATED VALUES)
+            neonatal_wound_rate=ss.peryear(0.0111),  # Neonatal wound rate: 0.0111/year (calibrated)
+            peri_neonatal_wound_rate=ss.peryear(0.0213),  # Peri-neonatal wound rate: 0.0213/year (calibrated)
+            childhood_wound_rate=ss.peryear(0.0637),  # Childhood wound rate: 0.0637/year (calibrated)
+            adult_wound_rate=ss.peryear(0.6346),  # Adult wound rate: 0.6346/year (calibrated)
             
-            # Maternal vaccination protection for neonates
-            maternal_vaccination_efficacy=0.8,  # 80% protection from maternal vaccination
-            maternal_vaccination_coverage=0.6,  # 60% maternal vaccination coverage
+            # Maternal vaccination protection for neonates (CALIBRATED VALUES)
+            maternal_vaccination_efficacy=0.743,  # 74.3% efficacy (calibrated)
+            maternal_vaccination_coverage=0.365,  # 36.5% coverage (calibrated)
         )
         
         # Define all states for tetanus

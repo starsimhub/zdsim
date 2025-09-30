@@ -49,24 +49,8 @@ def example_basic_simulation():
     
     # Run simulation
     sim.run()
-    
-    # Plot results
-    fig, ax = plt.subplots(figsize=(12, 8))
-    timevec = sim.diseases['diphtheria'].results.timevec
     prevalence = sim.diseases['diphtheria'].results.prevalence
-    
-    ax.plot(timevec, prevalence, linewidth=2, label='Diphtheria Prevalence')
-    ax.set_xlabel('Time (years)')
-    ax.set_ylabel('Prevalence')
-    ax.set_title('Diphtheria Prevalence Over Time')
-    ax.legend()
-    ax.grid(True, alpha=0.3)
-    
-    plt.tight_layout()
-    plt.show()
-    
     print(f"Final prevalence: {prevalence[-1]:.4f}")
-    
     return sim
 
 def example_with_vaccination():
@@ -230,10 +214,10 @@ def main():
     
     # Example 1: Basic simulation
     sim1 = example_basic_simulation()
-    
+    sim1.plot()
     # Example 2: With vaccination
     sim2 = example_with_vaccination()
-    
+    sim2.plot()
     # Example 3: Parameter sensitivity
     results = example_parameter_sensitivity()
     
