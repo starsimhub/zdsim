@@ -2,10 +2,9 @@
 # Repo Settings → Pages → Build and deployment → Source: GitHub Actions
 name: Deploy SPA to GitHub Pages
 
-# Pages URL uses the default branch on GitHub; merge to main (or your repo default) to publish.
 on:
   push:
-    branches: ["main", "master"]
+    branches: ["main", "master", "zdsim-april-26"]
   workflow_dispatch:
 
 permissions:
