@@ -97,8 +97,9 @@ class ZeroDoseVaccination(ss.Intervention):
             # Campaign delivery - use coverage probability
             prob = self.pars.coverage
         else:
-            # Routine delivery - use routine probability
-            prob = self.pars.routine_prob
+            # Routine delivery: intensity × administrative coverage proxy (both in [0, 1])
+            prob = float(self.pars.routine_prob) * float(self.pars.coverage)
+            prob = min(1.0, max(0.0, prob))
         
         # Simple random selection based on probability
         n_eligible = len(eligible_uids)

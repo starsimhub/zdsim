@@ -29,5 +29,6 @@ setup(
         "pandas",
         "matplotlib",
         "starsim",
+        "openpyxl>=3.0",
     ],
 )

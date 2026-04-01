@@ -1,5 +1,9 @@
 # Zero-Dose Vaccination Simulation Model
 
+**Canonical project overview, research question, and how to run the demo:** see [`Readme.md`](Readme.md) at the repository root (`python run_simulation.py`).
+
+---
+
 This repository contains a comprehensive agent-based model (ABM) for simulating zero-dose vaccination interventions targeting five vaccine-preventable diseases.
 
 ## Overview

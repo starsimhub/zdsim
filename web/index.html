@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="theme-color" content="#0d4a8c" />
+  <title>Model-based case for vaccination intervention — zdsim</title>
+  <link rel="stylesheet" href="styles.css" />
+  <!-- Chart.js, then embedded results (works without http server); then app logic -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js" crossorigin="anonymous"></script>
+  <script src="data/summary.js"></script>
+  <script src="app.js" defer></script>
+</head>
+<body>
+  <header>
+    <div class="wrap">
+      <h1>Why strengthen routine vaccination?</h1>
+      <p class="header-meta"><a href="#methodology-brief">Methods note — Rono et al. (2024)</a></p>
+      <p id="hero-sub">Loading…</p>
+    </div>
+  </header>
+
+  <div class="wrap">
+    <div id="loading" class="banner">Loading results…</div>
+
+    <main id="app-main" hidden>
+      <p class="muted" id="data-source"></p>
+      <p id="alignment-run-note" class="banner" hidden></p>
+
+      <section id="decision" class="decision-panel">
+        <h2>How to read this page (for decisions)</h2>
+        <div id="decision-text"></div>
+      </section>
+
+      <section id="metrics">
+        <h2>Numbers that matter for the intervention case</h2>
+        <p class="muted section-lead" id="metrics-lead"></p>
+        <div class="grid cards cards-5">
+          <div class="card card-highlight" id="card-gap"></div>
+          <div class="card" id="card-data"></div>
+          <div class="card" id="card-sq"></div>
+          <div class="card" id="card-su"></div>
+          <div class="card" id="card-benefit"></div>
+        </div>
+      </section>
+
+      <section id="metrics-deaths">
+        <h2>Modeled disease deaths (reference vs intervention)</h2>
+        <p class="muted section-lead" id="deaths-lead"></p>
+        <div class="grid cards cards-3">
+          <div class="card card-highlight" id="card-deaths-averted"></div>
+          <div class="card" id="card-deaths-reference"></div>
+          <div class="card" id="card-deaths-intervention"></div>
+        </div>
+      </section>
+
+      <section id="executive">
+        <h2>What the simulation compared</h2>
+        <div id="exec-text"></div>
+      </section>
+
+      <section id="charts">
+        <h2>Evidence in charts</h2>
+        <p class="muted section-lead">
+          <strong>Reference scenario</strong> = calibrated comparator (current delivery matched to data). <strong>Intervention scenario</strong> = intensified delivery.
+          Zero-dose charts reflect vaccination reach; disease-death charts count deaths from the pentavalent disease modules in the simulation (not all-cause mortality).
+        </p>
+        <h3 class="chart-heading">End of window: data vs reference vs intervention</h3>
+        <div class="chart-box">
+          <canvas id="chart-bar" aria-label="Bar chart comparison"></canvas>
+        </div>
+        <h3 class="chart-heading">Projection: zero-dose share by calendar year</h3>
+        <div class="chart-box tall">
+          <canvas id="chart-line" aria-label="Projection lines"></canvas>
+        </div>
+        <h3 class="chart-heading">Annual policy gap (share points avoided with scale-up)</h3>
+        <div class="chart-box">
+          <canvas id="chart-gap" aria-label="Gap by year"></canvas>
+        </div>
+        <h3 class="chart-heading">Modeled zero-dose children (under-fives, simulation cohort)</h3>
+        <p class="muted chart-note" id="chart-counts-note"></p>
+        <div class="chart-box">
+          <canvas id="chart-counts" aria-label="Zero-dose counts by year"></canvas>
+        </div>
+
+        <div id="deaths-charts-block" hidden>
+          <h3 class="chart-heading">Disease-attributable deaths by year (simulation)</h3>
+          <p class="muted chart-note" id="chart-deaths-note"></p>
+          <div class="chart-box">
+            <canvas id="chart-deaths-line" aria-label="Deaths reference vs intervention"></canvas>
+          </div>
+          <h3 class="chart-heading">Deaths averted (reference minus intervention, per year)</h3>
+          <div class="chart-box">
+            <canvas id="chart-deaths-averted" aria-label="Averted deaths by year"></canvas>
+          </div>
+        </div>
+      </section>
+
+      <section id="findings">
+        <h2>Supporting detail</h2>
+
+        <h3>Administrative data (context)</h3>
+        <div id="findings-admin"></div>
+
+        <h3>Model &amp; calibration</h3>
+        <div id="findings-model"></div>
+
+        <h3>Projected benefit (summarized)</h3>
+        <div id="findings-benefit"></div>
+
+        <h3>Disease deaths &amp; averted deaths</h3>
+        <div id="findings-deaths"></div>
+
+        <h3>Global context</h3>
+        <p>
+          WHO publishes global immunization coverage and zero-dose burden:
+          <a id="who-link" href="#" target="_blank" rel="noopener">Immunization coverage (WHO)</a>.
+        </p>
+      </section>
+
+      <section id="limitations-section">
+        <h2>Limitations</h2>
+        <div id="limitations"></div>
+      </section>
+
+      <section id="methodology-brief" class="methodology-brief paper-article" aria-labelledby="paper-title">
+        <header class="paper-header">
+          <h2 id="paper-title">Mapping the Rono et al. (2024) brief to zdsim</h2>
+          <p class="paper-subtitle">Methods correspondence note · same article as <code>Readme.md</code></p>
+          <p class="paper-source">
+            <strong>Source document.</strong> Betsy Rono, Mambo Susan, Anne Njeri, Raphael Akangbe. Project <strong>2-2A-7</strong>, April 2024.
+            PDF: <code>2-2A-7_Rono_Zero-dose-vaccination.pdf</code> (keep locally; optional <code>docs/references/</code>).
+          </p>
+        </header>
+
+        <h3 class="paper-h3">Abstract</h3>
+        <p>
+          Project 2-2A-7 outlines zero-dose vaccination concepts, Starsim-style modeling, and policy targets for Kenya—including the research question on
+          <strong>tetanus cases averted</strong> under a <strong>50% zero-dose reduction by 2025</strong>. This note records how that brief aligns with
+          <strong>zdsim</strong> and <code>run_simulation.py</code>: which definitions and parameters match, which differ, and which claims require external survey or WHO sources rather than simulation output.
+          It supports reviewers and reproducibility; it does not replace the original PDF.
+        </p>
+        <p class="paper-keywords">
+          <strong>Keywords:</strong> zero-dose children; DTP; pentavalent vaccine; Starsim; agent-based model; Kenya; Immunization Agenda 2030
+        </p>
+
+        <h3 class="paper-h3"><span class="paper-secnum">1</span> Introduction</h3>
+        <p>
+          The brief situates zero-dose burden in KEPI/Gavi and WHO terms, poses the tetanus / 50% zero-dose-by-2025 research question, and proposes quantitative illustrations.
+          What the repository reports for that question is stated first in <strong>Readme.md</strong> (<em>Research question</em>). <strong>zdsim</strong> implements administrative calibration and two delivery arms (reference vs intervention).
+          This note does not reproduce the brief’s slides; it states what the code implements so readers can compare statements in the PDF to executable choices in the repository.
+        </p>
+
+        <h3 class="paper-h3"><span class="paper-secnum">2</span> Terminology and analytic scope</h3>
+        <div class="table-wrap">
+          <table class="doc-table">
+            <thead>
+              <tr><th>Brief</th><th>Implementation</th></tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><strong>Zero-dose (Gavi / KEPI):</strong> no first DTP-containing dose (DTP1), per NVIP MoH 2023</td>
+                <td>Modeled as <strong>no pentavalent dose</strong> in <code>ZeroDoseVaccination</code>; administrative <strong>DTP1 proxy</strong> from <code>zerodose_data_formated.xlsx</code> drives calibration.</td>
+              </tr>
+              <tr>
+                <td><strong>IA2030</strong></td>
+                <td>Described in Readme and SPA mission text; not a separate module.</td>
+              </tr>
+              <tr>
+                <td><strong>Kenya, under-five focus</strong></td>
+                <td>Cohort is <strong>under-fives</strong> in the ABM; <strong>national/county geography is not modeled</strong> unless you add strata or spatial data.</td>
+              </tr>
+              <tr>
+                <td><strong>DTP1 as operational ZD indicator (WHO)</strong></td>
+                <td><strong>Mean DTP1 coverage proxy</strong> from monthly admin data → <code>intervention_coverage</code>; zero-dose proxy = 1 − coverage (see <code>zerodose_data.py</code>).</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h3 class="paper-h3"><span class="paper-secnum">3</span> Correspondence of methods: brief vs this repository</h3>
+        <div class="table-wrap">
+          <table class="doc-table">
+            <thead>
+              <tr><th>Brief</th><th>Implementation</th></tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><strong>Starsim</strong></td>
+                <td><strong>Yes</strong> — <code>ss.Sim</code> in <code>run_simulation.py</code> (<code>build_sim_from_bundle</code>).</td>
+              </tr>
+              <tr>
+                <td><strong>SIS structure in slides</strong></td>
+                <td>This repo uses <strong>Starsim <code>Infection</code> modules</strong> (S–I–R-style with disease-specific states), not a single SIS compartment for all pathogens.</td>
+              </tr>
+              <tr>
+                <td><strong>Tetanus: γ = 3/12 yr, waning = 0.055</strong></td>
+                <td><strong>Yes</strong> in <code>zdsim/diseases/tetanus.py</code> (<code>dur_inf</code> mean 3/12 yr, <code>waning=0.055</code>).</td>
+              </tr>
+              <tr>
+                <td><strong>Tetanus β = 1.3</strong></td>
+                <td><strong>Different:</strong> tetanus is modeled as <strong>non–person-to-person</strong>; bundle passes <code>tetanus_beta</code> into the module (default <strong>0.02</strong> in <code>zerodose_calibration.py</code>). The brief’s β may reflect a teaching formulation; <strong>do not equate</strong> without harmonizing model structure.</td>
+              </tr>
+              <tr>
+                <td><strong>Intervention: vaccination prob = 0.25, efficacy = 0.9</strong></td>
+                <td><strong>Efficacy 0.9</strong> matches <code>intervention_efficacy=0.9</code> in the bundle. “Prob 0.25” maps to <code>routine_prob × coverage</code> in <code>ZeroDoseVaccination</code>; the <strong>intervention</strong> arm uses <strong>scale-up</strong> (<code>routine_prob</code> capped, higher coverage cap) — tune with <code>--scale-routine-factor</code> / <code>--scale-coverage-cap</code>.</td>
+              </tr>
+              <tr>
+                <td><strong>50% reduction in ZD by 2025</strong></td>
+                <td><strong>Policy target</strong>, not hard-coded. Use <code>--rono-2025-window</code> (2024–2025 calendar window) for the brief’s horizon, and compare <strong>reference vs intervention</strong> relative reduction in modeled zero-dose share (<code>relative_reduction_percent_model</code>).</td>
+              </tr>
+              <tr>
+                <td><strong>Research question: tetanus cases averted</strong></td>
+                <td><code>research_question_tetanus</code> in <code>zerodose_demo_summary.json</code> — modeled new tetanus infections (reference − intervention). See <strong>Readme.md</strong> at the top.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h3 class="paper-h3"><span class="paper-secnum">4</span> Software configuration for the brief’s policy horizon</h3>
+        <pre class="code-block"><code>python run_simulation.py --rono-2025-window</code></pre>
+        <p class="muted">This sets <strong>calendar 2024–2025</strong> (overrides default <code>--start</code> / <code>--stop</code>). For longer policy projections, omit the flag and use e.g. <code>--start 2025 --stop 2055</code>.</p>
+
+        <h3 class="paper-h3"><span class="paper-secnum">5</span> External statistics cited in the brief</h3>
+        <p>
+          KDHS (~7% ZD), global WHO figures, county names, and similar quantities appear as <strong>citations in the PDF</strong>, not as outputs of this code.
+          For publications, validate figures against <strong>KDHS</strong>, <strong>WUENIC</strong>, and <strong>WHO</strong> primary sources.
+        </p>
+
+        <h3 class="paper-h3"><span class="paper-secnum">6</span> Discussion</h3>
+        <p>
+          The simulation yields <strong>modeled</strong> zero-dose shares and disease-attributable deaths in a cohort; it does not estimate national headcounts or subnational coverage unless extended.
+          Parameters that match the brief (e.g. vaccine efficacy) should be read alongside structural differences (e.g. tetanus transmission assumptions).
+          Use <code>--rono-2025-window</code> when comparing to the brief’s stated horizon; use longer windows for extended policy projections.
+        </p>
+
+        <h3 class="paper-h3">References</h3>
+        <ol class="paper-refs">
+          <li>
+            Rono B., Susan M., Njeri A., Akangbe R. <cite>Zero-dose vaccination</cite> (Project 2-2A-7). April 2024. Internal PDF <code>2-2A-7_Rono_Zero-dose-vaccination.pdf</code>.
+          </li>
+          <li>Kenya Demographic and Health Survey (KDHS); WHO/UNICEF WUENIC; WHO immunization fact sheets — empirical coverage and burden statistics.</li>
+          <li>
+            Willow Health Media.
+            <a href="https://willowhealthmedia.org/vaccine-justice-kenya-grappling-with-over-400-000-zero-dose-children/" target="_blank" rel="noopener">Vaccine justice: Kenya grappling with zero-dose children</a>
+            — journalism (narrative context only; not primary data).
+          </li>
+        </ol>
+      </section>
+
+      <section>
+        <h2>Technical JSON</h2>
+        <details>
+          <summary>Show raw <code>zerodose_demo_summary.json</code></summary>
+          <pre id="raw-json"></pre>
+        </details>
+      </section>
+    </main>
+
+    <footer>
+      zdsim · Starsim agent-based model · Run <code>python run_simulation.py</code> to refresh embedded results
+    </footer>
+  </div>
+</body>
+</html>
