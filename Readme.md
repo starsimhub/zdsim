@@ -158,6 +158,16 @@ Then visit **http://127.0.0.1:8765/web/index.html** (or the URL printed by `serv
 
 The run also copies **`outputs/zerodose_demo_summary.json`** to **`web/data/summary.json`**. If embedded data is missing or stale, use **“Load JSON”** in the page and pick `zerodose_demo_summary.json`, or serve the repo so fetch can reach `/outputs/zerodose_demo_summary.json`.
 
+### GitHub Pages (published SPA)
+
+The **`web/`** directory is deployed as the site root by **GitHub Actions** (workflow `.github/workflows/deploy-pages.yml`).
+
+1. In the GitHub repo: **Settings → Pages → Build and deployment**, set **Source** to **GitHub Actions** (not “Deploy from a branch”).
+2. Push to **`main`** or **`master`**. The *Deploy SPA to GitHub Pages* workflow runs and publishes `web/`.
+3. Open the site at **`https://<owner>.github.io/<repository>/`** (the workflow’s *github-pages* environment also shows the exact URL after deployment).
+
+The live site cannot read your machine’s **`outputs/`** directory. Refresh published results by running `python run_simulation.py`, then committing **`web/data/summary.js`** (and optionally `summary.json`) so the next push updates the embedded data—or use **Load JSON** in the browser with an exported `zerodose_demo_summary.json`.
+
 ### Example results summary
 
 The table below matches one **example** run (`python run_simulation.py`, seed **42** for both arms, **20 000** agents, projection **2025–2055**). Stochastic variation will change model percentages if you change `--seed` or `--n-agents`. **Always check `outputs/zerodose_demo_summary.json` after your run.**
