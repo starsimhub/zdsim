@@ -13,22 +13,23 @@ import starsim as ss
 
 class Pertussis(ss.Infection):
     """
-    Pertussis disease module.
+    Pertussis disease module with exponential waning of vaccine/natural immunity.
 
     Literature R0: 5.5–17.5 (Kenya, highly transmissible). Target R0 ≈ 11.5
-    with duration ≈ 0.25 yr ⇒ β = R0 / duration = 46.0 per year.
+    with duration ≈ 0.25 yr ⇒ β = R0 / duration = 46.0 per year. Acquired
+    immunity wanes at ``waning_immunity`` per year (default 0.1/yr), reducing
+    ``rel_sus`` back toward 1 over time so reinfection is possible.
     """
 
     def __init__(self, pars=None, **kwargs):
         super().__init__()
         self.define_pars(
-            beta               = ss.peryear(46.0),
-            init_prev          = ss.bernoulli(p=0.02),
-            dur_inf            = ss.lognorm_ex(mean=ss.years(0.25)),
-            p_death            = ss.bernoulli(p=0.01),
-            p_severe           = ss.bernoulli(p=0.05),
-            age_susceptibility = ss.bernoulli(p=0.9),
-            waning_immunity    = ss.peryear(0.1),
+            beta            = ss.peryear(46.0),
+            init_prev       = ss.bernoulli(p=0.02),
+            dur_inf         = ss.lognorm_ex(mean=ss.years(0.25)),
+            p_death         = ss.bernoulli(p=0.01),
+            p_severe        = ss.bernoulli(p=0.05),
+            waning_immunity = ss.peryear(0.1),
         )
         self.define_states(
             ss.BoolState('recovered',    label='Recovered'),

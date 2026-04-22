@@ -20,13 +20,12 @@ class Hib(ss.Infection):
     def __init__(self, pars=None, **kwargs):
         super().__init__()
         self.define_pars(
-            beta               = ss.peryear(17.5),
-            init_prev          = ss.bernoulli(p=0.01),
-            dur_inf            = ss.lognorm_ex(mean=ss.years(0.1)),
-            p_death            = ss.bernoulli(p=0.03),
-            p_severe           = ss.bernoulli(p=0.15),
-            p_meningitis       = ss.bernoulli(p=0.1),
-            age_susceptibility = ss.bernoulli(p=0.95),
+            beta         = ss.peryear(17.5),
+            init_prev    = ss.bernoulli(p=0.01),
+            dur_inf      = ss.lognorm_ex(mean=ss.years(0.1)),
+            p_death      = ss.bernoulli(p=0.03),
+            p_severe     = ss.bernoulli(p=0.15),
+            p_meningitis = ss.bernoulli(p=0.1),
         )
         self.define_states(
             ss.BoolState('recovered',    label='Recovered'),

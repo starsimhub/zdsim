@@ -33,7 +33,11 @@ setup(
         "pandas",
         "matplotlib",
         "starsim>=3.3.2",
+        "sciris>=3.0",
         "openpyxl>=3.0",
         "reportlab>=4.0",
     ],
+    extras_require={
+        "test": ["pytest"],
+    },
 )

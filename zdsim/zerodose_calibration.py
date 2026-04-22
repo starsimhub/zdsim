@@ -7,7 +7,6 @@ constructed so values match the latest data read and calibration step.
 
 import dataclasses
 from dataclasses import asdict, dataclass, field, replace
-from typing import Any
 
 import numpy as np
 import pandas as pd

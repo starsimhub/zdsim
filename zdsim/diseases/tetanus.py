@@ -1,29 +1,35 @@
 """
 Tetanus disease module with age-specific wound-exposure dynamics.
 
-Tetanus (*Clostridium tetani*) is **not** person-to-person transmissible; β
-is 0 and the Starsim network transmission step is effectively inert.
-Infection occurs through wound contamination, and each age group has its
-own calibrated annual wound-exposure rate.
+Tetanus (*Clostridium tetani*) is **not** person-to-person transmissible;
+``beta`` is 0 and the Starsim network transmission step is effectively inert.
+Infection occurs through wound contamination, and each age group has its own
+calibrated annual wound-exposure rate.
 
 Four age-specific segments
 --------------------------
-- **Neonatal** (0–28 days): high CFR; partial protection from maternal vaccination.
-- **Peri-neonatal** (29–60 days): moderate CFR.
-- **Childhood** (2 months – 15 years): reduced CFR, vaccine-derived immunity.
-- **Adult** (15+ years): Kenya has achieved MNT elimination; rarely reached in
-  the pediatric projection window but retained for completeness.
+- **Neonatal** (0–28 days):  highest CFR (default 0.718).
+- **Peri-neonatal** (29–60 days): moderate CFR (default 0.521).
+- **Childhood** (2 months – 15 years): reduced CFR (default 0.480). Vaccine-
+  derived immunity from the ``ZeroDoseVaccination`` intervention protects
+  agents in this segment.
+- **Adult** (15+ years): adult CFR (default 0.327). Kenya has achieved
+  Maternal & Neonatal Tetanus elimination, so in the default pediatric
+  cohort this segment is rarely populated; retained for completeness.
 
-Vaccine-induced immunity wanes exponentially (``waning=0.055``/yr per the
-Rono et al. 2024 brief). Once an agent's immunity falls below 0.1 it is
-reset to 0.0 and the agent re-enters the susceptible pool — completing the
-SIS cycle.
+Waning / SIS cycle
+------------------
+Vaccine-induced (and recovery-induced) immunity wanes each step by a
+Bernoulli draw with probability ``waning.to_prob(dt)`` (default ``waning =
+0.055``/yr per Rono et al. 2024). On a waning event ``immunity`` is halved;
+if it falls below 0.1 it is reset to 0.0 and the agent re-enters the
+susceptible pool — completing the SIS cycle described in the brief.
 
 Port notes (Starsim 3.3.3)
 --------------------------
 All stochastic draws use registered Starsim distributions
-(``ss.random()`` / ``ss.bernoulli``) so that RNG is managed per-module by
-the framework (supports CRN, MultiSim, and reproducible seeding).
+(``ss.random()`` / ``ss.bernoulli``) so RNG is managed per-module by the
+framework (supports CRN, MultiSim, and reproducible seeding).
 """
 
 import numpy as np
@@ -58,10 +64,6 @@ class Tetanus(ss.Infection):
             childhood_wound_rate     = ss.peryear(0.0637),
             adult_wound_rate         = ss.peryear(0.6346),
 
-            # Maternal protection for neonates (calibrated) ----------------------
-            maternal_vaccination_efficacy = 0.743,
-            maternal_vaccination_coverage = 0.365,
-
             # RNG streams (one per event type for CRN stability) ----------------
             wound_rng     = ss.random(),
             infection_rng = ss.random(),
@@ -70,20 +72,18 @@ class Tetanus(ss.Infection):
         )
 
         self.define_states(
-            ss.BoolState('recovered',           label='Recovered'),
-            ss.FloatArr('ti_recovered',         label='Time of recovery'),
-            ss.FloatArr('ti_dead',              label='Time of death'),
-            ss.BoolState('severe',              label='Severe disease'),
-            ss.BoolState('vaccinated',          default=False, label='Vaccinated'),
-            ss.FloatArr('ti_vaccinated',        label='Time of vaccination'),
-            ss.FloatArr('immunity',             default=0.0, label='Immunity level'),
-            ss.FloatArr('ti_wound',             label='Time of wound exposure'),
-            ss.BoolState('neonatal',            default=False, label='Neonatal tetanus (0-28 days)'),
-            ss.BoolState('peri_neonatal',       default=False, label='Peri-neonatal tetanus (29-60 days)'),
-            ss.BoolState('childhood',           default=False, label='Childhood tetanus (2 months-15 years)'),
-            ss.BoolState('adult',               default=False, label='Adult tetanus (15+ years)'),
-            ss.BoolState('maternal_vaccinated', default=False, label='Maternal vaccination'),
-            ss.FloatArr('maternal_immunity',    default=0.0, label='Maternal immunity level'),
+            ss.BoolState('recovered',     label='Recovered'),
+            ss.FloatArr('ti_recovered',   label='Time of recovery'),
+            ss.FloatArr('ti_dead',        label='Time of death'),
+            ss.BoolState('severe',        label='Severe disease'),
+            ss.BoolState('vaccinated',    default=False, label='Vaccinated'),
+            ss.FloatArr('ti_vaccinated',  label='Time of vaccination'),
+            ss.FloatArr('immunity',       default=0.0, label='Immunity level'),
+            ss.FloatArr('ti_wound',       label='Time of wound exposure'),
+            ss.BoolState('neonatal',      default=False, label='Neonatal tetanus (0-28 days)'),
+            ss.BoolState('peri_neonatal', default=False, label='Peri-neonatal tetanus (29-60 days)'),
+            ss.BoolState('childhood',     default=False, label='Childhood tetanus (2 months-15 years)'),
+            ss.BoolState('adult',         default=False, label='Adult tetanus (15+ years)'),
         )
 
         self.update_pars(pars, **kwargs)
@@ -150,12 +150,8 @@ class Tetanus(ss.Infection):
         wound_exposure = uids[wound_mask]
         self.ti_wound[wound_exposure] = ti
 
-        # Per-agent protection from immunity (vaccine/natural) + maternal for neonates
-        immunity = self.immunity[wound_exposure]
-        if age_group == 'neonatal':
-            protection = np.maximum(immunity, self.maternal_immunity[wound_exposure])
-        else:
-            protection = immunity
+        # Per-agent protection from vaccine/natural immunity
+        protection   = self.immunity[wound_exposure]
         tetanus_risk = 1.0 - protection
 
         # Per-agent infection draw via its own RNG stream

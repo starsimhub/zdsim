@@ -181,33 +181,20 @@ open outputs/*.png
 
 Or open the `outputs` folder in your file browser. Figures are gitignored (see `.gitignore`); they appear after you run `python run_simulation.py`.
 
-### Web viewer (SPA)
+### Web data export
 
-After a simulation run, **`web/data/summary.js`** is embedded with the same data as the JSON (so opening **`web/index.html`** via **file://** usually works without a server). To serve from the repo and open the browser:
+After each simulation run `run_simulation.py` also copies the summary to the `web/data/` drop-zone, so a separate SPA could consume it:
+
+- `web/data/summary.json` — exact copy of `outputs/zerodose_demo_summary.json`
+- `web/data/summary.js`   — the same payload assigned to `window.ZDSIM_SUMMARY`, for browsers that cannot fetch JSON from `file://` URLs
+
+There is currently **no bundled HTML viewer** in this repository — the data is exported for downstream consumption only. If you want to serve it locally with the stdlib:
 
 ```bash
-python web/open_spa.py
+python -m http.server 8765 --directory web
 ```
 
-Or start only the static server (port may shift if 8765 is busy):
-
-```bash
-python web/serve.py
-```
-
-Then visit **http://127.0.0.1:8765/web/index.html** (or the URL printed by `serve.py`).
-
-The run also copies **`outputs/zerodose_demo_summary.json`** to **`web/data/summary.json`**. If embedded data is missing or stale, use **“Load JSON”** in the page and pick `zerodose_demo_summary.json`, or serve the repo so fetch can reach `/outputs/zerodose_demo_summary.json`.
-
-### GitHub Pages (published SPA)
-
-The **`web/`** directory is deployed as the site root by **GitHub Actions** (workflow `.github/workflows/deploy-pages.yml`).
-
-1. In the GitHub repo: **Settings → Pages → Build and deployment**, set **Source** to **GitHub Actions** (not “Deploy from a branch”).
-2. Push to **`main`** or **`master`**. The *Deploy SPA to GitHub Pages* workflow runs and publishes `web/`.
-3. Open the site at **`https://<owner>.github.io/<repository>/`** (the workflow’s *github-pages* environment also shows the exact URL after deployment).
-
-The live site cannot read your machine’s **`outputs/`** directory. Refresh published results by running `python run_simulation.py`, then committing **`web/data/summary.js`** (and optionally `summary.json`) so the next push updates the embedded data—or use **Load JSON** in the browser with an exported `zerodose_demo_summary.json`.
+The GitHub Actions workflow `.github/workflows/deploy-pages.yml` deploys the `web/` folder to GitHub Pages whenever you push to `main` or `master`, so any SPA you add to `web/index.html` would be published automatically.
 
 ### Example results summary
 
@@ -230,8 +217,9 @@ WHO’s global facts (e.g. total zero-dose children worldwide) are **not** recal
 ## Scope and limitations
 
 - **Simulation outputs are illustrative**, not empirical estimates for a real region unless you calibrate to data you supply.
-- This repository does **not** ship proprietary survey or facility data; scripts that reference local `.dta` files expect you to add those files yourself.
-- A large set of exploratory scripts lives under `scripts/`; the supported entry point for the core demo is `run_simulation.py`.
+- The bundled `zdsim/data/zerodose_data_formated.xlsx` is Kenya administrative DTP1/DPT2/DPT3 data (2018–2024). Point at a different workbook with `--data <path>` to calibrate to another context.
+- The supported entry points are `run_simulation.py`, `calibrate.py`, and the researcher-friendly wrapper `research_workflow.py`.
+- Contact structure is two layered `ss.RandomNet` networks (`household`, `community`) with configurable contacts per bundle field; no geography, no subnational stratification, no co-infection connectors.
 
 ## License
 

@@ -21,12 +21,11 @@ class Diphtheria(ss.Infection):
     def __init__(self, pars=None, **kwargs):
         super().__init__()
         self.define_pars(
-            beta               = ss.peryear(6.0),
-            init_prev          = ss.bernoulli(p=0.01),
-            dur_inf            = ss.lognorm_ex(mean=ss.years(0.5)),
-            p_death            = ss.bernoulli(p=0.05),
-            p_severe           = ss.bernoulli(p=0.1),
-            age_susceptibility = ss.bernoulli(p=0.8),
+            beta      = ss.peryear(6.0),
+            init_prev = ss.bernoulli(p=0.01),
+            dur_inf   = ss.lognorm_ex(mean=ss.years(0.5)),
+            p_death   = ss.bernoulli(p=0.05),
+            p_severe  = ss.bernoulli(p=0.1),
         )
         self.define_states(
             ss.BoolState('recovered',    label='Recovered'),

@@ -2,8 +2,11 @@
 Hepatitis B disease module.
 
 Implemented as a standard Starsim ``ss.Infection`` with person-to-person
-transmission driven by β.  Chronic carriers remain infected after the
-acute phase completes; the pentavalent vaccine provides protection.
+transmission driven by β. A fixed fraction ``p_chronic`` of new infections
+are flagged as chronic carriers and remain infected after the acute phase
+(i.e. they never transition to recovered or dead unless they die of another
+cause). The pentavalent vaccine provides protection via the
+``ZeroDoseVaccination`` intervention.
 """
 
 import numpy as np
@@ -21,13 +24,12 @@ class HepatitisB(ss.Infection):
     def __init__(self, pars=None, **kwargs):
         super().__init__()
         self.define_pars(
-            beta               = ss.peryear(0.5),
-            init_prev          = ss.bernoulli(p=0.005),
-            dur_inf            = ss.lognorm_ex(mean=ss.years(2.0)),
-            p_death            = ss.bernoulli(p=0.02),
-            p_chronic          = ss.bernoulli(p=0.05),
-            p_severe           = ss.bernoulli(p=0.1),
-            age_susceptibility = ss.bernoulli(p=0.7),
+            beta      = ss.peryear(0.5),
+            init_prev = ss.bernoulli(p=0.005),
+            dur_inf   = ss.lognorm_ex(mean=ss.years(2.0)),
+            p_death   = ss.bernoulli(p=0.02),
+            p_chronic = ss.bernoulli(p=0.05),
+            p_severe  = ss.bernoulli(p=0.1),
         )
         self.define_states(
             ss.BoolState('recovered',    label='Recovered'),

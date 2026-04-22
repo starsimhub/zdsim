@@ -10,7 +10,12 @@ Ships with the package so `run_simulation.py` works out of the box.
 
 The formatted xlsx is the only file the simulation reads by default. Point
 at a different workbook via `run_simulation.py --data <path>` as long as it
-has the same columns (`date`, `dpt1_children`, `estimated_lb`, …).
+contains the required columns:
+
+- `year`, `month`           — calendar time of the row
+- `estimated_lb`            — estimated annual live births (used ÷12 for monthly denominator)
+- `dpt1`, `dpt2`, `dpt3`    — monthly DTP dose-1/2/3 counts (zero-dose proxy uses `dpt1`)
+- `tetanus`, `neonatal_tetanus`, `peri_neonatal_tetanus`, `diphtheria` — reported monthly case counts used to seed `init_prev`
 
 **Do not** commit secrets, lock files (`~$*.xlsx`), or proprietary survey
 microdata to this folder.
