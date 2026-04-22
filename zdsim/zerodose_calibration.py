@@ -13,7 +13,7 @@ from zdsim.zerodose_data import empirical_zerodose_proxy_dtp1
 class SimulationParameterBundle:
     """ Immutable set of inputs used to build one Starsim scenario. """
     seed: int
-    birth_rate: float
+    birth_rate: float  # crude CBR per 1000/yr, kept for reporting and back-compat
     death_rate: float
     household_contacts: int
     community_contacts: int
@@ -31,6 +31,9 @@ class SimulationParameterBundle:
     intervention_efficacy: float
     intervention_age_min: float
     intervention_age_max: float
+    intervention_booster_age_max: float = 0.0  # 0 disables boosters (default, realistic for low-coverage EPI)
+    intervention_booster_interval_years: float = 1.0
+    fertility_rate: float = 130.0  # births per 1000 women aged 15-49 per year (Kenya-like default)
     data_derived: dict = field(default_factory=dict)
 
     def as_log_dict(self):
@@ -106,10 +109,17 @@ def build_calibration_bundle(*, seed, df, population, empirical):
         cov     = 0.65
         emp_tag = False
 
+    # Convert CBR (births per 1000 total population) to ASFR proxy (births per
+    # 1000 women aged 15-49 per year). With an exp(-0.022*a) age pyramid,
+    # women aged 15-49 are ~22.9% of total population, so fertility_rate
+    # = birth_rate / 0.229 ~= birth_rate * 4.37.
+    fertility_rate = float(br * 4.37)
+
     return SimulationParameterBundle(
         seed                      = seed,
         birth_rate                = br,
         death_rate                = dr,
+        fertility_rate            = fertility_rate,
         household_contacts        = 5,
         community_contacts        = 15,
         diphtheria_beta           = 0.15,
@@ -121,11 +131,13 @@ def build_calibration_bundle(*, seed, df, population, empirical):
         pertussis_init_p          = init_p["pertussis_init_p"],
         hepatitis_b_init_p        = init_p["hepatitis_b_init_p"],
         hib_init_p                = init_p["hib_init_p"],
-        intervention_routine_prob = 0.03,
-        intervention_coverage     = cov,
-        intervention_efficacy     = 0.9,
-        intervention_age_min      = 0.0,
-        intervention_age_max      = 5.0,
+        intervention_routine_prob        = 0.03,
+        intervention_coverage            = cov,
+        intervention_efficacy            = 0.9,
+        intervention_age_min             = 0.0,
+        intervention_age_max             = 5.0,
+        intervention_booster_age_max     = 0.0,  # boosters disabled: primary series only
+        intervention_booster_interval_years = 1.0,
         data_derived = {
             "demographics": demo_meta,
             "intervention_coverage_from_mean_dtp1_proxy": emp_tag,
