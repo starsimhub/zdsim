@@ -1,0 +1,83 @@
+{
+  "schema_version": "1",
+  "created_at": "2026-04-22T05:42:56.515018+00:00",
+  "calibration_metadata": {
+    "data_file": "/Users/mine/git/zdsim/zdsim/data/zerodose_data_formated.xlsx",
+    "n_agents_calib": 10000,
+    "calib_years": 8,
+    "projection_start": 2025,
+    "seed": 42,
+    "scale_routine_factor": 2.3,
+    "scale_coverage_cap": 0.88,
+    "empirical_zerodose_proxy": 0.1647298685507964,
+    "calibrated_routine_prob": 0.03461538461538462,
+    "calibrated_model_zd": 0.15397350993377484,
+    "scale_up_routine_prob": 0.07961538461538462,
+    "scale_up_coverage": 0.8552701314492037
+  },
+  "empirical": {
+    "mean_zerodose_proxy": 0.1647298685507964,
+    "std_zerodose_proxy": 0.06431024802344402,
+    "mean_dtp1_coverage_proxy": 0.8352701314492037,
+    "n_months": 84,
+    "years_span": "2018-2024"
+  },
+  "reference_bundle": {
+    "seed": 42,
+    "birth_rate": 25.0,
+    "death_rate": 8.0,
+    "household_contacts": 5,
+    "community_contacts": 15,
+    "diphtheria_beta": 0.15,
+    "pertussis_beta": 0.25,
+    "hepatitis_b_beta": 0.08,
+    "hib_beta": 0.12,
+    "diphtheria_init_p": 0.01,
+    "tetanus_init_p": 0.001,
+    "pertussis_init_p": 0.02,
+    "hepatitis_b_init_p": 0.005,
+    "hib_init_p": 0.01,
+    "intervention_routine_prob": 0.03461538461538462,
+    "intervention_coverage": 0.8352701314492037,
+    "intervention_efficacy": 0.9,
+    "intervention_age_min": 0.0,
+    "intervention_age_max": 60.0,
+    "data_derived": {
+      "demographics": {
+        "population_used": null,
+        "mean_annual_live_births_estimated": 4954514.678571428,
+        "birth_rate_source": "default (set --population to calibrate birth_rate from estimated_lb)"
+      },
+      "intervention_coverage_from_mean_dtp1_proxy": true
+    }
+  },
+  "scale_up_bundle": {
+    "seed": 42,
+    "birth_rate": 25.0,
+    "death_rate": 8.0,
+    "household_contacts": 5,
+    "community_contacts": 15,
+    "diphtheria_beta": 0.15,
+    "pertussis_beta": 0.25,
+    "hepatitis_b_beta": 0.08,
+    "hib_beta": 0.12,
+    "diphtheria_init_p": 0.01,
+    "tetanus_init_p": 0.001,
+    "pertussis_init_p": 0.02,
+    "hepatitis_b_init_p": 0.005,
+    "hib_init_p": 0.01,
+    "intervention_routine_prob": 0.07961538461538462,
+    "intervention_coverage": 0.8552701314492037,
+    "intervention_efficacy": 0.9,
+    "intervention_age_min": 0.0,
+    "intervention_age_max": 60.0,
+    "data_derived": {
+      "demographics": {
+        "population_used": null,
+        "mean_annual_live_births_estimated": 4954514.678571428,
+        "birth_rate_source": "default (set --population to calibrate birth_rate from estimated_lb)"
+      },
+      "intervention_coverage_from_mean_dtp1_proxy": true
+    }
+  }
+}

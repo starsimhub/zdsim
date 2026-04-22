@@ -1,5 +1,8 @@
 """
 Disease modules for zero-dose vaccination simulation.
+
+Pentavalent (DTP-HepB-Hib) diseases modeled:
+  Diphtheria, Tetanus, Pertussis, HepatitisB, Hib
 """
 
 from .diphtheria import Diphtheria
@@ -7,7 +10,5 @@ from .tetanus import Tetanus
 from .pertussis import Pertussis
 from .hepatitis_b import HepatitisB
 from .hib import Hib
-from .influenza import Influenza
-from .tuberculosis import Tuberculosis
 
-__all__ = ['Diphtheria', 'Tetanus', 'Pertussis', 'HepatitisB', 'Hib', 'Influenza', 'Tuberculosis']
+__all__ = ['Diphtheria', 'Tetanus', 'Pertussis', 'HepatitisB', 'Hib']

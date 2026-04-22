@@ -31,6 +31,8 @@ from zdsim.zerodose_calibration import (
     empirical_summary_from_dataframe,
     with_intervention_delivery,
 )
+
+CALIBRATION_SCHEMA_VERSION = "1"
 from zdsim.zerodose_data import (
     default_formatted_xlsx_path,
     load_formatted_xlsx,
@@ -43,6 +45,10 @@ WHO_IMMUNIZATION_COVERAGE_FS = (
 
 # Cohort size for full projection (rounded up from 15k to align with presentation-style runs)
 DEFAULT_N_AGENTS = 20_000
+
+# Default calibration file: auto-used when present so re-runs skip the grid-search.
+# Override with --calibration-file or clear with --no-calibration-file.
+DEFAULT_CALIBRATION_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "calibration.json")
 
 
 def _new_disease_deaths_this_step(sim, ti: int) -> int:
@@ -145,12 +151,22 @@ def build_sim_from_bundle(
     """
     Construct a Sim using only ``bundle`` fields. Resets RNG to ``bundle.seed``
     immediately before building so each run matches the calibrated draw.
+
+    The initial population is restricted to children aged 0–5 years (uniform
+    distribution across single-year age groups 0–4) so the simulation focuses
+    on the pediatric cohort that is the target of the DTP/pentavalent programme.
+    Births continuously replenish the under-5 population; the zero-dose share
+    metric always measures the fraction of current under-5 agents unvaccinated.
     """
     np.random.seed(bundle.seed)
 
     sim_pars = dict(start=start, stop=stop, dt=1 / 52, verbose=0)
 
-    people = ss.People(n_agents=n_agents)
+    # Uniform under-5 age distribution: equal weight for each single-year group 0–4.
+    # ss.People uses this to sample initial ages; within each bin Starsim draws
+    # uniformly so agents start between 0 and 5 years.
+    under5_age_data = pd.DataFrame({"age": [0, 1, 2, 3, 4], "value": [1, 1, 1, 1, 1]})
+    people = ss.People(n_agents=n_agents, age_data=under5_age_data)
 
     b = bundle
     diseases = [
@@ -158,7 +174,7 @@ def build_sim_from_bundle(
             dict(beta=ss.peryear(b.diphtheria_beta), init_prev=ss.bernoulli(p=b.diphtheria_init_p))
         ),
         zds.Tetanus(
-            dict(beta=ss.peryear(b.tetanus_beta), init_prev=ss.bernoulli(p=b.tetanus_init_p))
+            dict(init_prev=ss.bernoulli(p=b.tetanus_init_p))
         ),
         zds.Pertussis(
             dict(beta=ss.peryear(b.pertussis_beta), init_prev=ss.bernoulli(p=b.pertussis_init_p))
@@ -210,7 +226,7 @@ def build_sim_from_bundle(
     )
 
 
-def _grid_search_reference_routine(
+def grid_search_reference_routine(
     empirical_zd: float,
     base_bundle: SimulationParameterBundle,
     *,
@@ -644,6 +660,85 @@ def _benefit_from_trajectories(rows_sq: list[dict], rows_sc: list[dict]) -> dict
     }
 
 
+def _population_scaled_projection(
+    *,
+    zd_reference: float,
+    zd_intervention: float,
+    benefit: dict,
+    death_benefit: dict,
+    tetanus_cases_averted: float,
+    n_agents: int,
+    birth_rate: float,
+) -> dict:
+    """
+    Scale modeled fractions to real-world child population counts.
+
+    Anchors are Kenya national figures from official sources (verified April 2026):
+      - Under-5 population:  7 200 000  (UN World Population Prospects 2024)
+      - Annual live births:  1 270 000  (WHO/UNICEF WUENIC 2024 revision)
+
+    Zero-dose share metrics scale exactly (fractions × real population).
+    Disease counts (deaths, tetanus cases) are scaled by the ratio of real
+    annual births to the model's implied annual births
+    (n_agents × birth_rate / 1000).  This produces estimates that are
+    order-of-magnitude correct; uncertainty from model stochasticity and
+    population heterogeneity should be communicated alongside these numbers.
+    """
+    # Official Kenya population anchors (2024)
+    KENYA_UNDER5 = 7_200_000
+    KENYA_ANNUAL_BIRTHS = 1_270_000
+    anchor_source = (
+        "UN World Population Prospects 2024; "
+        "WHO/UNICEF WUENIC 2024 revision (released July 2025)"
+    )
+
+    # Model implied annual births
+    model_annual_births = n_agents * (birth_rate / 1000.0)
+    count_scale = KENYA_ANNUAL_BIRTHS / model_annual_births if model_annual_births > 0 else 1.0
+
+    mean_pp = benefit.get("mean_annual_reduction_zerodose_share_pp", 0.0)
+    n_proj_years = len(benefit.get("projection_years", [])) or 1
+
+    total_deaths_averted = death_benefit.get("total_deaths_averted", 0.0)
+    mean_annual_averted = death_benefit.get("mean_annual_deaths_averted", 0.0)
+
+    return {
+        "anchor_label": "Kenya national (official sources, 2024)",
+        "anchor_under5_population": KENYA_UNDER5,
+        "anchor_annual_live_births": KENYA_ANNUAL_BIRTHS,
+        "anchor_source": anchor_source,
+        "count_scale_factor": round(count_scale, 1),
+        "count_scale_note": (
+            f"Disease counts scaled by real_annual_births / model_annual_births "
+            f"({KENYA_ANNUAL_BIRTHS:,} / {model_annual_births:,.0f}). "
+            "Zero-dose shares apply to any population without rescaling."
+        ),
+        # Zero-dose absolute counts (fractions × real under-5 population)
+        "zero_dose_children_reference_end": int(round(KENYA_UNDER5 * zd_reference)),
+        "zero_dose_children_intervention_end": int(round(KENYA_UNDER5 * zd_intervention)),
+        "zero_dose_children_reached_at_end": int(round(KENYA_UNDER5 * (zd_reference - zd_intervention))),
+        # Annual vaccination gain (fraction reduction × annual births)
+        "mean_annual_children_additionally_vaccinated": int(
+            round(KENYA_ANNUAL_BIRTHS * mean_pp / 100.0)
+        ),
+        # Cumulative child-years of zero-dose gap closed over projection window
+        "cumulative_child_years_zd_gap_closed": int(
+            round(KENYA_ANNUAL_BIRTHS * n_proj_years * mean_pp / 100.0)
+        ),
+        # Disease deaths scaled by count_scale
+        "total_disease_deaths_averted_scaled": int(round(total_deaths_averted * count_scale)),
+        "mean_annual_disease_deaths_averted_scaled": int(round(mean_annual_averted * count_scale)),
+        "tetanus_cases_averted_scaled": int(round(tetanus_cases_averted * count_scale)),
+        "interpretation": (
+            "Scaled estimates show the real-world order of magnitude for Kenya. "
+            "Zero-dose fractions are model outputs; absolute counts apply those fractions "
+            "to the Kenya under-5 population or annual birth cohort. "
+            "Disease death estimates carry additional uncertainty from model structure "
+            "and should be treated as illustrative, not as epidemiological projections."
+        ),
+    }
+
+
 def _save_projection_figure(
     rows_sq: list[dict],
     rows_sc: list[dict],
@@ -691,76 +786,130 @@ def run_demo(
     scale_coverage_cap: float,
     population: float | None,
     alignment_meta: dict | None = None,
+    calibration_file: str | None = None,
+    save_calibration: str | None = None,
 ):
     os.makedirs(out_dir, exist_ok=True)
 
     empirical: dict | None = None
-    empirical_zd = 0.165  # fallback when --no-data (order of magnitude of many LMICs)
+    empirical_zd = 0.165  # fallback when --no-data
     data_file_used = None
     df_data = None
 
-    if data_path is not None:
-        df_data = load_formatted_xlsx(data_path)
-        empirical = empirical_summary_from_dataframe(df_data)
-        empirical_zd = empirical["mean_zerodose_proxy"]
-        data_file_used = os.path.abspath(data_path)
-
     print("WHO reference:", WHO_IMMUNIZATION_COVERAGE_FS)
-    if empirical:
+
+    # ------------------------------------------------------------------
+    # Branch A: load pre-computed calibration from file
+    # ------------------------------------------------------------------
+    if calibration_file and os.path.isfile(calibration_file):
+        with open(calibration_file, encoding="utf-8") as _f:
+            _cal = json.load(_f)
+        reference_bundle = SimulationParameterBundle.from_dict(_cal["reference_bundle"])
+        scale_up_bundle  = SimulationParameterBundle.from_dict(_cal["scale_up_bundle"])
+        empirical        = _cal.get("empirical")
+        _meta            = _cal.get("calibration_metadata", {})
+        empirical_zd     = _meta.get("empirical_zerodose_proxy", 0.165)
+        reference_rp     = _meta.get("calibrated_routine_prob", reference_bundle.intervention_routine_prob)
+        calib_zd         = _meta.get("calibrated_model_zd", float("nan"))
+        calib_years      = _meta.get("calib_years", 8)
+        calib_agents     = _meta.get("n_agents_calib", 10_000)
+        data_file_used   = _meta.get("data_file")
+        print(f"Loaded calibration from {os.path.abspath(calibration_file)}")
+        print(f"  routine_prob={reference_rp:.6f}, model ZD={calib_zd:.1%}, target={empirical_zd:.1%}")
+        if empirical:
+            print(
+                f"  (original data: {data_file_used}, "
+                f"mean ZD proxy={empirical_zd:.1%} ±{empirical.get('std_zerodose_proxy',0):.1%})"
+            )
+        print()
+        # Load df_data for the admin timeseries plots if the data file is still reachable
+        _src = data_path or data_file_used
+        if _src and os.path.isfile(_src):
+            df_data = load_formatted_xlsx(_src)
+
+    # ------------------------------------------------------------------
+    # Branch B: run calibration from scratch
+    # ------------------------------------------------------------------
+    else:
+        if calibration_file:
+            print(f"Note: calibration file not found ({calibration_file}), running calibration.\n")
+
+        if data_path is not None:
+            df_data = load_formatted_xlsx(data_path)
+            empirical = empirical_summary_from_dataframe(df_data)
+            empirical_zd = empirical["mean_zerodose_proxy"]
+            data_file_used = os.path.abspath(data_path)
+            print(
+                f"Data ({data_file_used}): mean zero-dose proxy (DTP1) = "
+                f"{empirical_zd:.1%} (±{empirical['std_zerodose_proxy']:.1%} across months)"
+            )
+        print()
+
+        base_bundle = build_calibration_bundle(
+            seed=seed,
+            df=df_data,
+            population=population,
+            empirical=empirical,
+        )
+
+        calib_years  = min(8, stop - start)
+        calib_agents = min(10_000, n_agents)
+
         print(
-            f"Data ({data_file_used}): mean zero-dose proxy (DTP1) = "
-            f"{empirical_zd:.1%} (±{empirical['std_zerodose_proxy']:.1%} across months)"
+            f"Calibrating routine_prob to empirical target (short run ~{calib_years} y, "
+            f"{calib_agents} agents; coverage from data = {base_bundle.intervention_coverage:.4f})..."
         )
-    print()
-
-    # Same seed for both arms by default (common random numbers): only delivery parameters
-    # differ, so differences are due to policy—not two unrelated stochastic worlds.
-    intervention_seed = (
-        int(seed_intervention) if seed_intervention is not None else int(seed)
-    )
-
-    # Base parameters from data (or fallbacks) — rebuilt here so nothing is stale
-    base_bundle = build_calibration_bundle(
-        seed=seed,
-        df=df_data,
-        population=population,
-        empirical=empirical,
-    )
-
-    calib_years = min(8, stop - start)
-    calib_agents = min(10_000, n_agents)
-
-    print(
-        f"Calibrating routine_prob to empirical target (short run ~{calib_years} y, "
-        f"{calib_agents} agents; coverage from data = {base_bundle.intervention_coverage:.4f})..."
-    )
-    reference_rp, calib_zd = _grid_search_reference_routine(
-        empirical_zd,
-        base_bundle,
-        n_agents=calib_agents,
-        calib_years=calib_years,
-        start=start,
-    )
-    print(
-        f"  Grid best routine_prob={reference_rp:.6f} "
-        f"(short-run model ZD={calib_zd:.1%}, target={empirical_zd:.1%})\n"
-    )
-
-    reference_bundle = with_intervention_delivery(
-        base_bundle, routine_prob=reference_rp
-    )
-
-    # Intervention (scale-up): stronger program; coverage at least reference scenario, up to cap
-    scale_rp = min(0.12, reference_rp * scale_routine_factor)
-    scale_cov = float(
-        min(
-            scale_coverage_cap,
-            max(reference_bundle.intervention_coverage + 0.02, 0.85),
+        reference_rp, calib_zd = grid_search_reference_routine(
+            empirical_zd,
+            base_bundle,
+            n_agents=calib_agents,
+            calib_years=calib_years,
+            start=start,
         )
-    )
-    scale_up_bundle = with_intervention_delivery(
-        base_bundle, routine_prob=scale_rp, coverage=scale_cov
-    )
+        print(
+            f"  Grid best routine_prob={reference_rp:.6f} "
+            f"(short-run model ZD={calib_zd:.1%}, target={empirical_zd:.1%})\n"
+        )
+
+        reference_bundle = with_intervention_delivery(base_bundle, routine_prob=reference_rp)
+
+        scale_rp = min(0.12, reference_rp * scale_routine_factor)
+        scale_cov = float(
+            min(scale_coverage_cap, max(reference_bundle.intervention_coverage + 0.02, 0.85))
+        )
+        scale_up_bundle = with_intervention_delivery(
+            base_bundle, routine_prob=scale_rp, coverage=scale_cov
+        )
+
+        if save_calibration:
+            _cal_out = {
+                "schema_version": CALIBRATION_SCHEMA_VERSION,
+                "created_at": __import__("datetime").datetime.utcnow().isoformat() + "Z",
+                "calibration_metadata": {
+                    "data_file": data_file_used,
+                    "n_agents_calib": calib_agents,
+                    "calib_years": calib_years,
+                    "projection_start": start,
+                    "seed": seed,
+                    "scale_routine_factor": scale_routine_factor,
+                    "scale_coverage_cap": scale_coverage_cap,
+                    "empirical_zerodose_proxy": empirical_zd,
+                    "calibrated_routine_prob": reference_rp,
+                    "calibrated_model_zd": calib_zd,
+                    "scale_up_routine_prob": scale_rp,
+                    "scale_up_coverage": scale_cov,
+                },
+                "empirical": empirical,
+                "reference_bundle": reference_bundle.as_log_dict(),
+                "scale_up_bundle":  scale_up_bundle.as_log_dict(),
+            }
+            os.makedirs(os.path.dirname(os.path.abspath(save_calibration)) or ".", exist_ok=True)
+            with open(save_calibration, "w", encoding="utf-8") as _f:
+                json.dump(_cal_out, _f, indent=2)
+            print(f"Saved calibration to {save_calibration}\n")
+
+    # Apply intervention seed (may differ from calibration seed)
+    intervention_seed = int(seed_intervention) if seed_intervention is not None else int(seed)
     scale_up_bundle = replace(scale_up_bundle, seed=intervention_seed)
 
     print(
@@ -830,18 +979,40 @@ def run_demo(
         )
     print()
 
+    scaled = _population_scaled_projection(
+        zd_reference=zd_status,
+        zd_intervention=zd_scale,
+        benefit=benefit,
+        death_benefit=death_benefit,
+        tetanus_cases_averted=float(_ma.get("tetanus_cases_averted_total", 0)),
+        n_agents=n_agents,
+        birth_rate=reference_bundle.birth_rate,
+    )
+    print(
+        "Population-scaled projection (Kenya national, official anchors):\n"
+        f"  Zero-dose children in reference scenario (end):    {scaled['zero_dose_children_reference_end']:>10,}\n"
+        f"  Zero-dose children in intervention (end):         {scaled['zero_dose_children_intervention_end']:>10,}\n"
+        f"  Children reached (ZD gap at end of window):       {scaled['zero_dose_children_reached_at_end']:>10,}\n"
+        f"  Mean annual children additionally vaccinated:     {scaled['mean_annual_children_additionally_vaccinated']:>10,}\n"
+        f"  Cumulative child-years ZD gap closed ({stop-start} yr): {scaled['cumulative_child_years_zd_gap_closed']:>10,}\n"
+        f"  Disease deaths averted (scaled, {stop-start} yr total): {scaled['total_disease_deaths_averted_scaled']:>10,}\n"
+        f"  Mean annual disease deaths averted (scaled):      {scaled['mean_annual_disease_deaths_averted_scaled']:>10,}\n"
+        f"  Tetanus cases averted (scaled, {stop-start} yr total):  {scaled['tetanus_cases_averted_scaled']:>10,}\n"
+    )
+    print()
+
     summary = {
         "data_file": data_file_used,
         "population_assumption": population,
+        "calibration_source": os.path.abspath(calibration_file) if calibration_file and os.path.isfile(calibration_file) else "inline",
         "seed_reference": seed,
         "seed_intervention": intervention_seed,
         "empirical_zerodose_proxy_dtp1": empirical,
-        "calibration_base_bundle": base_bundle.as_log_dict(),
         "calibration_reference_bundle": reference_bundle.as_log_dict(),
         "calibration_scale_up_bundle": scale_up_bundle.as_log_dict(),
-        "model_reference_routine_prob": reference_rp,
-        "model_scale_up_routine_prob": scale_rp,
-        "model_scale_up_coverage": scale_cov,
+        "model_reference_routine_prob": reference_bundle.intervention_routine_prob,
+        "model_scale_up_routine_prob": scale_up_bundle.intervention_routine_prob,
+        "model_scale_up_coverage": scale_up_bundle.intervention_coverage,
         "zero_dose_fraction_under5_model_reference": zd_status,
         "zero_dose_fraction_under5_model_scale_up": zd_scale,
         "relative_reduction_percent_model": reduction,
@@ -864,6 +1035,7 @@ def run_demo(
         "calibration_short_run_years": calib_years,
         "calibration_short_run_agents": calib_agents,
         "research_question_tetanus": research_question_tetanus,
+        "population_scaled_projection": scaled,
     }
     if alignment_meta:
         summary["methodology_alignment"] = alignment_meta
@@ -1035,7 +1207,47 @@ def main(argv=None):
         action="store_true",
         help="Use calendar years 2024–2025 for projection (Rono et al. 2024 brief policy horizon).",
     )
+    p.add_argument(
+        "--calibration-file",
+        default=None,
+        metavar="PATH",
+        help=(
+            f"Path to a calibration JSON produced by calibrate.py. "
+            "When supplied (or when calibration.json exists in the repo root), "
+            "skips the grid-search and loads pre-computed bundles. "
+            "Falls back to inline calibration if the file is not found."
+        ),
+    )
+    p.add_argument(
+        "--no-calibration-file",
+        action="store_true",
+        help=(
+            "Force inline re-calibration even when calibration.json is present. "
+            "Use after changing the data file or calibration parameters."
+        ),
+    )
+    p.add_argument(
+        "--save-calibration",
+        default=None,
+        metavar="PATH",
+        help=(
+            "After running inline calibration, save the calibrated bundles to this JSON path "
+            "(e.g. calibration.json). Ignored when --calibration-file is used."
+        ),
+    )
     args = p.parse_args(argv)
+
+    # Auto-detect the default calibration file when --calibration-file is not given.
+    # Use --no-calibration-file to force a fresh grid-search even when the file exists.
+    calibration_file = args.calibration_file
+    if not args.no_calibration_file and calibration_file is None:
+        if os.path.isfile(DEFAULT_CALIBRATION_FILE):
+            calibration_file = DEFAULT_CALIBRATION_FILE
+            print(
+                f"Found {DEFAULT_CALIBRATION_FILE} — skipping grid-search calibration.\n"
+                "  To force re-calibration, run:  python run_simulation.py --no-calibration-file\n"
+                "  To regenerate the file, run:   python calibrate.py\n"
+            )
 
     data_path = None if args.no_data else args.data
     if data_path and not os.path.isfile(data_path):
@@ -1071,6 +1283,8 @@ def main(argv=None):
         scale_coverage_cap=args.scale_coverage_cap,
         population=args.population,
         alignment_meta=alignment_meta,
+        calibration_file=calibration_file,
+        save_calibration=args.save_calibration,
     )
     return 0
 

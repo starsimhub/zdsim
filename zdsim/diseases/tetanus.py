@@ -7,17 +7,25 @@ import numpy as np
 
 class Tetanus(ss.Infection):
     """
-    Tetanus disease module with age-specific segments.
-    
-    Tetanus is caused by Clostridium tetani bacteria and is not directly transmissible
-    between people. It occurs through wound contamination. The zero-dose vaccine (DTP)
-    provides protection against tetanus.
-    
-    Age-specific segments:
-    - Neonatal tetanus (0-28 days): High CFR, maternal vaccination protection
-    - Peri-neonatal tetanus (29-60 days): Moderate CFR
-    - Childhood tetanus (2 months-15 years): Lower CFR, vaccination protection
-    - Adult tetanus (15+ years): Variable CFR, occupational exposure
+    Tetanus disease module with age-specific wound-exposure segments.
+
+    Tetanus is caused by Clostridium tetani and is NOT person-to-person
+    transmissible (beta = 0).  Infection occurs through wound contamination;
+    each age group has a calibrated annual wound-exposure rate.
+
+    The simulation population is restricted to children 0–5 years at
+    initialisation (see build_sim_from_bundle).  The neonatal, peri-neonatal,
+    and childhood segments therefore dominate; the adult segment (15+ years) is
+    only reached by agents who age past 15 during a long projection window.
+
+    Age-specific segments
+    ---------------------
+    - Neonatal (0–28 days):        High CFR, maternal vaccination protection
+    - Peri-neonatal (29–60 days):  Moderate CFR
+    - Childhood (2 months–15 yr):  Lower CFR, vaccine-derived immunity
+    - Adult (15+ yr):              Kenya has achieved MNT elimination; the
+                                   adult wound rate is calibrated but rarely
+                                   reached in the pediatric projection window.
     """
     
     def __init__(self, pars=None, **kwargs):
@@ -94,8 +102,13 @@ class Tetanus(ss.Infection):
         # Get age in days for age-specific calculations
         age_days = sim.people.age * 365
         
-        # Check for new wound exposures by age group
-        susceptible = self.susceptible & ~self.vaccinated
+        # Check for new wound exposures by age group.
+        # Protection for vaccinated agents is handled via self.immunity inside
+        # _handle_age_specific_wounds, so we do not exclude them here. This
+        # preserves the SIS re-susceptibility behaviour: once vaccine-induced
+        # immunity wanes to zero (step_state sets susceptible=True, immunity=0),
+        # agents are fully exposed again — matching the document's waning=0.055.
+        susceptible = self.susceptible
         if len(susceptible):
             susceptible_uids = susceptible.uids
             age_days_susceptible = age_days[susceptible_uids]
@@ -127,11 +140,17 @@ class Tetanus(ss.Infection):
         return ss.uids()
     
     def _handle_age_specific_wounds(self, uids, age_group, ti):
-        """Handle wound exposure for specific age group"""
+        """Handle wound exposure for specific age group.
+
+        Uses per-agent Bernoulli draws (vectorized) rather than aggregate
+        np.random.choice so each simulation arm consumes the same number of
+        RNG calls regardless of how many events occur.  This keeps the numpy
+        RNG states comparable across reference and intervention runs.
+        """
         if len(uids) == 0:
             return
-        
-        # Get age-specific wound rate
+
+        # Get age-specific wound probability per timestep
         if age_group == 'neonatal':
             wound_rate = self.pars.neonatal_wound_rate.to_prob(self.sim.t.dt)
         elif age_group == 'peri_neonatal':
@@ -142,35 +161,31 @@ class Tetanus(ss.Infection):
             wound_rate = self.pars.adult_wound_rate.to_prob(self.sim.t.dt)
         else:
             wound_rate = self.pars.wound_rate.to_prob(self.sim.t.dt)
-        
-        # Calculate number of wounds
-        n_susceptible = len(uids)
-        n_wounds = int(n_susceptible * wound_rate)
-        
-        if n_wounds > 0:
-            np.random.seed(int(ti))  # Ensure reproducibility
-            selected_indices = np.random.choice(n_susceptible, size=n_wounds, replace=False)
-            wound_exposure = uids[selected_indices]
-            self.ti_wound[wound_exposure] = ti
-            
-            # Calculate tetanus risk based on immunity and age group
-            immunity_protection = self.immunity[wound_exposure]
-            
-            # Maternal vaccination protection for neonates
-            if age_group == 'neonatal':
-                maternal_protection = self.maternal_immunity[wound_exposure]
-                total_protection = np.maximum(immunity_protection, maternal_protection)
-            else:
-                total_protection = immunity_protection
-            
-            tetanus_risk = 1 - total_protection
-            
-            # Simple random selection for tetanus cases
-            n_tetanus = int(len(wound_exposure) * np.mean(tetanus_risk))
-            if n_tetanus > 0:
-                tetanus_indices = np.random.choice(len(wound_exposure), size=n_tetanus, replace=False)
-                tetanus_cases = wound_exposure[tetanus_indices]
-                self.set_prognoses(tetanus_cases, sources=-1, age_group=age_group)
+
+        # Per-agent wound draw: fixed-size RNG call (len(uids)) independent of outcome count
+        wound_mask = np.random.random(len(uids)) < wound_rate
+        if not np.any(wound_mask):
+            return
+        wound_exposure = uids[wound_mask]
+        self.ti_wound[wound_exposure] = ti
+
+        # Calculate tetanus risk based on per-agent immunity
+        immunity_protection = self.immunity[wound_exposure]
+
+        # Maternal vaccination protection for neonates
+        if age_group == 'neonatal':
+            maternal_protection = self.maternal_immunity[wound_exposure]
+            total_protection = np.maximum(immunity_protection, maternal_protection)
+        else:
+            total_protection = immunity_protection
+
+        tetanus_risk = 1 - total_protection
+
+        # Per-agent infection draw: preserves individual heterogeneity in immunity
+        tetanus_mask = np.random.random(len(wound_exposure)) < tetanus_risk
+        tetanus_cases = wound_exposure[tetanus_mask]
+        if len(tetanus_cases) > 0:
+            self.set_prognoses(tetanus_cases, sources=-1, age_group=age_group)
     
     def set_prognoses(self, uids, sources=None, age_group=None):
         """Set prognoses upon infection with age-specific segments"""
@@ -271,6 +286,9 @@ class Tetanus(ss.Infection):
                     self.immunity[susceptible_again] = 0.0
                     self.susceptible[susceptible_again] = True
                     self.recovered[susceptible_again] = False
+                    # Clear vaccinated flag so agents are fully re-exposed once
+                    # immunity is gone (completes the SIS cycle for waning).
+                    self.vaccinated[susceptible_again] = False
         
         # Trigger deaths
         deaths = (self.ti_dead <= ti).uids

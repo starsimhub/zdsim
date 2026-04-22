@@ -28,12 +28,11 @@ class SimulationParameterBundle:
     household_contacts: int
     community_contacts: int
     diphtheria_beta: float
-    tetanus_beta: float
     pertussis_beta: float
     hepatitis_b_beta: float
     hib_beta: float
     diphtheria_init_p: float
-    tetanus_init_p: float
+    tetanus_init_p: float  # initial prevalence seeded from reported monthly cases
     pertussis_init_p: float
     hepatitis_b_init_p: float
     hib_init_p: float
@@ -46,6 +45,13 @@ class SimulationParameterBundle:
 
     def as_log_dict(self) -> dict[str, Any]:
         return asdict(self)
+
+    @classmethod
+    def from_dict(cls, d: dict[str, Any]) -> "SimulationParameterBundle":
+        """Reconstruct a bundle from a plain dict (e.g. loaded from JSON)."""
+        import dataclasses
+        known = {f.name for f in dataclasses.fields(cls)}
+        return cls(**{k: v for k, v in d.items() if k in known})
 
 
 def _clip_cov(x: float) -> float:
@@ -141,7 +147,6 @@ def build_calibration_bundle(
         household_contacts=5,
         community_contacts=15,
         diphtheria_beta=0.15,
-        tetanus_beta=0.02,
         pertussis_beta=0.25,
         hepatitis_b_beta=0.08,
         hib_beta=0.12,
