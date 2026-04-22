@@ -394,7 +394,7 @@ def _methodology_paragraphs(summary, styles):
             _fmt_pct(scl_bundle.get("intervention_efficacy")),
         ],
         [
-            "Eligible ages (months)",
+            "Eligible ages (years)",
             f"{_fmt_num(ref_bundle.get('intervention_age_min'), 0)}"
             f"–{_fmt_num(ref_bundle.get('intervention_age_max'), 0)}",
             f"{_fmt_num(scl_bundle.get('intervention_age_min'), 0)}"

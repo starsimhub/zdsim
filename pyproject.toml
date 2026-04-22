@@ -1,8 +1,3 @@
 [tool.pytest.ini_options]
-# Starsim test style (3_tests.md) requires each test to `return` the most
-# interesting object so tests are usable as scripts. Suppress pytest's
-# nag about test functions returning non-None values.
-filterwarnings = [
-    "ignore::pytest.PytestReturnNotNoneWarning",
-]
 testpaths = ["tests"]
+filterwarnings = ["ignore::pytest.PytestReturnNotNoneWarning"]

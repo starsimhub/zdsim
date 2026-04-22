@@ -125,7 +125,7 @@ def build_calibration_bundle(*, seed, df, population, empirical):
         intervention_coverage     = cov,
         intervention_efficacy     = 0.9,
         intervention_age_min      = 0.0,
-        intervention_age_max      = 60.0,
+        intervention_age_max      = 5.0,
         data_derived = {
             "demographics": demo_meta,
             "intervention_coverage_from_mean_dtp1_proxy": emp_tag,

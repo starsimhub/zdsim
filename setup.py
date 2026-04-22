@@ -27,6 +27,7 @@ setup(
     platforms=["OS Independent"],
     packages=find_packages(),
     include_package_data=True,
+    package_data={"zdsim": ["data/zerodose_data_formated.xlsx"]},
     install_requires=[
         "numpy",
         "scipy",

@@ -15,8 +15,8 @@ class ZeroDoseVaccination(ss.Intervention):
             end_day      = 365 * 50,
             coverage     = 0.8,
             efficacy     = 0.9,
-            age_min      = 0,    # months
-            age_max      = 60,   # months
+            age_min      = 0.0,  # years
+            age_max      = 5.0,  # years
             year         = None,
             routine_prob = 0.1,
             # p_vx is the Bernoulli that decides whether each eligible child
@@ -61,9 +61,9 @@ class ZeroDoseVaccination(ss.Intervention):
         return
 
     def check_eligibility(self):
-        """ UIDs of unvaccinated agents whose age (in months) is in the eligible window. """
-        age_months   = self.sim.people.age * 12
-        age_eligible = (age_months >= self.pars.age_min) & (age_months <= self.pars.age_max)
+        """ UIDs of unvaccinated agents whose age (in years) is in the eligible window. """
+        age_years    = self.sim.people.age
+        age_eligible = (age_years >= self.pars.age_min) & (age_years <= self.pars.age_max)
         return (age_eligible & ~self.vaccinated).uids
 
     def step(self):
