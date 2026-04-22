@@ -10,7 +10,6 @@ Global context (WHO, not from this file):
 import argparse
 import json
 import os
-import shutil
 import sys
 from dataclasses import replace
 
@@ -1029,23 +1028,6 @@ def run_demo(*, n_agents, start, stop, seed, seed_intervention, out_dir, data_pa
         json.dump(summary, f, indent=2)
     print(f"Wrote {out_json}")
 
-    try:
-        web_data_dir = os.path.join(
-            os.path.dirname(os.path.abspath(__file__)), "web", "data"
-        )
-        os.makedirs(web_data_dir, exist_ok=True)
-        web_json = os.path.join(web_data_dir, "summary.json")
-        shutil.copyfile(out_json, web_json)
-        print(f"Copied summary for web viewer: {web_json}")
-        web_js = os.path.join(web_data_dir, "summary.js")
-        with open(web_js, "w", encoding="utf-8") as jf:
-            jf.write("window.ZDSIM_SUMMARY = ")
-            json.dump(summary, jf, indent=2, allow_nan=False)
-            jf.write(";\n")
-        print(f"Wrote embedded web data: {web_js}")
-    except OSError as exc:
-        print(f"Note: could not copy summary for web viewer: {exc}")
-
     fig, ax = plt.subplots(figsize=(7, 4))
     labels = [
         "Data\n(admin. proxy)",
@@ -1264,7 +1246,7 @@ def main(argv=None):
             "rono_2025_window": True,
             "calendar_start": proj_start,
             "calendar_stop": proj_stop,
-            "full_documentation": "Readme.md and web/index.html — Mapping the Rono et al. (2024) brief to zdsim",
+            "full_documentation": "Readme.md — Mapping the Rono et al. (2024) brief to zdsim",
         }
 
     run_demo(

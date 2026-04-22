@@ -1,5 +1,6 @@
 # Results files
 figs/
+outputs/
 
 # Calibration databases
 *.db
@@ -174,6 +175,3 @@ cython_debug/
 *.png
 # Excel lock files (never commit)
 ~$*.xlsx
-
-# Generated web data (copy from run_simulation.py)
-web/data/summary.json

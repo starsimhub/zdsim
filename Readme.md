@@ -48,7 +48,7 @@ Global and national reporting describes **zero-dose** children as those who have
 
 ## Mapping the Rono et al. (2024) brief to zdsim
 
-*Methods correspondence note for the repository. The same article appears in the web viewer (`web/index.html`). Update Readme and `index.html` together; `docs/zero_dose_project_alignment.md` points here only.*
+*Methods correspondence note for the repository. Update this section whenever you change `run_simulation.py` or any disease module.*
 
 **Source document.** Betsy Rono, Mambo Susan, Anne Njeri, Raphael Akangbe. Project **2-2A-7**, April 2024. PDF: `2-2A-7_Rono_Zero-dose-vaccination.pdf` (keep your copy locally; optional path `docs/references/`).
 
@@ -67,7 +67,7 @@ The brief situates zero-dose burden in KEPI/Gavi and WHO terms, poses the **teta
 | Brief | Implementation |
 |--------|----------------|
 | **Zero-dose (Gavi / KEPI):** no first DTP-containing dose (DTP1), per NVIP MoH 2023 | Modeled as **no pentavalent dose** in `ZeroDoseVaccination`; administrative **DTP1 proxy** from `zerodose_data_formated.xlsx` drives calibration. |
-| **IA2030** | Described in Readme and SPA mission text; not a separate module. |
+| **IA2030** | Described in this Readme; not a separate module. |
 | **Kenya, under-five focus** | Cohort is **under-fives** in the ABM; **national/county geography is not modeled** unless you add strata or spatial data. |
 | **DTP1 as operational ZD indicator (WHO)** | **Mean DTP1 coverage proxy** from monthly admin data → `intervention_coverage`; zero-dose proxy = 1 − coverage (see `zerodose_data.py`). |
 
@@ -180,21 +180,6 @@ open outputs/*.png
 ```
 
 Or open the `outputs` folder in your file browser. Figures are gitignored (see `.gitignore`); they appear after you run `python run_simulation.py`.
-
-### Web data export
-
-After each simulation run `run_simulation.py` also copies the summary to the `web/data/` drop-zone, so a separate SPA could consume it:
-
-- `web/data/summary.json` — exact copy of `outputs/zerodose_demo_summary.json`
-- `web/data/summary.js`   — the same payload assigned to `window.ZDSIM_SUMMARY`, for browsers that cannot fetch JSON from `file://` URLs
-
-There is currently **no bundled HTML viewer** in this repository — the data is exported for downstream consumption only. If you want to serve it locally with the stdlib:
-
-```bash
-python -m http.server 8765 --directory web
-```
-
-The GitHub Actions workflow `.github/workflows/deploy-pages.yml` deploys the `web/` folder to GitHub Pages whenever you push to `main` or `master`, so any SPA you add to `web/index.html` would be published automatically.
 
 ### Example results summary
 

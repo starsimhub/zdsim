@@ -143,8 +143,10 @@ def main(argv=None):
     print("\nSimulation step", flush=True)
     _run(sim_cmd)
 
+    summary_json = os.path.join(out_dir, "zerodose_demo_summary.json")
+
     print("\nDone.", flush=True)
-    print(f"Summary JSON: {os.path.join(out_dir, 'zerodose_demo_summary.json')}", flush=True)
+    print(f"Summary JSON: {summary_json}", flush=True)
     print(f"Plots folder:  {out_dir}", flush=True)
 
     if args.open_plots:
