@@ -1,7 +1,25 @@
-#!/usr/bin/env python3
-""" One-command workflow: auto-calibrate if needed, then run the simulation. """
+"""
+One-command wrapper for the zdsim project.
 
-import argparse
+What this does:
+
+1. If ``calibration.json`` is missing (or ``FRESH_CALIBRATION`` is True below),
+   runs ``calibrate.py`` to generate it.
+2. Runs ``run_simulation.py`` to produce outputs in ``outputs/``.
+
+How to configure:
+
+- Force a fresh calibration:  set ``FRESH_CALIBRATION = True`` below.
+- Change simulation horizon, agent count, seed, data file, etc.:
+      edit ``main()`` in ``run_simulation.py``.
+- Change calibration grid, short-run size, data file, etc.:
+      edit ``main()`` in ``calibrate.py``.
+
+Usage:
+
+    python research_workflow.py
+"""
+
 import os
 import subprocess
 import sys
@@ -11,136 +29,28 @@ ROOT             = os.path.dirname(os.path.abspath(__file__))
 PYTHON           = sys.executable
 CALIBRATE_SCRIPT = os.path.join(ROOT, "calibrate.py")
 RUN_SCRIPT       = os.path.join(ROOT, "run_simulation.py")
+CALIBRATION_FILE = os.path.join(ROOT, "calibration.json")
 
-DEFAULT_CALIBRATION = os.path.join(ROOT, "calibration.json")
-DEFAULT_OUTPUT      = os.path.join(ROOT, "outputs")
-
-
-def _run(cmd):
-    """ Run ``cmd`` and stream output; raise on non-zero exit. """
-    print("$ " + " ".join(cmd), flush=True)
-    subprocess.run(cmd, check=True, cwd=ROOT)
-    return
+FRESH_CALIBRATION = False
 
 
-def _ensure_calibration(calibration_file, fresh):
-    """ Generate ``calibration_file`` if missing or ``fresh`` is set. """
-    if fresh or not os.path.isfile(calibration_file):
-        reason = "requested" if fresh else "missing"
-        print(f"Calibration step ({reason}).", flush=True)
-        _run([PYTHON, CALIBRATE_SCRIPT, "--out", calibration_file])
-    else:
-        print(f"Using existing calibration: {calibration_file}.", flush=True)
-    return
-
-
-def main(argv=None):
-    p = argparse.ArgumentParser(
-        description=(
-            "Research-friendly runner: auto-calibrate if needed, then run simulation."
+def main():
+    """ Ensure calibration.json exists, then run the simulation. """
+    if FRESH_CALIBRATION or not os.path.isfile(CALIBRATION_FILE):
+        reason = "requested" if FRESH_CALIBRATION else "missing"
+        print(f"Calibration step ({reason}).")
+        subprocess.run(
+            [PYTHON, CALIBRATE_SCRIPT, "--out", CALIBRATION_FILE],
+            check=True,
+            cwd=ROOT,
         )
-    )
-    mode = p.add_mutually_exclusive_group()
-    mode.add_argument(
-        "--quick",
-        action="store_true",
-        help="Fast smoke run: 2025-2030, 5k agents",
-    )
-    mode.add_argument(
-        "--paper",
-        action="store_true",
-        help="Paper policy horizon: 2024-2025 window",
-    )
-    p.add_argument(
-        "--fresh-calibration",
-        action="store_true",
-        help="Force regeneration of calibration file before simulation",
-    )
-    p.add_argument(
-        "--calibration-file",
-        default=DEFAULT_CALIBRATION,
-        help=f"Calibration JSON path (default: {DEFAULT_CALIBRATION})",
-    )
-    p.add_argument(
-        "--n-agents",
-        type=int,
-        default=None,
-        help="Override population size for this run",
-    )
-    p.add_argument(
-        "--seed",
-        type=int,
-        default=None,
-        help="Override simulation seed for this run",
-    )
-    p.add_argument(
-        "--out",
-        default=DEFAULT_OUTPUT,
-        help=f"Output folder (default: {DEFAULT_OUTPUT})",
-    )
-    p.add_argument(
-        "--open-plots",
-        action="store_true",
-        help="Open generated PNG plots after run (macOS 'open')",
-    )
-    args = p.parse_args(argv)
+    else:
+        print(f"Using existing calibration: {CALIBRATION_FILE}")
 
-    calibration_file = os.path.abspath(args.calibration_file)
-    out_dir = os.path.abspath(args.out)
-
-    # Presets
-    start, stop, n_agents = 2025, 2055, 20_000
-    if args.quick:
-        start, stop, n_agents = 2025, 2030, 5_000
-    elif args.paper:
-        start, stop, n_agents = 2024, 2025, 20_000
-
-    if args.n_agents is not None:
-        n_agents = int(args.n_agents)
-
-    mode_label = "quick" if args.quick else "paper" if args.paper else "full"
-    print(
-        f"zdsim workflow: mode={mode_label}, window={start}-{stop}, agents={n_agents:,}.",
-        flush=True,
-    )
-    print(f"Calibration file: {calibration_file}", flush=True)
-    print(f"Outputs: {out_dir}", flush=True)
-
-    _ensure_calibration(calibration_file=calibration_file, fresh=args.fresh_calibration)
-
-    os.makedirs(out_dir, exist_ok=True)
-
-    sim_cmd = [
-        PYTHON,
-        RUN_SCRIPT,
-        "--calibration-file",
-        calibration_file,
-        "--start",
-        str(start),
-        "--stop",
-        str(stop),
-        "--n-agents",
-        str(n_agents),
-        "--out",
-        out_dir,
-    ]
-    if args.seed is not None:
-        sim_cmd.extend(["--seed", str(int(args.seed))])
-
-    print("Simulation step.", flush=True)
-    _run(sim_cmd)
-
-    summary_json = os.path.join(out_dir, "zerodose_demo_summary.json")
-
-    print(f"Done. Summary JSON: {summary_json}. Plots folder: {out_dir}.", flush=True)
-
-    if args.open_plots:
-        # Open the output folder (contains all generated PNGs and JSON).
-        subprocess.run(["open", out_dir], check=False, cwd=ROOT)
-
+    print("Simulation step.")
+    subprocess.run([PYTHON, RUN_SCRIPT], check=True, cwd=ROOT)
     return 0
 
 
 if __name__ == "__main__":
-    raise SystemExit(main())
-
+    sys.exit(main())
