@@ -1,9 +1,4 @@
-"""
-Disease modules for zero-dose vaccination simulation.
-
-Pentavalent (DTP-HepB-Hib) diseases modeled:
-  Diphtheria, Tetanus, Pertussis, HepatitisB, Hib
-"""
+""" Pentavalent disease modules: Diphtheria, Tetanus, Pertussis, HepatitisB, Hib. """
 
 from .diphtheria import Diphtheria
 from .tetanus import Tetanus

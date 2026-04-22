@@ -1,25 +1,11 @@
-"""
-Hepatitis B disease module.
-
-Implemented as a standard Starsim ``ss.Infection`` with person-to-person
-transmission driven by β. A fixed fraction ``p_chronic`` of new infections
-are flagged as chronic carriers and remain infected after the acute phase
-(i.e. they never transition to recovered or dead unless they die of another
-cause). The pentavalent vaccine provides protection via the
-``ZeroDoseVaccination`` intervention.
-"""
+""" Hepatitis B module: person-to-person SIR with chronic carrier fraction. """
 
 import numpy as np
 import starsim as ss
 
 
 class HepatitisB(ss.Infection):
-    """
-    Hepatitis B disease module.
-
-    Literature R0: 0.5–1.5 (Kenya). Target R0 ≈ 1.0 with duration ≈ 2.0 yr
-    ⇒ β = R0 / duration = 0.5 per year.
-    """
+    """ Hepatitis B (R0 ~ 1, β = 0.5/yr) with chronic carriers. """
 
     def __init__(self, pars=None, **kwargs):
         super().__init__()
@@ -46,7 +32,7 @@ class HepatitisB(ss.Infection):
         return
 
     def set_prognoses(self, uids, sources=None):
-        """ Set prognoses upon hepatitis B infection (uids: infected agents). """
+        """ Set prognoses on infection (flags chronic carriers). """
         super().set_prognoses(uids, sources)
         ti = self.t.ti
         self.susceptible[uids] = False
@@ -69,7 +55,7 @@ class HepatitisB(ss.Infection):
         return
 
     def step_state(self):
-        """ Acute recovery and scheduled deaths (chronic carriers stay infected). """
+        """ Acute recovery + scheduled deaths; chronic carriers stay infected. """
         sim = self.sim
         ti  = sim.ti
         acute_recovered = (self.infected & ~self.chronic & (self.ti_recovered <= ti)).uids
@@ -84,7 +70,7 @@ class HepatitisB(ss.Infection):
         return
 
     def step_die(self, uids):
-        """ Reset state flags for agents who die. """
+        """ Clear state flags on death. """
         self.susceptible[uids] = False
         self.infected[uids]    = False
         self.recovered[uids]   = False

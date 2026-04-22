@@ -1,11 +1,4 @@
-"""
-Smoke tests for the Zero-dose Vaccination ABM.
-
-Follows the Starsim test style guide (3_tests.md): dual-mode execution
-(pytest + standalone script), @sc.timer() decorators, module-level
-constants, conditional plotting, descriptive assertion messages, and
-scientific-correctness checks.
-"""
+""" Smoke tests for the zero-dose vaccination ABM. """
 
 import sciris as sc
 import numpy as np
@@ -21,17 +14,7 @@ sc.options(interactive=False)
 
 
 def make_sim(intervention=None, seed=1, years=5):
-    """
-    Helper to create a minimal zdsim simulation for unit tests.
-
-    Args:
-        intervention (ss.Intervention/None): zero-dose intervention, if any
-        seed         (int):                  RNG seed for reproducibility
-        years        (int):                  simulation duration in years
-
-    Returns:
-        sim (ss.Sim): un-run simulation ready to call ``.run()``.
-    """
+    """ Build a minimal zdsim Sim for unit tests. """
     diseases = [
         zds.Tetanus(),
         zds.Diphtheria(),
@@ -71,10 +54,7 @@ def test_sim_runs(do_plot=do_plot):
 
 @sc.timer()
 def test_vaccine_reduces_zero_dose(do_plot=do_plot):
-    """
-    Scientific correctness: adding the vaccination intervention must reduce
-    the share of vaccinated children compared to a no-intervention run.
-    """
+    """ Adding the intervention must vaccinate more children than the baseline. """
     sc.heading('Testing vaccination reduces zero-dose share...')
     sim_ref = make_sim(seed=1).run()
     vx      = zds.ZeroDoseVaccination(coverage=0.9, efficacy=0.9, routine_prob=0.5)
@@ -97,11 +77,7 @@ def test_vaccine_reduces_zero_dose(do_plot=do_plot):
 
 @sc.timer()
 def test_higher_coverage_vaccinates_more(do_plot=do_plot):
-    """
-    Scientific correctness: higher coverage produces more vaccinated
-    children. Vary ``coverage`` and check the result moves in the right
-    direction (generous tolerance for stochastic noise).
-    """
+    """ Higher coverage must vaccinate more children. """
     sc.heading('Testing higher coverage -> more vaccinations...')
     results = {}
     for cov in [0.2, 0.9]:

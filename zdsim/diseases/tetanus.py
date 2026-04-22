@@ -1,36 +1,4 @@
-"""
-Tetanus disease module with age-specific wound-exposure dynamics.
-
-Tetanus (*Clostridium tetani*) is **not** person-to-person transmissible;
-``beta`` is 0 and the Starsim network transmission step is effectively inert.
-Infection occurs through wound contamination, and each age group has its own
-calibrated annual wound-exposure rate.
-
-Four age-specific segments
---------------------------
-- **Neonatal** (0–28 days):  highest CFR (default 0.718).
-- **Peri-neonatal** (29–60 days): moderate CFR (default 0.521).
-- **Childhood** (2 months – 15 years): reduced CFR (default 0.480). Vaccine-
-  derived immunity from the ``ZeroDoseVaccination`` intervention protects
-  agents in this segment.
-- **Adult** (15+ years): adult CFR (default 0.327). Kenya has achieved
-  Maternal & Neonatal Tetanus elimination, so in the default pediatric
-  cohort this segment is rarely populated; retained for completeness.
-
-Waning / SIS cycle
-------------------
-Vaccine-induced (and recovery-induced) immunity wanes each step by a
-Bernoulli draw with probability ``waning.to_prob(dt)`` (default ``waning =
-0.055``/yr per Rono et al. 2024). On a waning event ``immunity`` is halved;
-if it falls below 0.1 it is reset to 0.0 and the agent re-enters the
-susceptible pool — completing the SIS cycle described in the brief.
-
-Port notes (Starsim 3.3.3)
---------------------------
-All stochastic draws use registered Starsim distributions
-(``ss.random()`` / ``ss.bernoulli``) so RNG is managed per-module by the
-framework (supports CRN, MultiSim, and reproducible seeding).
-"""
+""" Tetanus with age-specific wound exposure, waning immunity, and SIS cycle. """
 
 import numpy as np
 import starsim as ss
@@ -89,18 +57,8 @@ class Tetanus(ss.Infection):
         self.update_pars(pars, **kwargs)
         return
 
-    # ------------------------------------------------------------------
-    # Per-timestep dynamics
-    # ------------------------------------------------------------------
     def step(self):
-        """
-        Wound-exposure transmission with four age-specific segments.
-
-        Vaccinated agents are *not* excluded here: protection is applied via
-        per-agent ``immunity``. Once immunity wanes to zero (see
-        ``step_state``) the agent is fully re-exposed, completing the SIS
-        cycle described in the brief (waning = 0.055).
-        """
+        """ Wound-exposure transmission across four age segments. """
         sim = self.sim
         ti  = sim.ti
         age_days = sim.people.age * 365
@@ -124,14 +82,7 @@ class Tetanus(ss.Infection):
         return ss.uids()
 
     def _handle_age_specific_wounds(self, uids, age_group, ti):
-        """
-        Draw per-agent wound events and possible tetanus infections.
-
-        Args:
-            uids      (UIDs):   susceptible agents in this age segment
-            age_group (str):    'neonatal', 'peri_neonatal', 'childhood', or 'adult'
-            ti        (int):    current timestep index
-        """
+        """ Draw wound events and possible tetanus infections for one age segment. """
         if len(uids) == 0:
             return
         rate_par = {
@@ -163,7 +114,7 @@ class Tetanus(ss.Infection):
         return
 
     def set_prognoses(self, uids, sources=None, age_group=None):
-        """ Set prognoses upon tetanus infection (age-specific CFR). """
+        """ Set prognoses on tetanus infection using age-specific CFR. """
         super().set_prognoses(uids, sources)
         ti = self.t.ti
         self.susceptible[uids] = False
@@ -197,7 +148,7 @@ class Tetanus(ss.Infection):
         return
 
     def step_state(self):
-        """ Recovery, waning immunity, and scheduled deaths. """
+        """ Recover, wane immunity (SIS), and kill as scheduled. """
         sim = self.sim
         ti  = sim.ti
 
@@ -233,7 +184,7 @@ class Tetanus(ss.Infection):
         return
 
     def step_die(self, uids):
-        """ Reset state flags for agents who die. """
+        """ Clear state flags on death. """
         self.susceptible[uids] = False
         self.infected[uids]    = False
         self.recovered[uids]   = False

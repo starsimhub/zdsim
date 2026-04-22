@@ -1,25 +1,4 @@
-"""
-PDF report generator for zdsim.
-
-Produces a ``zdsim_report.pdf`` in the simulation output directory that mirrors
-the structure of the Rono et al. (2024) project brief
-(``docs/Zero-Dose Vaccination ABM Report.pdf``):
-
-    1. Title
-    2. Abstract (Introduction / Methodology / Results / Conclusion / Keywords)
-    3. Introduction (Statement of problem, Objectives, Research question)
-    4. Methodology (data sources, calibration, model structure)
-    5. Results (text + embedded figures)
-    6. Discussion
-    7. Conclusion
-    8. References
-
-The generator consumes:
-  - ``summary`` dict (as written to ``zerodose_demo_summary.json``)
-  - figure PNG paths from the same output directory
-
-It depends on ``reportlab`` (pure-Python, pip-installable).
-"""
+""" PDF report generator for zdsim (reportlab). """
 
 import json
 import os
@@ -78,12 +57,8 @@ FIGURE_MANIFEST = [
 ]
 
 
-# ---------------------------------------------------------------------------
-# Style helpers
-# ---------------------------------------------------------------------------
-
 def _build_styles():
-    """ Build the paragraph / section / caption styles used throughout the report. """
+    """ Paragraph / section / caption styles for the report. """
     base = getSampleStyleSheet()
     styles = {
         "Title": ParagraphStyle(
@@ -159,19 +134,15 @@ def _build_styles():
     return styles
 
 
-# ---------------------------------------------------------------------------
-# Content helpers
-# ---------------------------------------------------------------------------
-
 def _fmt_pct(x):
-    """ Format a fraction as a percent string, or 'n/a' for None. """
+    """ Fraction as a percent string, or 'n/a' for None. """
     if x is None:
         return "n/a"
     return f"{100 * float(x):.1f}%"
 
 
 def _fmt_int(x):
-    """ Format a value as a thousands-grouped integer, or 'n/a' for None. """
+    """ Thousands-grouped integer, or 'n/a' for None. """
     if x is None:
         return "n/a"
     try:
@@ -181,7 +152,7 @@ def _fmt_int(x):
 
 
 def _fmt_num(x, nd=2):
-    """ Format a number with ``nd`` decimals and thousands grouping. """
+    """ Number with ``nd`` decimals and thousands grouping. """
     if x is None:
         return "n/a"
     try:
@@ -191,7 +162,7 @@ def _fmt_num(x, nd=2):
 
 
 def _safe_get(d, *path, default=None):
-    """ Walk nested dict keys ``*path`` returning ``default`` when missing. """
+    """ Walk nested dict keys; return ``default`` when missing. """
     cur = d
     for key in path:
         if not isinstance(cur, dict) or key not in cur:
@@ -670,23 +641,8 @@ def _references_paragraphs(styles):
     return [Paragraph(r, styles["Reference"]) for r in refs]
 
 
-# ---------------------------------------------------------------------------
-# Main entry point
-# ---------------------------------------------------------------------------
-
 def generate_report_pdf(summary, out_dir, *, pdf_name="zdsim_report.pdf"):
-    """
-    Build the PDF report and return its path.
-
-    Args:
-        summary  (dict): the dict written to ``zerodose_demo_summary.json``
-        out_dir  (str):  directory where that JSON and the PNG figures live;
-                         the PDF is written to the same directory
-        pdf_name (str):  filename for the generated PDF
-
-    Returns:
-        pdf_path (str): absolute path of the written PDF
-    """
+    """ Build the PDF report in ``out_dir`` and return its path. """
     os.makedirs(out_dir, exist_ok=True)
     pdf_path = os.path.join(out_dir, pdf_name)
     styles = _build_styles()
@@ -782,7 +738,7 @@ def generate_report_pdf(summary, out_dir, *, pdf_name="zdsim_report.pdf"):
 
 
 def _footer(canvas, doc):
-    """ Draw page-number and project footer on each page. """
+    """ Page-number and project footer drawn on every page. """
     canvas.saveState()
     canvas.setFont("Helvetica", 8)
     canvas.setFillColor(colors.HexColor("#888888"))
@@ -800,7 +756,7 @@ def _footer(canvas, doc):
 
 
 def generate_report_from_summary_path(summary_path, pdf_name="zdsim_report.pdf"):
-    """ Read ``summary_path`` JSON and write the PDF report next to it. """
+    """ Read ``summary_path`` JSON and write the PDF next to it. """
     with open(summary_path, "r", encoding="utf-8") as f:
         summary = json.load(f)
     out_dir = os.path.dirname(os.path.abspath(summary_path))

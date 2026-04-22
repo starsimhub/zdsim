@@ -1,21 +1,10 @@
-"""
-Haemophilus influenzae type b (Hib) disease module.
-
-Implemented as a standard Starsim ``ss.Infection`` with person-to-person
-transmission driven by β.  The pentavalent vaccine provides protection;
-zero-dose children are unprotected.
-"""
+""" Haemophilus influenzae type b (Hib) module: person-to-person SIR. """
 
 import starsim as ss
 
 
 class Hib(ss.Infection):
-    """
-    Hib disease module.
-
-    Literature R0: 1.0–2.5 (Kenya). Target R0 ≈ 1.75 with duration ≈ 0.1 yr
-    ⇒ β = R0 / duration = 17.5 per year.
-    """
+    """ Hib (R0 ~ 1.75, β = 17.5/yr) with meningitis comorbidity. """
 
     def __init__(self, pars=None, **kwargs):
         super().__init__()
@@ -41,7 +30,7 @@ class Hib(ss.Infection):
         return
 
     def set_prognoses(self, uids, sources=None):
-        """ Set prognoses upon Hib infection (uids: infected agents). """
+        """ Set prognoses on infection. """
         super().set_prognoses(uids, sources)
         ti = self.t.ti
         self.susceptible[uids] = False
@@ -60,7 +49,7 @@ class Hib(ss.Infection):
         return
 
     def step_state(self):
-        """ Recovery and scheduled deaths. """
+        """ Recover and kill as scheduled. """
         sim = self.sim
         ti  = sim.ti
         recovered = (self.infected & (self.ti_recovered <= ti)).uids
@@ -75,7 +64,7 @@ class Hib(ss.Infection):
         return
 
     def step_die(self, uids):
-        """ Reset state flags for agents who die. """
+        """ Clear state flags on death. """
         self.susceptible[uids] = False
         self.infected[uids]    = False
         self.recovered[uids]   = False

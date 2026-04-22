@@ -1,25 +1,11 @@
-"""
-Pertussis (Whooping Cough) disease module.
-
-Implemented as a standard Starsim ``ss.Infection`` with person-to-person
-transmission driven by β, plus exponential waning of vaccine/natural
-immunity.  The pentavalent vaccine provides protection; zero-dose
-children are unprotected.
-"""
+""" Pertussis module: person-to-person SIRS with exponential immunity waning. """
 
 import numpy as np
 import starsim as ss
 
 
 class Pertussis(ss.Infection):
-    """
-    Pertussis disease module with exponential waning of vaccine/natural immunity.
-
-    Literature R0: 5.5–17.5 (Kenya, highly transmissible). Target R0 ≈ 11.5
-    with duration ≈ 0.25 yr ⇒ β = R0 / duration = 46.0 per year. Acquired
-    immunity wanes at ``waning_immunity`` per year (default 0.1/yr), reducing
-    ``rel_sus`` back toward 1 over time so reinfection is possible.
-    """
+    """ Pertussis (R0 ~ 11.5, β = 46/yr) with exponential waning. """
 
     def __init__(self, pars=None, **kwargs):
         super().__init__()
@@ -44,7 +30,7 @@ class Pertussis(ss.Infection):
         return
 
     def set_prognoses(self, uids, sources=None):
-        """ Set prognoses upon pertussis infection (uids: infected agents). """
+        """ Set prognoses on infection. """
         super().set_prognoses(uids, sources)
         ti = self.t.ti
         self.susceptible[uids] = False
@@ -62,7 +48,7 @@ class Pertussis(ss.Infection):
         return
 
     def step_state(self):
-        """ Recovery, exponential waning of immunity, and scheduled deaths. """
+        """ Recover, wane immunity, and kill as scheduled. """
         sim = self.sim
         ti  = sim.ti
         recovered = (self.infected & (self.ti_recovered <= ti)).uids
@@ -79,7 +65,7 @@ class Pertussis(ss.Infection):
         return
 
     def _wane_immunity(self):
-        """ Exponential waning of immunity; rel_sus follows 1 - immunity. """
+        """ Exponentially wane ``immunity`` and update ``rel_sus``. """
         waning_rate  = self.pars.waning_immunity.to_prob(self.sim.t.dt)
         has_immunity = (self.immunity > 0).uids
         if len(has_immunity):
@@ -88,7 +74,7 @@ class Pertussis(ss.Infection):
         return
 
     def step_die(self, uids):
-        """ Reset state flags for agents who die. """
+        """ Clear state flags on death. """
         self.susceptible[uids] = False
         self.infected[uids]    = False
         self.recovered[uids]   = False

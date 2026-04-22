@@ -1,9 +1,4 @@
-"""
-Calibrate zero-dose simulation parameters from administrative data (xlsx).
-
-Parameter bundles are built immediately before each :class:`starsim.Sim` is
-constructed so values match the latest data read and calibration step.
-"""
+""" Calibrate zero-dose simulation parameters from administrative data. """
 
 import dataclasses
 from dataclasses import asdict, dataclass, field, replace
@@ -16,13 +11,7 @@ from zdsim.zerodose_data import empirical_zerodose_proxy_dtp1
 
 @dataclass(frozen=True)
 class SimulationParameterBundle:
-    """
-    Complete inputs for one Starsim scenario (one line per field used in build).
-
-    Note: dataclass field annotations are required by @dataclass; they are *not*
-    Python type hints in the general sense (Starsim style §2.21 forbids hints on
-    function signatures, not on dataclass fields).
-    """
+    """ Immutable set of inputs used to build one Starsim scenario. """
     seed: int
     birth_rate: float
     death_rate: float
@@ -50,15 +39,7 @@ class SimulationParameterBundle:
 
     @classmethod
     def from_dict(cls, d):
-        """
-        Reconstruct a bundle from a plain dict (e.g. loaded from JSON).
-
-        Args:
-            d (dict): mapping of field name → value. Extra keys are dropped.
-
-        Returns:
-            bundle (SimulationParameterBundle)
-        """
+        """ Rebuild a bundle from ``d``; extra keys are ignored. """
         known = {f.name for f in dataclasses.fields(cls)}
         return cls(**{k: v for k, v in d.items() if k in known})
 
@@ -69,20 +50,7 @@ def _clip_cov(x):
 
 
 def demographics_from_live_births(df, *, population, default_birth_rate=25.0, default_death_rate=8.0):
-    """
-    Crude birth/death rates (per 1000 per year) for Starsim demographics.
-
-    Args:
-        df                 (DataFrame/None):  monthly administrative data, or None for fallback
-        population         (float/None):      total population used to back-calculate birth_rate
-        default_birth_rate (float):           fallback CBR (per 1000) when no data
-        default_death_rate (float):           fallback CDR (per 1000) when no data
-
-    Returns:
-        birth_rate (float), death_rate (float), meta (dict)
-
-    If ``population`` is given, birth_rate ≈ 1000 * mean(annual live births) / population.
-    """
+    """ Return (birth_rate, death_rate, meta) per 1000/yr, from data if available. """
     meta = {"population_used": population}
     if df is None or "estimated_lb" not in df.columns:
         meta["birth_rate_source"] = "default"
@@ -103,17 +71,7 @@ def demographics_from_live_births(df, *, population, default_birth_rate=25.0, de
 
 
 def disease_init_from_reported_cases(df, *, reference_population):
-    """
-    Scale initial Bernoulli prevalence from mean monthly cases if population is known.
-
-    Args:
-        df                   (DataFrame/None):  monthly administrative data, or None for defaults
-        reference_population (float/None):      denominator for per-capita scaling
-
-    Returns:
-        init_p (dict): per-disease ``init_prev`` probabilities keyed by
-                       ``<disease>_init_p``.
-    """
+    """ Per-disease initial Bernoulli prevalences, scaled from data when available. """
     defaults = {
         "diphtheria_init_p":  0.01,
         "tetanus_init_p":     0.001,
@@ -137,21 +95,7 @@ def disease_init_from_reported_cases(df, *, reference_population):
 
 
 def build_calibration_bundle(*, seed, df, population, empirical):
-    """
-    Build a base bundle: demographics + disease inits + data-derived intervention coverage.
-
-    Args:
-        seed       (int):            RNG seed stored in the bundle
-        df         (DataFrame/None): monthly administrative data (or None)
-        population (float/None):     total population for per-capita scaling
-        empirical  (dict/None):      summary from ``empirical_zerodose_proxy_dtp1``
-
-    Returns:
-        bundle (SimulationParameterBundle)
-
-    ``intervention_routine_prob`` is set to a neutral mid-range; grid search
-    overwrites it for the reference arm before the main run.
-    """
+    """ Build a base bundle with demographics, disease inits, and data-derived coverage. """
     br, dr, demo_meta = demographics_from_live_births(df, population=population)
     init_p            = disease_init_from_reported_cases(df, reference_population=population)
 
@@ -190,17 +134,7 @@ def build_calibration_bundle(*, seed, df, population, empirical):
 
 
 def with_intervention_delivery(base, *, routine_prob, coverage=None):
-    """
-    Copy bundle with updated intervention delivery parameters (immutable).
-
-    Args:
-        base         (SimulationParameterBundle): the bundle to copy
-        routine_prob (float):                     new per-step routine delivery probability
-        coverage     (float/None):                new coverage (None keeps the existing value)
-
-    Returns:
-        bundle (SimulationParameterBundle)
-    """
+    """ Return a copy of ``base`` with updated routine_prob and (optionally) coverage. """
     cov = base.intervention_coverage if coverage is None else coverage
     return replace(
         base,
@@ -210,7 +144,7 @@ def with_intervention_delivery(base, *, routine_prob, coverage=None):
 
 
 def empirical_summary_from_dataframe(df):
-    """ Wrap ``empirical_zerodose_proxy_dtp1`` so runners need not import data code. """
+    """ Return the empirical zero-dose summary, or None if ``df`` is None. """
     if df is None:
         return None
     return empirical_zerodose_proxy_dtp1(df)

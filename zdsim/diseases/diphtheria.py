@@ -1,22 +1,10 @@
-"""
-Diphtheria disease module for zero-dose vaccination simulation.
-
-Implemented as a standard Starsim ``ss.Infection`` with person-to-person
-transmission driven by β.  Zero-dose children are unprotected (the
-``ZeroDoseVaccination`` intervention sets ``immunity`` and reduces
-``rel_sus`` for vaccinated agents).
-"""
+""" Diphtheria module: person-to-person SIR with vaccine-modulated susceptibility. """
 
 import starsim as ss
 
 
 class Diphtheria(ss.Infection):
-    """
-    Diphtheria disease module.
-
-    Literature R0: 1.7–4.3 (Kenya). Target R0 ≈ 3.0 with duration ≈ 0.5 yr
-    ⇒ β = R0 / duration = 6.0 per year.
-    """
+    """ Diphtheria (R0 ~ 3, duration ~ 0.5 yr, β = 6/yr). """
 
     def __init__(self, pars=None, **kwargs):
         super().__init__()
@@ -40,7 +28,7 @@ class Diphtheria(ss.Infection):
         return
 
     def set_prognoses(self, uids, sources=None):
-        """ Set prognoses upon diphtheria infection (uids: infected agents). """
+        """ Set prognoses on infection. """
         super().set_prognoses(uids, sources)
         ti = self.t.ti
         self.susceptible[uids] = False
@@ -58,7 +46,7 @@ class Diphtheria(ss.Infection):
         return
 
     def step_state(self):
-        """ Recovery and scheduled deaths. """
+        """ Recover and kill as scheduled. """
         sim = self.sim
         ti  = sim.ti
         recovered = (self.infected & (self.ti_recovered <= ti)).uids
@@ -73,7 +61,7 @@ class Diphtheria(ss.Infection):
         return
 
     def step_die(self, uids):
-        """ Reset state flags for agents who die. """
+        """ Clear state flags on death. """
         self.susceptible[uids] = False
         self.infected[uids]    = False
         self.recovered[uids]   = False

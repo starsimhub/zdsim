@@ -1,19 +1,5 @@
 #!/usr/bin/env python3
-"""
-One-command workflow for researchers.
-
-This helper makes the project easy to run without remembering many flags:
-
-    python research_workflow.py            # full (2025-2055), auto-calibration
-    python research_workflow.py --quick    # quick check (2025-2030, 5k agents)
-    python research_workflow.py --paper    # paper horizon (2024-2025)
-    python research_workflow.py --fresh-calibration
-
-Behavior:
-1) Ensures a calibration JSON exists (or regenerates it if requested).
-2) Runs run_simulation.py using that calibration file.
-3) Optionally opens output plots.
-"""
+""" One-command workflow: auto-calibrate if needed, then run the simulation. """
 
 import argparse
 import os
@@ -31,20 +17,20 @@ DEFAULT_OUTPUT      = os.path.join(ROOT, "outputs")
 
 
 def _run(cmd):
-    """ Run command and stream output; raise on failure. """
-    print("$", " ".join(cmd), flush=True)
+    """ Run ``cmd`` and stream output; raise on non-zero exit. """
+    print("$ " + " ".join(cmd), flush=True)
     subprocess.run(cmd, check=True, cwd=ROOT)
     return
 
 
 def _ensure_calibration(calibration_file, fresh):
-    """ Generate the calibration file if missing or ``fresh`` is requested. """
+    """ Generate ``calibration_file`` if missing or ``fresh`` is set. """
     if fresh or not os.path.isfile(calibration_file):
         reason = "requested" if fresh else "missing"
-        print(f"\nCalibration step ({reason})", flush=True)
+        print(f"Calibration step ({reason}).", flush=True)
         _run([PYTHON, CALIBRATE_SCRIPT, "--out", calibration_file])
     else:
-        print(f"\nUsing existing calibration: {calibration_file}", flush=True)
+        print(f"Using existing calibration: {calibration_file}.", flush=True)
     return
 
 
@@ -112,10 +98,11 @@ def main(argv=None):
     if args.n_agents is not None:
         n_agents = int(args.n_agents)
 
-    print("=== zdsim researcher workflow ===", flush=True)
-    print(f"Mode: {'quick' if args.quick else 'paper' if args.paper else 'full'}", flush=True)
-    print(f"Window: {start}-{stop}", flush=True)
-    print(f"Agents: {n_agents:,}", flush=True)
+    mode_label = "quick" if args.quick else "paper" if args.paper else "full"
+    print(
+        f"zdsim workflow: mode={mode_label}, window={start}-{stop}, agents={n_agents:,}.",
+        flush=True,
+    )
     print(f"Calibration file: {calibration_file}", flush=True)
     print(f"Outputs: {out_dir}", flush=True)
 
@@ -140,14 +127,12 @@ def main(argv=None):
     if args.seed is not None:
         sim_cmd.extend(["--seed", str(int(args.seed))])
 
-    print("\nSimulation step", flush=True)
+    print("Simulation step.", flush=True)
     _run(sim_cmd)
 
     summary_json = os.path.join(out_dir, "zerodose_demo_summary.json")
 
-    print("\nDone.", flush=True)
-    print(f"Summary JSON: {summary_json}", flush=True)
-    print(f"Plots folder:  {out_dir}", flush=True)
+    print(f"Done. Summary JSON: {summary_json}. Plots folder: {out_dir}.", flush=True)
 
     if args.open_plots:
         # Open the output folder (contains all generated PNGs and JSON).

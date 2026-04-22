@@ -1,9 +1,4 @@
-"""
-Load regional administrative immunization extracts bundled with zdsim.
-
-Note: Microsoft Excel creates temporary lock files named ``~$*.xlsx`` while a
-workbook is open. Those are not data files — use ``zerodose_data_formated.xlsx``.
-"""
+""" Load the bundled administrative immunization workbook. """
 
 import os
 
@@ -18,15 +13,7 @@ def default_formatted_xlsx_path():
 
 
 def load_formatted_xlsx(path=None):
-    """
-    Load the monthly Sheet1 table (vaccine doses, births, cases, etc.).
-
-    Args:
-        path (str/None): xlsx path; uses the bundled default if None.
-
-    Returns:
-        df (DataFrame): parsed Sheet1 rows.
-    """
+    """ Load Sheet1 of the monthly workbook; uses the bundled default if ``path`` is None. """
     path = path or default_formatted_xlsx_path()
     if not os.path.isfile(path):
         raise FileNotFoundError(
@@ -38,26 +25,7 @@ def load_formatted_xlsx(path=None):
 
 
 def empirical_zerodose_proxy_dtp1(df):
-    """
-    Administrative proxy for the share of infants with **no DTP1** (zero-dose for
-    DTP-containing vaccine), aligned with WHO/WUENIC *first-dose* monitoring.
-
-    For each month, approximate first-dose coverage as
-    ``min(1, dpt1 / monthly_live_births)``, with
-    ``monthly_live_births = estimated_lb / 12`` when ``estimated_lb`` is
-    interpreted as annual live births in the sheet (constant or slow-varying).
-
-    Zero-dose proxy = ``1 - coverage_proxy`` (clipped to [0, 1]).
-
-    Args:
-        df (DataFrame): monthly administrative data, must contain ``dpt1`` and ``estimated_lb``.
-
-    Returns:
-        summary (dict): mean/std zero-dose proxy, mean coverage, ``n_months`` and ``years_span``.
-
-    This is a **proxy from reported counts**, not individual-level survey
-    coverage; interpret alongside official WUENIC/GHO estimates when publishing.
-    """
+    """ Mean DTP1 zero-dose proxy (1 - dpt1/monthly_births) across all rows. """
     need    = {"dpt1", "estimated_lb"}
     missing = need - set(df.columns)
     if missing:
@@ -81,19 +49,7 @@ def empirical_zerodose_proxy_dtp1(df):
 
 
 def monthly_dtp1_coverage_and_zerodose(df):
-    """
-    Per-row DTP1 coverage proxy and zero-dose proxy.
-
-    Same definitions as :func:`empirical_zerodose_proxy_dtp1`, plus a simple
-    ``period`` label for plotting.
-
-    Args:
-        df (DataFrame): monthly administrative data.
-
-    Returns:
-        out (DataFrame): input columns plus ``dtp1_coverage_proxy``,
-        ``zerodose_proxy``, and ``period``.
-    """
+    """ Per-row DTP1 coverage proxy, zero-dose proxy, and ``period`` label for plotting. """
     need    = {"dpt1", "estimated_lb"}
     missing = need - set(df.columns)
     if missing:

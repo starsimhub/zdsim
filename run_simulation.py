@@ -1,11 +1,5 @@
 #!/usr/bin/env python3
-"""
-Demonstrate how scaling up pentavalent-style vaccination reduces zero-dose
-children, with empirical context from ``zerodose_data_formated.xlsx``.
-
-Global context (WHO, not from this file):
-  https://www.who.int/news-room/fact-sheets/detail/immunization-coverage
-"""
+""" Run the zero-dose reference vs scale-up scenarios and write outputs. """
 
 import argparse
 import json
@@ -68,17 +62,7 @@ KENYA_ANCHOR_SOURCE = (
 
 
 def _new_disease_deaths_this_step(sim, ti):
-    """
-    Count infection-module deaths that occur on this timestep index.
-
-    Args:
-        sim (ss.Sim): running simulation
-        ti  (int):    timestep index; counts deaths with ti_dead in (ti-1, ti]
-
-    Returns:
-        total (int): number of disease-module deaths this step. Excludes
-        demographic background mortality from ``ss.Deaths``.
-    """
+    """ Count infection-module deaths on timestep ``ti`` (excludes background mortality). """
     prev = -np.inf if ti <= 0 else float(ti - 1)
     total = 0
     for dis in sim.diseases.values():
@@ -97,10 +81,7 @@ def _new_disease_deaths_this_step(sim, ti):
 
 
 class YearlyZeroDoseRecorder(ss.Analyzer):
-    """
-    At each calendar year boundary (weekly dt), record zero-dose share among
-    under-fives and approximate counts for projection / benefit summaries.
-    """
+    """ Record zero-dose share and disease deaths once per calendar year. """
 
     def __init__(self):
         super().__init__(name="zerodose_yearly")
@@ -143,7 +124,7 @@ def _child_uids(people, age_max_months=60.0):
 
 
 def zerodose_fraction_under5(sim):
-    """Share of under-fives with no modeled pentavalent dose."""
+    """ Share of under-fives with no modeled pentavalent dose. """
     children = _child_uids(sim.people)
     if len(children) == 0:
         return float("nan")
@@ -165,16 +146,7 @@ def zerodose_fraction_under5(sim):
 
 
 def build_sim_from_bundle(bundle, *, n_agents, start, stop, record_yearly=False):
-    """
-    Construct a Sim using only ``bundle`` fields. Resets RNG to ``bundle.seed``
-    immediately before building so each run matches the calibrated draw.
-
-    The initial population is restricted to children aged 0–5 years (uniform
-    distribution across single-year age groups 0–4) so the simulation focuses
-    on the pediatric cohort that is the target of the DTP/pentavalent programme.
-    Births continuously replenish the under-5 population; the zero-dose share
-    metric always measures the fraction of current under-5 agents unvaccinated.
-    """
+    """ Build a Sim populated with an under-5 cohort from a calibrated ``bundle``. """
     sim_pars = dict(
         start=start,
         stop=stop,
@@ -248,13 +220,7 @@ def build_sim_from_bundle(bundle, *, n_agents, start, stop, record_yearly=False)
 
 
 def grid_search_reference_routine(empirical_zd, base_bundle, *, n_agents, calib_years, start):
-    """
-    Pick ``intervention_routine_prob`` so model ZD matches empirical target; holds
-    all other bundle fields (including data-derived coverage) fixed.
-
-    Reproducibility is handled by Starsim: the trial bundle propagates
-    ``seed`` → ``ss.Sim(rand_seed=...)`` inside ``build_sim_from_bundle``.
-    """
+    """ Pick ``intervention_routine_prob`` so the model ZD share matches ``empirical_zd``. """
     stop_short = start + calib_years
     # routine_prob × coverage (coverage from data); search a bit wider on routine
     grid = np.linspace(0.018, 0.090, 14)
@@ -280,27 +246,6 @@ def grid_search_reference_routine(empirical_zd, base_bundle, *, n_agents, calib_
             best_zd = zd
 
     return best_rp, best_zd
-
-
-def _print_bundle(label, bundle):
-    """ Pretty-print the key fields of ``bundle`` with a header label. """
-    print(f"--- {label} (applied now) ---")
-    print(
-        f"  demographics: birth_rate={bundle.birth_rate:.4f}/1000/yr, "
-        f"death_rate={bundle.death_rate:.4f}/1000/yr"
-    )
-    print(
-        f"  intervention: routine_prob={bundle.intervention_routine_prob:.6f}, "
-        f"coverage={bundle.intervention_coverage:.4f}, efficacy={bundle.intervention_efficacy:.4f}"
-    )
-    print(
-        f"  networks: household={bundle.household_contacts}, "
-        f"community={bundle.community_contacts}"
-    )
-    if bundle.data_derived:
-        print(f"  data_derived: {bundle.data_derived}")
-    print()
-    return
 
 
 def _save_administrative_timeseries_plots(df_monthly, out_dir):
@@ -411,12 +356,7 @@ def _attach_deaths_to_yearly_rows(sim):
 
 
 def _tetanus_new_infection_metrics(sim):
-    """
-    Sum ``new_infections`` over the run from the tetanus disease module.
-
-    Returns:
-        metrics (dict): ``total`` and per-``by_calendar_year`` counts.
-    """
+    """ Sum ``new_infections`` over the run, by calendar year and total. """
     dis = sim.diseases.get("tetanus")
     if dis is None:
         return {"total": 0.0, "by_calendar_year": {}}
@@ -521,11 +461,7 @@ def _yearly_deaths_comparison_list(rows_sq, rows_sc):
 
 
 def _save_tetanus_comparison_figure(sim_ref, sim_int, out_path, *, n_agents):
-    """
-    Reference vs intervention tetanus panels.
-
-    Panels: prevalence, cumulative cases, new cases over time, total new / averted bars.
-    """
+    """ Write a 2x2 tetanus comparison figure (prevalence, cumulative, new, totals). """
     try:
         tr = sim_ref.diseases["tetanus"].results
         ti = sim_int.diseases["tetanus"].results
@@ -672,20 +608,7 @@ def _benefit_from_trajectories(rows_sq, rows_sc):
 
 def _population_scaled_projection(*, zd_reference, zd_intervention, benefit, death_benefit,
                                   tetanus_cases_averted, n_agents, birth_rate):
-    """
-    Scale modeled fractions to real-world child population counts.
-
-    Anchors are Kenya national figures from official sources (verified April 2026):
-      - Under-5 population:  7 200 000  (UN World Population Prospects 2024)
-      - Annual live births:  1 270 000  (WHO/UNICEF WUENIC 2024 revision)
-
-    Zero-dose share metrics scale exactly (fractions × real population).
-    Disease counts (deaths, tetanus cases) are scaled by the ratio of real
-    annual births to the model's implied annual births
-    (n_agents × birth_rate / 1000).  This produces estimates that are
-    order-of-magnitude correct; uncertainty from model stochasticity and
-    population heterogeneity should be communicated alongside these numbers.
-    """
+    """ Scale modeled fractions and counts to Kenya national anchors. """
     # Official Kenya population anchors live at module scope so researchers
     # can swap them for another country without editing this function.
     kenya_under5   = KENYA_UNDER5_POPULATION
@@ -779,8 +702,6 @@ def run_demo(*, n_agents, start, stop, seed, seed_intervention, out_dir, data_pa
     data_file_used = None
     df_data        = None
 
-    print("WHO reference:", WHO_IMMUNIZATION_COVERAGE_FS)
-
     # ------------------------------------------------------------------
     # Branch A: load pre-computed calibration from file
     # ------------------------------------------------------------------
@@ -797,14 +718,10 @@ def run_demo(*, n_agents, start, stop, seed, seed_intervention, out_dir, data_pa
         calib_years      = _meta.get("calib_years", 8)
         calib_agents     = _meta.get("n_agents_calib", 10_000)
         data_file_used   = _meta.get("data_file")
-        print(f"Loaded calibration from {os.path.abspath(calibration_file)}")
-        print(f"  routine_prob={reference_rp:.6f}, model ZD={calib_zd:.1%}, target={empirical_zd:.1%}")
-        if empirical:
-            print(
-                f"  (original data: {data_file_used}, "
-                f"mean ZD proxy={empirical_zd:.1%} ±{empirical.get('std_zerodose_proxy',0):.1%})"
-            )
-        print()
+        print(
+            f"Loaded calibration from {os.path.abspath(calibration_file)}: "
+            f"routine_prob={reference_rp:.6f}, model ZD={calib_zd:.1%}, target={empirical_zd:.1%}"
+        )
         # Load df_data for the admin timeseries plots if the data file is still reachable
         _src = data_path or data_file_used
         if _src and os.path.isfile(_src):
@@ -815,7 +732,7 @@ def run_demo(*, n_agents, start, stop, seed, seed_intervention, out_dir, data_pa
     # ------------------------------------------------------------------
     else:
         if calibration_file:
-            print(f"Note: calibration file not found ({calibration_file}), running calibration.\n")
+            print(f"Calibration file not found ({calibration_file}); running inline calibration.")
 
         if data_path is not None:
             df_data = load_formatted_xlsx(data_path)
@@ -823,10 +740,9 @@ def run_demo(*, n_agents, start, stop, seed, seed_intervention, out_dir, data_pa
             empirical_zd = empirical["mean_zerodose_proxy"]
             data_file_used = os.path.abspath(data_path)
             print(
-                f"Data ({data_file_used}): mean zero-dose proxy (DTP1) = "
-                f"{empirical_zd:.1%} (±{empirical['std_zerodose_proxy']:.1%} across months)"
+                f"Data {data_file_used}: mean DTP1 zero-dose proxy "
+                f"{empirical_zd:.1%} (+/-{empirical['std_zerodose_proxy']:.1%} across months)"
             )
-        print()
 
         base_bundle = build_calibration_bundle(
             seed=seed,
@@ -839,8 +755,8 @@ def run_demo(*, n_agents, start, stop, seed, seed_intervention, out_dir, data_pa
         calib_agents = min(10_000, n_agents)
 
         print(
-            f"Calibrating routine_prob to empirical target (short run ~{calib_years} y, "
-            f"{calib_agents} agents; coverage from data = {base_bundle.intervention_coverage:.4f})..."
+            f"Calibrating routine_prob ({calib_years}y run, {calib_agents} agents, "
+            f"coverage={base_bundle.intervention_coverage:.4f})..."
         )
         reference_rp, calib_zd = grid_search_reference_routine(
             empirical_zd,
@@ -850,8 +766,8 @@ def run_demo(*, n_agents, start, stop, seed, seed_intervention, out_dir, data_pa
             start=start,
         )
         print(
-            f"  Grid best routine_prob={reference_rp:.6f} "
-            f"(short-run model ZD={calib_zd:.1%}, target={empirical_zd:.1%})\n"
+            f"Calibrated routine_prob={reference_rp:.6f} "
+            f"(model ZD={calib_zd:.1%}, target={empirical_zd:.1%})"
         )
 
         reference_bundle = with_intervention_delivery(base_bundle, routine_prob=reference_rp)
@@ -889,23 +805,18 @@ def run_demo(*, n_agents, start, stop, seed, seed_intervention, out_dir, data_pa
             os.makedirs(os.path.dirname(os.path.abspath(save_calibration)) or ".", exist_ok=True)
             with open(save_calibration, "w", encoding="utf-8") as _f:
                 json.dump(_cal_out, _f, indent=2)
-            print(f"Saved calibration to {save_calibration}\n")
+            print(f"Saved calibration to {save_calibration}")
 
     # Apply intervention seed (may differ from calibration seed)
     intervention_seed = int(seed_intervention) if seed_intervention is not None else int(seed)
     scale_up_bundle = replace(scale_up_bundle, seed=intervention_seed)
 
     print(
-        f"Forward projection window: {start}–{stop} "
-        f"({stop - start} years). Yearly trajectories: reference vs intervention scenarios.\n"
-    )
-    print(
-        f"RNG seeds: reference={seed}, intervention={intervention_seed} "
-        f"(matched by default for a fair counterfactual; use --seed-intervention K for independent draws).\n"
+        f"Projection window {start}-{stop} ({stop - start}y), "
+        f"seeds reference={seed} intervention={intervention_seed}."
     )
 
-    print("Running model — reference scenario (calibrated comparator)...")
-    _print_bundle("Reference scenario bundle", reference_bundle)
+    print("Running reference scenario...")
     sim_status = build_sim_from_bundle(
         reference_bundle,
         n_agents=n_agents,
@@ -918,8 +829,7 @@ def run_demo(*, n_agents, start, stop, seed, seed_intervention, out_dir, data_pa
     zd_status = zerodose_fraction_under5(sim_status)
     rows_status = list(sim_status.analyzers["zerodose_yearly"].rows)
 
-    print("Running model — vaccination scale-up (intervention)...")
-    _print_bundle("Scale-up bundle", scale_up_bundle)
+    print("Running intervention scenario...")
     sim_scale = build_sim_from_bundle(
         scale_up_bundle,
         n_agents=n_agents,
@@ -950,17 +860,10 @@ def run_demo(*, n_agents, start, stop, seed, seed_intervention, out_dir, data_pa
 
     _ma = research_question_tetanus["modeled_answer"]
     print(
-        "Research question — modeled tetanus cases averted (reference − intervention): "
-        f"{_ma['tetanus_cases_averted_total']:.0f} "
-        f"(new infections: reference {_ma['reference_total']:.0f}, "
-        f"intervention {_ma['intervention_total']:.0f})"
+        f"Tetanus cases: reference={_ma['reference_total']:.0f}, "
+        f"intervention={_ma['intervention_total']:.0f}, "
+        f"averted={_ma['tetanus_cases_averted_total']:.0f}"
     )
-    if "tetanus_cases_averted_calendar_year_2025" in _ma:
-        print(
-            f"  Modeled tetanus cases averted in calendar year 2025: "
-            f"{_ma['tetanus_cases_averted_calendar_year_2025']:.0f}"
-        )
-    print()
 
     scaled = _population_scaled_projection(
         zd_reference=zd_status,
@@ -972,17 +875,10 @@ def run_demo(*, n_agents, start, stop, seed, seed_intervention, out_dir, data_pa
         birth_rate=reference_bundle.birth_rate,
     )
     print(
-        "Population-scaled projection (Kenya national, official anchors):\n"
-        f"  Zero-dose children in reference scenario (end):    {scaled['zero_dose_children_reference_end']:>10,}\n"
-        f"  Zero-dose children in intervention (end):         {scaled['zero_dose_children_intervention_end']:>10,}\n"
-        f"  Children reached (ZD gap at end of window):       {scaled['zero_dose_children_reached_at_end']:>10,}\n"
-        f"  Mean annual children additionally vaccinated:     {scaled['mean_annual_children_additionally_vaccinated']:>10,}\n"
-        f"  Cumulative child-years ZD gap closed ({stop-start} yr): {scaled['cumulative_child_years_zd_gap_closed']:>10,}\n"
-        f"  Disease deaths averted (scaled, {stop-start} yr total): {scaled['total_disease_deaths_averted_scaled']:>10,}\n"
-        f"  Mean annual disease deaths averted (scaled):      {scaled['mean_annual_disease_deaths_averted_scaled']:>10,}\n"
-        f"  Tetanus cases averted (scaled, {stop-start} yr total):  {scaled['tetanus_cases_averted_scaled']:>10,}\n"
+        f"Kenya-scaled projection: children reached={scaled['zero_dose_children_reached_at_end']:,}, "
+        f"deaths averted ({stop - start}y)={scaled['total_disease_deaths_averted_scaled']:,}, "
+        f"tetanus cases averted={scaled['tetanus_cases_averted_scaled']:,}."
     )
-    print()
 
     summary = {
         "data_file": data_file_used,
@@ -1092,23 +988,20 @@ def run_demo(*, n_agents, start, stop, seed, seed_intervention, out_dir, data_pa
             file=sys.stderr,
         )
 
-    print("\n--- Summary ---")
     print(
-        f"Model (end of window): reference ZD={zd_status:.1%} → intervention ZD={zd_scale:.1%} "
-        f"({reduction:.1f}% relative reduction vs reference scenario)"
+        f"Zero-dose under-5: reference={zd_status:.1%}, intervention={zd_scale:.1%} "
+        f"({reduction:.1f}% relative reduction)."
     )
     if benefit:
         print(
-            f"Projected benefit over {start}–{stop}: mean annual gap "
-            f"{benefit.get('mean_annual_reduction_zerodose_share_pp', 0):.2f} "
-            "percentage points (zero-dose share, intervention vs reference)"
+            f"Mean annual zero-dose gap over {start}-{stop}: "
+            f"{benefit.get('mean_annual_reduction_zerodose_share_pp', 0):.2f} pp."
         )
     if death_benefit:
         print(
-            f"Disease deaths (pentavalent modules, full run): reference "
-            f"{death_benefit.get('total_reference_deaths', 0):.0f} vs intervention "
-            f"{death_benefit.get('total_intervention_deaths', 0):.0f} "
-            f"(averted {death_benefit.get('total_deaths_averted', 0):.0f})"
+            f"Pentavalent-disease deaths: reference={death_benefit.get('total_reference_deaths', 0):.0f}, "
+            f"intervention={death_benefit.get('total_intervention_deaths', 0):.0f}, "
+            f"averted={death_benefit.get('total_deaths_averted', 0):.0f}."
         )
     return summary
 
@@ -1221,17 +1114,13 @@ def main(argv=None):
     if not args.no_calibration_file and calibration_file is None:
         if os.path.isfile(DEFAULT_CALIBRATION_FILE):
             calibration_file = DEFAULT_CALIBRATION_FILE
-            print(
-                f"Found {DEFAULT_CALIBRATION_FILE} — skipping grid-search calibration.\n"
-                "  To force re-calibration, run:  python run_simulation.py --no-calibration-file\n"
-                "  To regenerate the file, run:   python calibrate.py\n"
-            )
+            print(f"Using calibration file {DEFAULT_CALIBRATION_FILE} (--no-calibration-file to override).")
 
     data_path = None if args.no_data else args.data
     if data_path and not os.path.isfile(data_path):
         print(
-            f"Warning: data file not found: {data_path}\n"
-            f"Use --no-data or place zerodose_data_formated.xlsx in zdsim/data/.",
+            f"Data file not found: {data_path}. "
+            "Use --no-data or place zerodose_data_formated.xlsx in zdsim/data/.",
             file=sys.stderr,
         )
         return 1

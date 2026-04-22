@@ -1,50 +1,10 @@
-"""
-Intervention modules for zero-dose vaccination simulation.
-
-Starsim idioms (3.3.3)
-----------------------
-Selection is driven by ``ss.bernoulli`` + ``.filter(uids)`` -- the "define_pars
-+ filter" workhorse pattern documented in the Starsim distributions guide. A
-dynamic callable computes the per-agent probability each step (routine vs
-campaign mode, ``routine_prob * coverage``), so users can override ``p_vx``
-with their own Bernoulli without modifying the module. No direct ``np.random``
-usage -- RNG is managed by Starsim (supports seeding, CRN, and MultiSim).
-"""
+""" Intervention modules: zero-dose (never-vaccinated) pentavalent delivery. """
 
 import starsim as ss
 
 
 class ZeroDoseVaccination(ss.Intervention):
-    """
-    Zero-dose vaccination intervention.
-
-    Targets children who have never been vaccinated and delivers the
-    pentavalent (DTP-HepB-Hib) dose.
-
-    Delivery modes
-    --------------
-    - **Routine** (default): every timestep in ``[start_day, end_day]`` each
-      eligible unvaccinated child is vaccinated with probability
-      ``routine_prob * coverage``.
-    - **Campaign**: if ``year`` is supplied, vaccination occurs only on the
-      timesteps closest to those calendar years, with probability ``coverage``.
-
-    Protection is applied to all five pentavalent disease modules by setting
-    ``disease.immunity = efficacy`` and ``disease.rel_sus = 1 - efficacy``.
-    Immunity waning is handled inside each disease module (see ``tetanus.py``).
-
-    **Example**::
-
-        import starsim as ss
-        import zdsim as zds
-
-        sim = ss.Sim(
-            diseases=[zds.Diphtheria(), zds.Tetanus()],
-            interventions=zds.ZeroDoseVaccination(coverage=0.85, efficacy=0.9),
-            networks='random',
-        )
-        sim.run()
-    """
+    """ Vaccinate unvaccinated under-fives (routine or campaign mode). """
 
     TARGET_DISEASES = ('diphtheria', 'tetanus', 'pertussis', 'hepatitis_b', 'hib')
 
@@ -74,18 +34,7 @@ class ZeroDoseVaccination(ss.Intervention):
 
     @staticmethod
     def _compute_p_vx(module, sim, uids):
-        """
-        Dynamic Bernoulli probability: ``coverage`` in campaign mode,
-        ``routine_prob * coverage`` in routine mode (clipped to [0, 1]).
-
-        Args:
-            module (ZeroDoseVaccination): the intervention instance
-            sim    (ss.Sim):               the running simulation
-            uids   (UIDs):                  agents eligible this step
-
-        Returns:
-            p (float): per-step vaccination probability (same for all uids).
-        """
+        """ Per-step vaccination probability (campaign or ``routine_prob*coverage``). """
         p = module.pars
         if p.year is not None:
             prob = float(p.coverage)
@@ -118,12 +67,7 @@ class ZeroDoseVaccination(ss.Intervention):
         return (age_eligible & ~self.vaccinated).uids
 
     def step(self):
-        """
-        One vaccination round (routine or campaign).
-
-        Returns:
-            vaccinated_uids (UIDs): agents vaccinated on this timestep.
-        """
+        """ One vaccination round; returns UIDs vaccinated this step. """
         sim = self.sim
         if sim is None or sim.ti not in self.timepoints:
             return ss.uids()

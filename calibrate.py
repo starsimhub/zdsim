@@ -1,26 +1,5 @@
 #!/usr/bin/env python3
-"""
-Calibrate zdsim parameters and save them to a JSON file.
-
-Usage
------
-    python calibrate.py                          # uses bundled xlsx, saves calibration.json
-    python calibrate.py --out my_cal.json        # custom output path
-    python calibrate.py --no-data                # skip xlsx, use 16.5% ZD fallback
-    python calibrate.py --n-agents-calib 20000   # more agents for tighter calibration
-
-The saved file can then be passed to run_simulation.py to skip the grid-search:
-
-    python run_simulation.py --calibration-file calibration.json
-
-Workflow
---------
-  1. Loads the administrative HMIS spreadsheet (zerodose_data_formated.xlsx).
-  2. Computes the empirical DTP1 zero-dose proxy (mean over all months).
-  3. Runs a grid search over ``routine_prob`` to match that proxy.
-  4. Builds the reference bundle (calibrated delivery) and the scale-up bundle.
-  5. Writes everything to a JSON file that run_simulation.py can load directly.
-"""
+""" Calibrate zdsim and write a reusable calibration JSON. """
 
 import argparse
 import json
@@ -49,23 +28,7 @@ DEFAULT_OUT = "calibration.json"
 
 def run_calibration(*, n_agents_calib, calib_years, start, seed, data_path,
                     scale_routine_factor, scale_coverage_cap, population, out):
-    """
-    Run the calibration grid search and write results to *out* (JSON).
-
-    Args:
-        n_agents_calib       (int):         agents used in each short calibration trial
-        calib_years          (int):         length of each short trial (years)
-        start                (int):         first calendar year of calibration horizon
-        seed                 (int):         RNG seed (propagates to ss.Sim)
-        data_path            (str/None):    path to xlsx, or None for 16.5% fallback
-        scale_routine_factor (float):       multiplier for scale-up routine_prob
-        scale_coverage_cap   (float):       coverage ceiling for the scale-up bundle
-        population           (float/None):  total pop (enables birth_rate calibration)
-        out                  (str):         output JSON path
-
-    Returns:
-        result (dict): the calibration dict that was written.
-    """
+    """ Run the grid search and write the reference + scale-up bundles to ``out``. """
     empirical      = None
     empirical_zd   = 0.165
     data_file_used = None
@@ -77,16 +40,12 @@ def run_calibration(*, n_agents_calib, calib_years, start, seed, data_path,
         empirical_zd = empirical["mean_zerodose_proxy"]
         data_file_used = os.path.abspath(data_path)
         print(
-            f"Data ({data_file_used}): mean zero-dose proxy = "
-            f"{empirical_zd:.1%} (±{empirical['std_zerodose_proxy']:.1%} across months)"
+            f"Data {data_file_used}: mean zero-dose proxy "
+            f"{empirical_zd:.1%} (+/-{empirical['std_zerodose_proxy']:.1%} across months)"
         )
     else:
-        print(f"No data file — using fallback zero-dose target: {empirical_zd:.1%}")
-    print()
+        print(f"No data file; using fallback zero-dose target {empirical_zd:.1%}.")
 
-    # ------------------------------------------------------------------
-    # Build base bundle
-    # ------------------------------------------------------------------
     base_bundle = build_calibration_bundle(
         seed=seed,
         df=df_data,
@@ -94,12 +53,9 @@ def run_calibration(*, n_agents_calib, calib_years, start, seed, data_path,
         empirical=empirical,
     )
 
-    # ------------------------------------------------------------------
-    # Grid search
-    # ------------------------------------------------------------------
     print(
-        f"Grid search: {calib_years} years, {n_agents_calib} agents, "
-        f"coverage from data = {base_bundle.intervention_coverage:.4f} ..."
+        f"Grid search: {calib_years}y, {n_agents_calib} agents, "
+        f"coverage={base_bundle.intervention_coverage:.4f}..."
     )
     reference_rp, calib_zd = grid_search_reference_routine(
         empirical_zd,
@@ -109,13 +65,10 @@ def run_calibration(*, n_agents_calib, calib_years, start, seed, data_path,
         start=start,
     )
     print(
-        f"  Best routine_prob = {reference_rp:.6f}  "
-        f"(model ZD = {calib_zd:.1%}, target = {empirical_zd:.1%})\n"
+        f"Calibrated routine_prob={reference_rp:.6f} "
+        f"(model ZD={calib_zd:.1%}, target={empirical_zd:.1%})."
     )
 
-    # ------------------------------------------------------------------
-    # Build reference and scale-up bundles
-    # ------------------------------------------------------------------
     reference_bundle = with_intervention_delivery(base_bundle, routine_prob=reference_rp)
 
     scale_rp = min(0.12, reference_rp * scale_routine_factor)
@@ -126,19 +79,16 @@ def run_calibration(*, n_agents_calib, calib_years, start, seed, data_path,
         base_bundle, routine_prob=scale_rp, coverage=scale_cov
     )
 
-    print("Reference bundle:")
-    print(f"  routine_prob = {reference_bundle.intervention_routine_prob:.6f}")
-    print(f"  coverage     = {reference_bundle.intervention_coverage:.4f}")
-    print(f"  efficacy     = {reference_bundle.intervention_efficacy:.4f}")
-    print()
-    print("Scale-up bundle:")
-    print(f"  routine_prob = {scale_up_bundle.intervention_routine_prob:.6f}")
-    print(f"  coverage     = {scale_up_bundle.intervention_coverage:.4f}")
-    print()
+    print(
+        f"Reference bundle: routine_prob={reference_bundle.intervention_routine_prob:.6f}, "
+        f"coverage={reference_bundle.intervention_coverage:.4f}, "
+        f"efficacy={reference_bundle.intervention_efficacy:.4f}."
+    )
+    print(
+        f"Scale-up bundle:  routine_prob={scale_up_bundle.intervention_routine_prob:.6f}, "
+        f"coverage={scale_up_bundle.intervention_coverage:.4f}."
+    )
 
-    # ------------------------------------------------------------------
-    # Assemble and save
-    # ------------------------------------------------------------------
     result = {
         "schema_version": CALIBRATION_SCHEMA_VERSION,
         "created_at": datetime.now(timezone.utc).isoformat(),
@@ -168,8 +118,8 @@ def run_calibration(*, n_agents_calib, calib_years, start, seed, data_path,
     with open(out_abs, "w", encoding="utf-8") as f:
         json.dump(result, f, indent=2)
 
-    print(f"Saved calibration → {out_abs}")
-    print(f"  Run simulation with:  python run_simulation.py --calibration-file {out}")
+    print(f"Saved calibration to {out_abs}.")
+    print(f"Run: python run_simulation.py --calibration-file {out}")
     return result
 
 
@@ -242,8 +192,7 @@ def main(argv=None):
     data_path = None if args.no_data else args.data
     if data_path and not os.path.isfile(data_path):
         print(
-            f"Warning: data file not found: {data_path}\n"
-            "Use --no-data to run without data.",
+            f"Data file not found: {data_path}. Use --no-data to run without data.",
             file=sys.stderr,
         )
         return 1
