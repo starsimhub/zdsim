@@ -1,6 +1,6 @@
 {
   "schema_version": "1",
-  "created_at": "2026-04-22T06:14:43.619057+00:00",
+  "created_at": "2026-04-22T06:47:41.624324+00:00",
   "calibration_metadata": {
     "data_file": "/Users/mine/git/zdsim/zdsim/data/zerodose_data_formated.xlsx",
     "n_agents_calib": 10000,
@@ -10,9 +10,9 @@
     "scale_routine_factor": 2.3,
     "scale_coverage_cap": 0.88,
     "empirical_zerodose_proxy": 0.1647298685507964,
-    "calibrated_routine_prob": 0.03461538461538462,
-    "calibrated_model_zd": 0.15397350993377484,
-    "scale_up_routine_prob": 0.07961538461538462,
+    "calibrated_routine_prob": 0.029076923076923077,
+    "calibrated_model_zd": 0.16253002401921537,
+    "scale_up_routine_prob": 0.06687692307692307,
     "scale_up_coverage": 0.8552701314492037
   },
   "empirical": {
@@ -37,7 +37,7 @@
     "pertussis_init_p": 0.02,
     "hepatitis_b_init_p": 0.005,
     "hib_init_p": 0.01,
-    "intervention_routine_prob": 0.03461538461538462,
+    "intervention_routine_prob": 0.029076923076923077,
     "intervention_coverage": 0.8352701314492037,
     "intervention_efficacy": 0.9,
     "intervention_age_min": 0.0,
@@ -66,7 +66,7 @@
     "pertussis_init_p": 0.02,
     "hepatitis_b_init_p": 0.005,
     "hib_init_p": 0.01,
-    "intervention_routine_prob": 0.07961538461538462,
+    "intervention_routine_prob": 0.06687692307692307,
     "intervention_coverage": 0.8552701314492037,
     "intervention_efficacy": 0.9,
     "intervention_age_min": 0.0,

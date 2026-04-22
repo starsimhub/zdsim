@@ -37,24 +37,26 @@ class ZeroDoseVaccination(ss.Intervention):
     def __init__(self, pars=None, **kwargs):
         super().__init__()
         self.define_pars(
-            start_day=0,
-            end_day=365 * 50,
-            coverage=0.8,
-            efficacy=0.9,
-            age_min=0,    # months
-            age_max=60,   # months
-            year=None,
-            routine_prob=0.1,
-            selection_rng=ss.random(),
+            start_day     = 0,
+            end_day       = 365 * 50,
+            coverage      = 0.8,
+            efficacy      = 0.9,
+            age_min       = 0,    # months
+            age_max       = 60,   # months
+            year          = None,
+            routine_prob  = 0.1,
+            selection_rng = ss.random(),
         )
         self.define_states(
-            ss.BoolState('vaccinated', default=False, label='Vaccinated'),
-            ss.FloatArr('ti_vaccinated', label='Time of vaccination'),
+            ss.BoolState('vaccinated',    default=False, label='Vaccinated'),
+            ss.FloatArr('ti_vaccinated',  label='Time of vaccination'),
             ss.FloatArr('doses_received', default=0, label='Number of doses received'),
         )
         self.update_pars(pars, **kwargs)
+        return
 
     def init_pre(self, sim):
+        """ Resolve campaign years (or routine window) to sim timesteps. """
         super().init_pre(sim)
         if self.pars.year is not None:
             # Campaign mode: vaccinate at the timestep closest to each target year
@@ -67,15 +69,22 @@ class ZeroDoseVaccination(ss.Intervention):
             # Routine mode: every timestep in the [start_day, end_day] window
             dt_years = sim.t.dt.years if hasattr(sim.t.dt, 'years') else sim.t.dt
             start_ti = int(self.pars.start_day / (dt_years * 365))
-            end_ti = int(self.pars.end_day / (dt_years * 365))
+            end_ti   = int(self.pars.end_day   / (dt_years * 365))
             self.timepoints = list(range(start_ti, min(end_ti, len(sim.t))))
+        return
 
     def check_eligibility(self):
-        age_months = self.sim.people.age * 12
-        age_eligible = (age_months >= self.pars.age_min) & (age_months <= self.pars.age_max)
+        """ UIDs of unvaccinated agents whose age (in months) is in the eligible window. """
+        age_months    = self.sim.people.age * 12
+        age_eligible  = (age_months >= self.pars.age_min) & (age_months <= self.pars.age_max)
         return (age_eligible & ~self.vaccinated).uids
 
     def step(self):
+        """
+        One vaccination round (routine or campaign).
+
+        Returns the UIDs of agents vaccinated on this timestep.
+        """
         sim = self.sim
         if sim is None or sim.ti not in self.timepoints:
             return ss.uids()
@@ -95,26 +104,27 @@ class ZeroDoseVaccination(ss.Intervention):
 
         # Per-agent Bernoulli selection via managed RNG stream
         selection_draws = self.pars.selection_rng.rvs(eligible_uids)
-        selected_mask = selection_draws < prob
+        selected_mask   = selection_draws < prob
         if not np.any(selected_mask):
             return ss.uids()
         vaccinated_uids = eligible_uids[selected_mask]
 
-        self.vaccinated[vaccinated_uids] = True
-        self.ti_vaccinated[vaccinated_uids] = sim.ti
+        self.vaccinated[vaccinated_uids]      = True
+        self.ti_vaccinated[vaccinated_uids]   = sim.ti
         self.doses_received[vaccinated_uids] += 1
         self._apply_vaccine_effects(vaccinated_uids)
         return vaccinated_uids
 
     def _apply_vaccine_effects(self, uids):
-        """Set ``immunity`` and reduce ``rel_sus`` on each pentavalent module."""
-        sim = self.sim
+        """ Set ``immunity`` and reduce ``rel_sus`` on each pentavalent module. """
+        sim      = self.sim
         efficacy = float(self.pars.efficacy)
         for name in self.TARGET_DISEASES:
             dis = sim.diseases.get(name) if hasattr(sim.diseases, 'get') else getattr(sim.diseases, name, None)
             if dis is None:
                 continue
-            dis.vaccinated[uids] = True
+            dis.vaccinated[uids]    = True
             dis.ti_vaccinated[uids] = sim.ti
-            dis.immunity[uids] = efficacy
-            dis.rel_sus[uids] = 1.0 - efficacy
+            dis.immunity[uids]      = efficacy
+            dis.rel_sus[uids]       = 1.0 - efficacy
+        return

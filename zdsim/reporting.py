@@ -21,12 +21,9 @@ The generator consumes:
 It depends on ``reportlab`` (pure-Python, pip-installable).
 """
 
-from __future__ import annotations
-
 import json
 import os
 from datetime import datetime
-from typing import Optional
 
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import A4
@@ -85,7 +82,8 @@ FIGURE_MANIFEST = [
 # Style helpers
 # ---------------------------------------------------------------------------
 
-def _build_styles() -> dict:
+def _build_styles():
+    """ Build the paragraph / section / caption styles used throughout the report. """
     base = getSampleStyleSheet()
     styles = {
         "Title": ParagraphStyle(
@@ -165,13 +163,15 @@ def _build_styles() -> dict:
 # Content helpers
 # ---------------------------------------------------------------------------
 
-def _fmt_pct(x: Optional[float]) -> str:
+def _fmt_pct(x):
+    """ Format a fraction as a percent string, or 'n/a' for None. """
     if x is None:
         return "n/a"
     return f"{100 * float(x):.1f}%"
 
 
-def _fmt_int(x) -> str:
+def _fmt_int(x):
+    """ Format a value as a thousands-grouped integer, or 'n/a' for None. """
     if x is None:
         return "n/a"
     try:
@@ -180,7 +180,8 @@ def _fmt_int(x) -> str:
         return str(x)
 
 
-def _fmt_num(x, nd: int = 2) -> str:
+def _fmt_num(x, nd=2):
+    """ Format a number with ``nd`` decimals and thousands grouping. """
     if x is None:
         return "n/a"
     try:
@@ -189,7 +190,8 @@ def _fmt_num(x, nd: int = 2) -> str:
         return str(x)
 
 
-def _safe_get(d: dict, *path, default=None):
+def _safe_get(d, *path, default=None):
+    """ Walk nested dict keys ``*path`` returning ``default`` when missing. """
     cur = d
     for key in path:
         if not isinstance(cur, dict) or key not in cur:
@@ -198,7 +200,7 @@ def _safe_get(d: dict, *path, default=None):
     return cur
 
 
-def _abstract_paragraphs(summary: dict, styles: dict) -> list:
+def _abstract_paragraphs(summary, styles):
     ref = _safe_get(summary, "zero_dose_fraction_under5_model_reference", default=0.0)
     scl = _safe_get(summary, "zero_dose_fraction_under5_model_scale_up", default=0.0)
     red = _safe_get(summary, "relative_reduction_percent_model", default=0.0)
@@ -279,7 +281,7 @@ def _abstract_paragraphs(summary: dict, styles: dict) -> list:
     return items
 
 
-def _introduction_paragraphs(summary: dict, styles: dict) -> list:
+def _introduction_paragraphs(summary, styles):
     emp_zd = _safe_get(summary, "empirical_zerodose_proxy_dtp1", "mean_zerodose_proxy", default=0.0)
     emp_cov = _safe_get(summary, "empirical_zerodose_proxy_dtp1", "mean_dtp1_coverage_proxy", default=0.0)
     span = _safe_get(summary, "empirical_zerodose_proxy_dtp1", "years_span", default="")
@@ -340,7 +342,7 @@ def _introduction_paragraphs(summary: dict, styles: dict) -> list:
     return items
 
 
-def _methodology_paragraphs(summary: dict, styles: dict) -> list:
+def _methodology_paragraphs(summary, styles):
     ref_bundle = _safe_get(summary, "calibration_reference_bundle", default={})
     scl_bundle = _safe_get(summary, "calibration_scale_up_bundle", default={})
     ref_rp = _safe_get(summary, "model_reference_routine_prob")
@@ -472,7 +474,7 @@ def _methodology_paragraphs(summary: dict, styles: dict) -> list:
     return items
 
 
-def _results_paragraphs(summary: dict, styles: dict) -> list:
+def _results_paragraphs(summary, styles):
     ref = _safe_get(summary, "zero_dose_fraction_under5_model_reference", default=0.0)
     scl = _safe_get(summary, "zero_dose_fraction_under5_model_scale_up", default=0.0)
     red = _safe_get(summary, "relative_reduction_percent_model", default=0.0)
@@ -579,7 +581,7 @@ def _results_paragraphs(summary: dict, styles: dict) -> list:
     return items
 
 
-def _discussion_paragraphs(summary: dict, styles: dict) -> list:
+def _discussion_paragraphs(summary, styles):
     return [
         Paragraph(
             "The intervention scenario reduces zero-dose prevalence "
@@ -614,7 +616,7 @@ def _discussion_paragraphs(summary: dict, styles: dict) -> list:
     ]
 
 
-def _conclusion_paragraphs(summary: dict, styles: dict) -> list:
+def _conclusion_paragraphs(summary, styles):
     red = _safe_get(summary, "relative_reduction_percent_model", default=0.0)
     tet_av = _safe_get(
         summary, "research_question_tetanus", "modeled_answer",
@@ -635,7 +637,7 @@ def _conclusion_paragraphs(summary: dict, styles: dict) -> list:
     ]
 
 
-def _references_paragraphs(styles: dict) -> list:
+def _references_paragraphs(styles):
     refs = [
         "Rono, B. C., Njeri, A., Mambo, S. N., &amp; Akangbe, R. O. (2024). "
         "<i>Agent-Based Modelling (ABM) predicts number needed to vaccinate "
@@ -672,17 +674,18 @@ def _references_paragraphs(styles: dict) -> list:
 # Main entry point
 # ---------------------------------------------------------------------------
 
-def generate_report_pdf(
-    summary: dict,
-    out_dir: str,
-    *,
-    pdf_name: str = "zdsim_report.pdf",
-) -> str:
-    """Build the PDF report and return its path.
+def generate_report_pdf(summary, out_dir, *, pdf_name="zdsim_report.pdf"):
+    """
+    Build the PDF report and return its path.
 
-    ``summary`` is the dict written to ``zerodose_demo_summary.json``.
-    ``out_dir`` is the directory where that JSON and the PNG figures live;
-    the PDF is written to the same directory.
+    Args:
+        summary  (dict): the dict written to ``zerodose_demo_summary.json``
+        out_dir  (str):  directory where that JSON and the PNG figures live;
+                         the PDF is written to the same directory
+        pdf_name (str):  filename for the generated PDF
+
+    Returns:
+        pdf_path (str): absolute path of the written PDF
     """
     os.makedirs(out_dir, exist_ok=True)
     pdf_path = os.path.join(out_dir, pdf_name)
@@ -779,6 +782,7 @@ def generate_report_pdf(
 
 
 def _footer(canvas, doc):
+    """ Draw page-number and project footer on each page. """
     canvas.saveState()
     canvas.setFont("Helvetica", 8)
     canvas.setFillColor(colors.HexColor("#888888"))
@@ -792,10 +796,11 @@ def _footer(canvas, doc):
         "Agent-Based Modelling of Zero-Dose Vaccination (Kenya)",
     )
     canvas.restoreState()
+    return
 
 
-def generate_report_from_summary_path(summary_path: str, pdf_name: str = "zdsim_report.pdf") -> str:
-    """Convenience helper: read ``summary_path`` JSON and write the PDF next to it."""
+def generate_report_from_summary_path(summary_path, pdf_name="zdsim_report.pdf"):
+    """ Read ``summary_path`` JSON and write the PDF report next to it. """
     with open(summary_path, "r", encoding="utf-8") as f:
         summary = json.load(f)
     out_dir = os.path.dirname(os.path.abspath(summary_path))

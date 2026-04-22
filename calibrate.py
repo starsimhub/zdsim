@@ -22,17 +22,13 @@ Workflow
   5. Writes everything to a JSON file that run_simulation.py can load directly.
 """
 
-from __future__ import annotations
-
 import argparse
 import json
 import os
 import sys
-from dataclasses import replace
 from datetime import datetime, timezone
 
 from zdsim.zerodose_calibration import (
-    SimulationParameterBundle,
     build_calibration_bundle,
     empirical_summary_from_dataframe,
     with_intervention_delivery,
@@ -51,30 +47,29 @@ from run_simulation import (
 DEFAULT_OUT = "calibration.json"
 
 
-def run_calibration(
-    *,
-    n_agents_calib: int,
-    calib_years: int,
-    start: int,
-    seed: int,
-    data_path: str | None,
-    scale_routine_factor: float,
-    scale_coverage_cap: float,
-    population: float | None,
-    out: str,
-) -> dict:
+def run_calibration(*, n_agents_calib, calib_years, start, seed, data_path,
+                    scale_routine_factor, scale_coverage_cap, population, out):
     """
     Run the calibration grid search and write results to *out* (JSON).
 
-    Returns the calibration dict that was written.
+    Args:
+        n_agents_calib       (int):         agents used in each short calibration trial
+        calib_years          (int):         length of each short trial (years)
+        start                (int):         first calendar year of calibration horizon
+        seed                 (int):         RNG seed (propagates to ss.Sim)
+        data_path            (str/None):    path to xlsx, or None for 16.5% fallback
+        scale_routine_factor (float):       multiplier for scale-up routine_prob
+        scale_coverage_cap   (float):       coverage ceiling for the scale-up bundle
+        population           (float/None):  total pop (enables birth_rate calibration)
+        out                  (str):         output JSON path
+
+    Returns:
+        result (dict): the calibration dict that was written.
     """
-    # ------------------------------------------------------------------
-    # Load data
-    # ------------------------------------------------------------------
-    empirical: dict | None = None
-    empirical_zd = 0.165
-    data_file_used: str | None = None
-    df_data = None
+    empirical      = None
+    empirical_zd   = 0.165
+    data_file_used = None
+    df_data        = None
 
     if data_path is not None:
         df_data = load_formatted_xlsx(data_path)
@@ -144,7 +139,7 @@ def run_calibration(
     # ------------------------------------------------------------------
     # Assemble and save
     # ------------------------------------------------------------------
-    result: dict = {
+    result = {
         "schema_version": CALIBRATION_SCHEMA_VERSION,
         "created_at": datetime.now(timezone.utc).isoformat(),
         "calibration_metadata": {

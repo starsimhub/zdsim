@@ -15,39 +15,40 @@ Behavior:
 3) Optionally opens output plots.
 """
 
-from __future__ import annotations
-
 import argparse
 import os
 import subprocess
 import sys
 
 
-ROOT = os.path.dirname(os.path.abspath(__file__))
-PYTHON = sys.executable
+ROOT             = os.path.dirname(os.path.abspath(__file__))
+PYTHON           = sys.executable
 CALIBRATE_SCRIPT = os.path.join(ROOT, "calibrate.py")
-RUN_SCRIPT = os.path.join(ROOT, "run_simulation.py")
+RUN_SCRIPT       = os.path.join(ROOT, "run_simulation.py")
 
 DEFAULT_CALIBRATION = os.path.join(ROOT, "calibration.json")
-DEFAULT_OUTPUT = os.path.join(ROOT, "outputs")
+DEFAULT_OUTPUT      = os.path.join(ROOT, "outputs")
 
 
-def _run(cmd: list[str]) -> None:
-    """Run command and stream output; raise on failure."""
+def _run(cmd):
+    """ Run command and stream output; raise on failure. """
     print("$", " ".join(cmd), flush=True)
     subprocess.run(cmd, check=True, cwd=ROOT)
+    return
 
 
-def _ensure_calibration(calibration_file: str, fresh: bool) -> None:
+def _ensure_calibration(calibration_file, fresh):
+    """ Generate the calibration file if missing or ``fresh`` is requested. """
     if fresh or not os.path.isfile(calibration_file):
         reason = "requested" if fresh else "missing"
         print(f"\nCalibration step ({reason})", flush=True)
         _run([PYTHON, CALIBRATE_SCRIPT, "--out", calibration_file])
     else:
         print(f"\nUsing existing calibration: {calibration_file}", flush=True)
+    return
 
 
-def main(argv=None) -> int:
+def main(argv=None):
     p = argparse.ArgumentParser(
         description=(
             "Research-friendly runner: auto-calibrate if needed, then run simulation."

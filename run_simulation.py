@@ -7,8 +7,6 @@ Global context (WHO, not from this file):
   https://www.who.int/news-room/fact-sheets/detail/immunization-coverage
 """
 
-from __future__ import annotations
-
 import argparse
 import json
 import os
@@ -17,7 +15,6 @@ import sys
 from dataclasses import replace
 
 import matplotlib
-
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
@@ -31,13 +28,13 @@ from zdsim.zerodose_calibration import (
     empirical_summary_from_dataframe,
     with_intervention_delivery,
 )
-
-CALIBRATION_SCHEMA_VERSION = "1"
 from zdsim.zerodose_data import (
     default_formatted_xlsx_path,
     load_formatted_xlsx,
     monthly_dtp1_coverage_and_zerodose,
 )
+
+CALIBRATION_SCHEMA_VERSION = "1"
 
 WHO_IMMUNIZATION_COVERAGE_FS = (
     "https://www.who.int/news-room/fact-sheets/detail/immunization-coverage"
@@ -51,10 +48,17 @@ DEFAULT_N_AGENTS = 20_000
 DEFAULT_CALIBRATION_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "calibration.json")
 
 
-def _new_disease_deaths_this_step(sim, ti: int) -> int:
+def _new_disease_deaths_this_step(sim, ti):
     """
-    Count infection-module deaths that occur on this timestep index (ti_dead in (ti-1, ti]).
-    Excludes demographic background mortality from ss.Deaths.
+    Count infection-module deaths that occur on this timestep index.
+
+    Args:
+        sim (ss.Sim): running simulation
+        ti  (int):    timestep index; counts deaths with ti_dead in (ti-1, ti]
+
+    Returns:
+        total (int): number of disease-module deaths this step. Excludes
+        demographic background mortality from ``ss.Deaths``.
     """
     prev = -np.inf if ti <= 0 else float(ti - 1)
     total = 0
@@ -81,13 +85,15 @@ class YearlyZeroDoseRecorder(ss.Analyzer):
 
     def __init__(self):
         super().__init__(name="zerodose_yearly")
-        self.rows: list[dict] = []
-        self._deaths_by_year: dict[int, int] = {}
+        self.rows = []
+        self._deaths_by_year = {}
+        return
 
     def step(self):
-        sim = self.sim
-        ti = sim.ti
-        y = int(np.floor(sim.t.yearvec[ti]))
+        """ Record zero-dose share once per calendar year and per-step death tally. """
+        sim   = self.sim
+        ti    = sim.ti
+        y     = int(np.floor(sim.t.yearvec[ti]))
         n_die = _new_disease_deaths_this_step(sim, ti)
         self._deaths_by_year[y] = self._deaths_by_year.get(y, 0) + n_die
 
@@ -96,29 +102,28 @@ class YearlyZeroDoseRecorder(ss.Analyzer):
             if y == y_prev:
                 return
 
-        zd_frac = zerodose_fraction_under5(sim)
+        zd_frac  = zerodose_fraction_under5(sim)
         children = _child_uids(sim.people)
-        n_ch = int(len(children))
-        n_zd = int(np.round(zd_frac * n_ch)) if n_ch else 0
+        n_ch     = int(len(children))
+        n_zd     = int(np.round(zd_frac * n_ch)) if n_ch else 0
 
-        self.rows.append(
-            {
-                "calendar_year": y,
-                "zerodose_under5_fraction": zd_frac,
-                "n_children_under5": n_ch,
-                "n_zero_dose_under5": n_zd,
-            }
-        )
+        self.rows.append({
+            "calendar_year":            y,
+            "zerodose_under5_fraction": zd_frac,
+            "n_children_under5":        n_ch,
+            "n_zero_dose_under5":       n_zd,
+        })
         return
 
 
-def _child_uids(people, age_max_months: float = 60.0):
+def _child_uids(people, age_max_months=60.0):
+    """ UIDs of agents under ``age_max_months`` months old. """
     age_months = people.age * 12.0
-    mask = age_months < age_max_months
+    mask       = age_months < age_max_months
     return mask.uids
 
 
-def zerodose_fraction_under5(sim) -> float:
+def zerodose_fraction_under5(sim):
     """Share of under-fives with no modeled pentavalent dose."""
     children = _child_uids(sim.people)
     if len(children) == 0:
@@ -140,14 +145,7 @@ def zerodose_fraction_under5(sim) -> float:
     return float(np.mean(unvacc))
 
 
-def build_sim_from_bundle(
-    bundle: SimulationParameterBundle,
-    *,
-    n_agents: int,
-    start: int,
-    stop: int,
-    record_yearly: bool = False,
-):
+def build_sim_from_bundle(bundle, *, n_agents, start, stop, record_yearly=False):
     """
     Construct a Sim using only ``bundle`` fields. Resets RNG to ``bundle.seed``
     immediately before building so each run matches the calibrated draw.
@@ -230,14 +228,7 @@ def build_sim_from_bundle(
     )
 
 
-def grid_search_reference_routine(
-    empirical_zd: float,
-    base_bundle: SimulationParameterBundle,
-    *,
-    n_agents: int,
-    calib_years: int,
-    start: int,
-) -> tuple[float, float]:
+def grid_search_reference_routine(empirical_zd, base_bundle, *, n_agents, calib_years, start):
     """
     Pick ``intervention_routine_prob`` so model ZD matches empirical target; holds
     all other bundle fields (including data-derived coverage) fixed.
@@ -272,7 +263,8 @@ def grid_search_reference_routine(
     return best_rp, best_zd
 
 
-def _print_bundle(label: str, bundle: SimulationParameterBundle) -> None:
+def _print_bundle(label, bundle):
+    """ Pretty-print the key fields of ``bundle`` with a header label. """
     print(f"--- {label} (applied now) ---")
     print(
         f"  demographics: birth_rate={bundle.birth_rate:.4f}/1000/yr, "
@@ -289,17 +281,18 @@ def _print_bundle(label: str, bundle: SimulationParameterBundle) -> None:
     if bundle.data_derived:
         print(f"  data_derived: {bundle.data_derived}")
     print()
+    return
 
 
-def _save_administrative_timeseries_plots(df_monthly, out_dir: str) -> list[str]:
-    """Monthly DTP1 coverage and zero-dose proxies from the xlsx (2-panel figure)."""
-    s = monthly_dtp1_coverage_and_zerodose(df_monthly)
-    paths: list[str] = []
+def _save_administrative_timeseries_plots(df_monthly, out_dir):
+    """ Monthly DTP1 coverage and zero-dose proxies from the xlsx (2-panel figure). """
+    s     = monthly_dtp1_coverage_and_zerodose(df_monthly)
+    paths = []
 
-    x = np.arange(len(s))
-    labels = s["period"].astype(str).tolist() if "period" in s.columns else [str(i) for i in x]
+    x         = np.arange(len(s))
+    labels    = s["period"].astype(str).tolist() if "period" in s.columns else [str(i) for i in x]
     tick_step = max(1, len(x) // 12)
-    xticks = x[::tick_step]
+    xticks    = x[::tick_step]
 
     fig, (ax_cov, ax_zd) = plt.subplots(2, 1, figsize=(11, 7), sharex=True)
 
@@ -378,15 +371,16 @@ def _save_administrative_timeseries_plots(df_monthly, out_dir: str) -> list[str]
     return paths
 
 
-def _align_yearly_rows(rows_sq: list[dict], rows_sc: list[dict]):
-    d_sq = {r["calendar_year"]: r for r in rows_sq}
-    d_sc = {r["calendar_year"]: r for r in rows_sc}
+def _align_yearly_rows(rows_sq, rows_sc):
+    """ Align reference / intervention yearly rows by calendar_year. """
+    d_sq  = {r["calendar_year"]: r for r in rows_sq}
+    d_sc  = {r["calendar_year"]: r for r in rows_sc}
     years = sorted(set(d_sq) & set(d_sc))
     return years, d_sq, d_sc
 
 
-def _attach_deaths_to_yearly_rows(sim) -> None:
-    """Mutate zerodose_yearly rows with disease_attributable_deaths from recorder tallies."""
+def _attach_deaths_to_yearly_rows(sim):
+    """ Mutate zerodose_yearly rows with disease_attributable_deaths tallies. """
     an = sim.analyzers.get("zerodose_yearly")
     if not an:
         return
@@ -394,12 +388,15 @@ def _attach_deaths_to_yearly_rows(sim) -> None:
     for row in an.rows:
         cy = int(row["calendar_year"])
         row["disease_attributable_deaths"] = int(dby.get(cy, 0))
+    return
 
 
-def _tetanus_new_infection_metrics(sim) -> dict:
+def _tetanus_new_infection_metrics(sim):
     """
-    New tetanus infections (modeled cases) from the tetanus disease module:
-    sum of ``new_infections`` over the run, optionally split by calendar year.
+    Sum ``new_infections`` over the run from the tetanus disease module.
+
+    Returns:
+        metrics (dict): ``total`` and per-``by_calendar_year`` counts.
     """
     dis = sim.diseases.get("tetanus")
     if dis is None:
@@ -410,29 +407,24 @@ def _tetanus_new_infection_metrics(sim) -> dict:
     yv = np.asarray(sim.t.yearvec, dtype=float).ravel()
     if yv.size != ni.size:
         return {
-            "total": float(np.sum(ni)),
+            "total":            float(np.sum(ni)),
             "by_calendar_year": {},
-            "note": "yearvec_length_mismatch",
+            "note":             "yearvec_length_mismatch",
         }
-    cy = np.floor(yv).astype(int)
-    by_year: dict[int, float] = {}
+    cy      = np.floor(yv).astype(int)
+    by_year = {}
     for y in np.unique(cy):
         by_year[int(y)] = float(ni[cy == y].sum())
     return {"total": float(np.sum(ni)), "by_calendar_year": by_year}
 
 
-def _research_question_tetanus_json(
-    ref: dict,
-    intv: dict,
-    *,
-    modeled_zd_relative_reduction_percent: float,
-) -> dict:
-    """Package the Project 2-2A-7 tetanus / zero-dose research question answer from two runs."""
+def _research_question_tetanus_json(ref, intv, *, modeled_zd_relative_reduction_percent):
+    """ Package the Project 2-2A-7 tetanus / zero-dose research question answer from two runs. """
     rq = (
         "How many tetanus cases will be averted if we reduce prevalence of zero-dose "
         "vaccination by 50% among under-fives by the year 2025?"
     )
-    per_year: list[dict] = []
+    per_year = []
     years = sorted(set(ref["by_calendar_year"]) | set(intv["by_calendar_year"]))
     for y in years:
         r = float(ref["by_calendar_year"].get(y, 0.0))
@@ -472,28 +464,29 @@ def _research_question_tetanus_json(
     }
 
 
-def _death_benefit_from_rows(rows_sq: list[dict], rows_sc: list[dict]) -> dict:
-    """Reference vs intervention scenario disease deaths from pentavalent disease modules."""
+def _death_benefit_from_rows(rows_sq, rows_sc):
+    """ Reference vs intervention disease-attributable deaths from pentavalent modules. """
     years, d_sq, d_sc = _align_yearly_rows(rows_sq, rows_sc)
     if not years:
         return {}
 
-    b = np.array([float(d_sq[y].get("disease_attributable_deaths", 0)) for y in years])
-    i = np.array([float(d_sc[y].get("disease_attributable_deaths", 0)) for y in years])
+    b       = np.array([float(d_sq[y].get("disease_attributable_deaths", 0)) for y in years])
+    i       = np.array([float(d_sc[y].get("disease_attributable_deaths", 0)) for y in years])
     averted = b - i
 
     return {
-        "projection_years": years,
-        "total_reference_deaths": float(np.sum(b)),
-        "total_intervention_deaths": float(np.sum(i)),
-        "total_deaths_averted": float(np.sum(averted)),
+        "projection_years":           years,
+        "total_reference_deaths":     float(np.sum(b)),
+        "total_intervention_deaths":  float(np.sum(i)),
+        "total_deaths_averted":       float(np.sum(averted)),
         "mean_annual_deaths_averted": float(np.mean(averted)) if len(years) else 0.0,
     }
 
 
-def _yearly_deaths_comparison_list(rows_sq: list[dict], rows_sc: list[dict]) -> list[dict]:
+def _yearly_deaths_comparison_list(rows_sq, rows_sc):
+    """ Per-year reference/intervention deaths + averted counts. """
     years, d_sq, d_sc = _align_yearly_rows(rows_sq, rows_sc)
-    out: list[dict] = []
+    out = []
     for y in years:
         b = int(d_sq[y].get("disease_attributable_deaths", 0))
         inv = int(d_sc[y].get("disease_attributable_deaths", 0))
@@ -508,16 +501,11 @@ def _yearly_deaths_comparison_list(rows_sq: list[dict], rows_sc: list[dict]) -> 
     return out
 
 
-def _save_tetanus_comparison_figure(
-    sim_ref,
-    sim_int,
-    out_path: str,
-    *,
-    n_agents: int,
-) -> None:
+def _save_tetanus_comparison_figure(sim_ref, sim_int, out_path, *, n_agents):
     """
-    Reference vs intervention tetanus panels (same types as presentation / zdsim.plots.plot_tetanus_comparison):
-    prevalence, cumulative cases, new cases over time, total new / averted bar view.
+    Reference vs intervention tetanus panels.
+
+    Panels: prevalence, cumulative cases, new cases over time, total new / averted bars.
     """
     try:
         tr = sim_ref.diseases["tetanus"].results
@@ -607,23 +595,18 @@ def _save_tetanus_comparison_figure(
     fig.tight_layout()
     fig.savefig(out_path, dpi=150)
     plt.close(fig)
+    return
 
 
-def _save_deaths_projection_figure(
-    rows_sq: list[dict],
-    rows_sc: list[dict],
-    out_path: str,
-    *,
-    projection_start: int,
-    projection_stop: int,
-):
+def _save_deaths_projection_figure(rows_sq, rows_sc, out_path, *, projection_start, projection_stop):
+    """ Write the modelled-deaths + averted 2-panel projection figure. """
     comp = _yearly_deaths_comparison_list(rows_sq, rows_sc)
     if len(comp) < 1:
         return
-    years = [r["calendar_year"] for r in comp]
-    b = [r["reference_deaths"] for r in comp]
-    inv = [r["intervention_deaths"] for r in comp]
-    av = [r["deaths_averted"] for r in comp]
+    years = [r["calendar_year"]       for r in comp]
+    b     = [r["reference_deaths"]    for r in comp]
+    inv   = [r["intervention_deaths"] for r in comp]
+    av    = [r["deaths_averted"]      for r in comp]
 
     fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(9, 7), sharex=True)
     ax1.plot(years, b, "o-", color="#7f8c8d", linewidth=2, label="Reference scenario")
@@ -643,39 +626,33 @@ def _save_deaths_projection_figure(
     fig.tight_layout()
     fig.savefig(out_path, dpi=150)
     plt.close(fig)
+    return
 
 
-def _benefit_from_trajectories(rows_sq: list[dict], rows_sc: list[dict]) -> dict:
+def _benefit_from_trajectories(rows_sq, rows_sc):
+    """ Aggregate zero-dose share benefit from per-year reference/intervention rows. """
     years, d_sq, d_sc = _align_yearly_rows(rows_sq, rows_sc)
     if not years:
         return {}
 
     z_sq = np.array([d_sq[y]["zerodose_under5_fraction"] for y in years])
     z_sc = np.array([d_sc[y]["zerodose_under5_fraction"] for y in years])
-    gap = z_sq - z_sc
+    gap  = z_sq - z_sc
 
     # Approximate child-level gap (same model size; different runs share seed but trajectories differ)
     nzd_sq = np.array([d_sq[y]["n_zero_dose_under5"] for y in years], dtype=float)
     nzd_sc = np.array([d_sc[y]["n_zero_dose_under5"] for y in years], dtype=float)
 
     return {
-        "projection_years": years,
-        "mean_annual_reduction_zerodose_share_pp": float(np.mean(gap) * 100),
+        "projection_years":                              years,
+        "mean_annual_reduction_zerodose_share_pp":       float(np.mean(gap) * 100),
         "cumulative_zerodose_share_reduction_pp_years": float(np.sum(gap) * 100),
-        "sum_annual_zero_dose_children_gap": float(np.sum(nzd_sq - nzd_sc)),
+        "sum_annual_zero_dose_children_gap":             float(np.sum(nzd_sq - nzd_sc)),
     }
 
 
-def _population_scaled_projection(
-    *,
-    zd_reference: float,
-    zd_intervention: float,
-    benefit: dict,
-    death_benefit: dict,
-    tetanus_cases_averted: float,
-    n_agents: int,
-    birth_rate: float,
-) -> dict:
+def _population_scaled_projection(*, zd_reference, zd_intervention, benefit, death_benefit,
+                                  tetanus_cases_averted, n_agents, birth_rate):
     """
     Scale modeled fractions to real-world child population counts.
 
@@ -745,14 +722,8 @@ def _population_scaled_projection(
     }
 
 
-def _save_projection_figure(
-    rows_sq: list[dict],
-    rows_sc: list[dict],
-    out_path: str,
-    *,
-    projection_start: int,
-    projection_stop: int,
-):
+def _save_projection_figure(rows_sq, rows_sc, out_path, *, projection_start, projection_stop):
+    """ Write the zero-dose share projection figure (reference vs intervention). """
     years, d_sq, d_sc = _align_yearly_rows(rows_sq, rows_sc)
     if len(years) < 2:
         return
@@ -777,30 +748,19 @@ def _save_projection_figure(
     fig.tight_layout()
     fig.savefig(out_path, dpi=150)
     plt.close(fig)
+    return
 
 
-def run_demo(
-    *,
-    n_agents: int,
-    start: int,
-    stop: int,
-    seed: int,
-    seed_intervention: int | None,
-    out_dir: str,
-    data_path: str | None,
-    scale_routine_factor: float,
-    scale_coverage_cap: float,
-    population: float | None,
-    alignment_meta: dict | None = None,
-    calibration_file: str | None = None,
-    save_calibration: str | None = None,
-):
+def run_demo(*, n_agents, start, stop, seed, seed_intervention, out_dir, data_path,
+             scale_routine_factor, scale_coverage_cap, population,
+             alignment_meta=None, calibration_file=None, save_calibration=None):
+    """ End-to-end demo: (optionally calibrate), run reference + intervention, write outputs. """
     os.makedirs(out_dir, exist_ok=True)
 
-    empirical: dict | None = None
-    empirical_zd = 0.165  # fallback when --no-data
+    empirical      = None
+    empirical_zd   = 0.165  # fallback when --no-data
     data_file_used = None
-    df_data = None
+    df_data        = None
 
     print("WHO reference:", WHO_IMMUNIZATION_COVERAGE_FS)
 
