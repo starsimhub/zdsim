@@ -47,6 +47,26 @@ DEFAULT_N_AGENTS = 20_000
 # Override with --calibration-file or clear with --no-calibration-file.
 DEFAULT_CALIBRATION_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "calibration.json")
 
+# -------------------------------------------------------------------------
+# Kenya national anchors (2024) used to scale model fractions to real counts.
+# Exposed as module-level constants so downstream scripts can override them
+# (e.g. to scale to a different country) without editing function bodies.
+#
+# Under-5 population  : UN World Population Prospects 2024
+#                        https://population.un.org/wpp/
+# Annual live births  : WHO/UNICEF WUENIC 2024 revision (released July 2025)
+#                        https://www.who.int/teams/immunization-vaccines-and-biologicals/
+#                        immunization-analysis-and-insights/global-monitoring/
+#                        immunization-coverage/who-unicef-estimates-of-national-
+#                        immunization-coverage
+# -------------------------------------------------------------------------
+KENYA_UNDER5_POPULATION = 7_200_000
+KENYA_ANNUAL_LIVE_BIRTHS = 1_270_000
+KENYA_ANCHOR_SOURCE = (
+    "UN World Population Prospects 2024; "
+    "WHO/UNICEF WUENIC 2024 revision (released July 2025)"
+)
+
 
 def _new_disease_deaths_this_step(sim, ti):
     """
@@ -667,17 +687,15 @@ def _population_scaled_projection(*, zd_reference, zd_intervention, benefit, dea
     order-of-magnitude correct; uncertainty from model stochasticity and
     population heterogeneity should be communicated alongside these numbers.
     """
-    # Official Kenya population anchors (2024)
-    KENYA_UNDER5 = 7_200_000
-    KENYA_ANNUAL_BIRTHS = 1_270_000
-    anchor_source = (
-        "UN World Population Prospects 2024; "
-        "WHO/UNICEF WUENIC 2024 revision (released July 2025)"
-    )
+    # Official Kenya population anchors live at module scope so researchers
+    # can swap them for another country without editing this function.
+    kenya_under5   = KENYA_UNDER5_POPULATION
+    kenya_births   = KENYA_ANNUAL_LIVE_BIRTHS
+    anchor_source  = KENYA_ANCHOR_SOURCE
 
     # Model implied annual births
     model_annual_births = n_agents * (birth_rate / 1000.0)
-    count_scale = KENYA_ANNUAL_BIRTHS / model_annual_births if model_annual_births > 0 else 1.0
+    count_scale = kenya_births / model_annual_births if model_annual_births > 0 else 1.0
 
     mean_pp = benefit.get("mean_annual_reduction_zerodose_share_pp", 0.0)
     n_proj_years = len(benefit.get("projection_years", [])) or 1
@@ -687,26 +705,26 @@ def _population_scaled_projection(*, zd_reference, zd_intervention, benefit, dea
 
     return {
         "anchor_label": "Kenya national (official sources, 2024)",
-        "anchor_under5_population": KENYA_UNDER5,
-        "anchor_annual_live_births": KENYA_ANNUAL_BIRTHS,
+        "anchor_under5_population": kenya_under5,
+        "anchor_annual_live_births": kenya_births,
         "anchor_source": anchor_source,
         "count_scale_factor": round(count_scale, 1),
         "count_scale_note": (
             f"Disease counts scaled by real_annual_births / model_annual_births "
-            f"({KENYA_ANNUAL_BIRTHS:,} / {model_annual_births:,.0f}). "
+            f"({kenya_births:,} / {model_annual_births:,.0f}). "
             "Zero-dose shares apply to any population without rescaling."
         ),
         # Zero-dose absolute counts (fractions × real under-5 population)
-        "zero_dose_children_reference_end": int(round(KENYA_UNDER5 * zd_reference)),
-        "zero_dose_children_intervention_end": int(round(KENYA_UNDER5 * zd_intervention)),
-        "zero_dose_children_reached_at_end": int(round(KENYA_UNDER5 * (zd_reference - zd_intervention))),
+        "zero_dose_children_reference_end":    int(round(kenya_under5 * zd_reference)),
+        "zero_dose_children_intervention_end": int(round(kenya_under5 * zd_intervention)),
+        "zero_dose_children_reached_at_end":   int(round(kenya_under5 * (zd_reference - zd_intervention))),
         # Annual vaccination gain (fraction reduction × annual births)
         "mean_annual_children_additionally_vaccinated": int(
-            round(KENYA_ANNUAL_BIRTHS * mean_pp / 100.0)
+            round(kenya_births * mean_pp / 100.0)
         ),
         # Cumulative child-years of zero-dose gap closed over projection window
         "cumulative_child_years_zd_gap_closed": int(
-            round(KENYA_ANNUAL_BIRTHS * n_proj_years * mean_pp / 100.0)
+            round(kenya_births * n_proj_years * mean_pp / 100.0)
         ),
         # Disease deaths scaled by count_scale
         "total_disease_deaths_averted_scaled": int(round(total_deaths_averted * count_scale)),

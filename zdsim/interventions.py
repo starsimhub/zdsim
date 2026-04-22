@@ -1,14 +1,16 @@
 """
 Intervention modules for zero-dose vaccination simulation.
 
-Port notes (Starsim 3.3.3)
---------------------------
-Stochastic agent selection uses a registered ``ss.random()`` distribution
-so RNG is handled by the Starsim framework (supports seeding, CRN, and
-MultiSim parallelism). No direct ``np.random`` calls remain.
+Starsim idioms (3.3.3)
+----------------------
+Selection is driven by ``ss.bernoulli`` + ``.filter(uids)`` -- the "define_pars
++ filter" workhorse pattern documented in the Starsim distributions guide. A
+dynamic callable computes the per-agent probability each step (routine vs
+campaign mode, ``routine_prob * coverage``), so users can override ``p_vx``
+with their own Bernoulli without modifying the module. No direct ``np.random``
+usage -- RNG is managed by Starsim (supports seeding, CRN, and MultiSim).
 """
 
-import numpy as np
 import starsim as ss
 
 
@@ -30,6 +32,18 @@ class ZeroDoseVaccination(ss.Intervention):
     Protection is applied to all five pentavalent disease modules by setting
     ``disease.immunity = efficacy`` and ``disease.rel_sus = 1 - efficacy``.
     Immunity waning is handled inside each disease module (see ``tetanus.py``).
+
+    **Example**::
+
+        import starsim as ss
+        import zdsim as zds
+
+        sim = ss.Sim(
+            diseases=[zds.Diphtheria(), zds.Tetanus()],
+            interventions=zds.ZeroDoseVaccination(coverage=0.85, efficacy=0.9),
+            networks='random',
+        )
+        sim.run()
     """
 
     TARGET_DISEASES = ('diphtheria', 'tetanus', 'pertussis', 'hepatitis_b', 'hib')
@@ -37,23 +51,47 @@ class ZeroDoseVaccination(ss.Intervention):
     def __init__(self, pars=None, **kwargs):
         super().__init__()
         self.define_pars(
-            start_day     = 0,
-            end_day       = 365 * 50,
-            coverage      = 0.8,
-            efficacy      = 0.9,
-            age_min       = 0,    # months
-            age_max       = 60,   # months
-            year          = None,
-            routine_prob  = 0.1,
-            selection_rng = ss.random(),
+            start_day    = 0,
+            end_day      = 365 * 50,
+            coverage     = 0.8,
+            efficacy     = 0.9,
+            age_min      = 0,    # months
+            age_max      = 60,   # months
+            year         = None,
+            routine_prob = 0.1,
+            # p_vx is the Bernoulli that decides whether each eligible child
+            # gets vaccinated on a given step. The dynamic callable below
+            # computes the right probability for routine vs campaign mode.
+            p_vx         = ss.bernoulli(p=self._compute_p_vx),
         )
         self.define_states(
             ss.BoolState('vaccinated',    default=False, label='Vaccinated'),
             ss.FloatArr('ti_vaccinated',  label='Time of vaccination'),
-            ss.FloatArr('doses_received', default=0, label='Number of doses received'),
+            ss.FloatArr('doses_received', default=0,     label='Number of doses received'),
         )
         self.update_pars(pars, **kwargs)
         return
+
+    @staticmethod
+    def _compute_p_vx(module, sim, uids):
+        """
+        Dynamic Bernoulli probability: ``coverage`` in campaign mode,
+        ``routine_prob * coverage`` in routine mode (clipped to [0, 1]).
+
+        Args:
+            module (ZeroDoseVaccination): the intervention instance
+            sim    (ss.Sim):               the running simulation
+            uids   (UIDs):                  agents eligible this step
+
+        Returns:
+            p (float): per-step vaccination probability (same for all uids).
+        """
+        p = module.pars
+        if p.year is not None:
+            prob = float(p.coverage)
+        else:
+            prob = float(p.routine_prob) * float(p.coverage)
+        return min(1.0, max(0.0, prob))
 
     def init_pre(self, sim):
         """ Resolve campaign years (or routine window) to sim timesteps. """
@@ -61,8 +99,8 @@ class ZeroDoseVaccination(ss.Intervention):
         if self.pars.year is not None:
             # Campaign mode: vaccinate at the timestep closest to each target year
             self.timepoints = []
-            for year in self.pars.year:
-                ti = sim.t.yearvec.searchsorted(year)
+            for yr in self.pars.year:
+                ti = sim.t.yearvec.searchsorted(yr)
                 if ti < len(sim.t.yearvec):
                     self.timepoints.append(ti)
         else:
@@ -75,15 +113,16 @@ class ZeroDoseVaccination(ss.Intervention):
 
     def check_eligibility(self):
         """ UIDs of unvaccinated agents whose age (in months) is in the eligible window. """
-        age_months    = self.sim.people.age * 12
-        age_eligible  = (age_months >= self.pars.age_min) & (age_months <= self.pars.age_max)
+        age_months   = self.sim.people.age * 12
+        age_eligible = (age_months >= self.pars.age_min) & (age_months <= self.pars.age_max)
         return (age_eligible & ~self.vaccinated).uids
 
     def step(self):
         """
         One vaccination round (routine or campaign).
 
-        Returns the UIDs of agents vaccinated on this timestep.
+        Returns:
+            vaccinated_uids (UIDs): agents vaccinated on this timestep.
         """
         sim = self.sim
         if sim is None or sim.ti not in self.timepoints:
@@ -93,21 +132,11 @@ class ZeroDoseVaccination(ss.Intervention):
         if len(eligible_uids) == 0:
             return ss.uids()
 
-        if self.pars.year is not None:
-            prob = float(self.pars.coverage)
-        else:
-            prob = float(self.pars.routine_prob) * float(self.pars.coverage)
-            prob = min(1.0, max(0.0, prob))
-
-        if prob <= 0:
+        # Standard "define_pars + filter" pattern: one Bernoulli draw per eligible
+        # agent, with per-agent RNG keyed by UID (CRN-safe).
+        vaccinated_uids = self.pars.p_vx.filter(eligible_uids)
+        if len(vaccinated_uids) == 0:
             return ss.uids()
-
-        # Per-agent Bernoulli selection via managed RNG stream
-        selection_draws = self.pars.selection_rng.rvs(eligible_uids)
-        selected_mask   = selection_draws < prob
-        if not np.any(selected_mask):
-            return ss.uids()
-        vaccinated_uids = eligible_uids[selected_mask]
 
         self.vaccinated[vaccinated_uids]      = True
         self.ti_vaccinated[vaccinated_uids]   = sim.ti
