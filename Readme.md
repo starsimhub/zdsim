@@ -116,6 +116,31 @@ pip install -r requirements.txt
 pip install -e .
 ```
 
+## Quick start for researchers
+
+Use the helper script `research_workflow.py` for the easiest workflow.
+
+```bash
+# Full study run (2025-2055), auto-calibrates once then reuses calibration.json
+python research_workflow.py
+
+# Faster check run (2025-2030, 5k agents)
+python research_workflow.py --quick
+
+# Paper horizon run (2024-2025)
+python research_workflow.py --paper
+
+# Force fresh calibration, then run
+python research_workflow.py --fresh-calibration
+```
+
+What it does automatically:
+1. Creates `calibration.json` if missing (or regenerates it with `--fresh-calibration`).
+2. Runs `run_simulation.py` using that calibration file.
+3. Writes outputs to `outputs/` (or `--out <folder>`).
+
+Advanced users can still run `calibrate.py` and `run_simulation.py` directly.
+
 ## Run the demonstration
 
 From the repository root:
@@ -146,6 +171,7 @@ Other options: `--data`, `--no-data`, `--out` (see `python run_simulation.py --h
 | `admin_data_dtp1_zerodose_timeseries.png` | **Data only:** monthly DTP1 coverage proxy and zero-dose proxy from the spreadsheet (with mean lines and 12‑month rolling mean on zero-dose). |
 | `admin_data_dpt123_vs_births.png` | **Data only:** DPT1, DPT2, and DPT3 counts relative to estimated monthly live births (same denominator as the DTP1 proxy). |
 | `zerodose_demo_summary.json` | Full summary: empirical means, calibrated parameters, end-of-run zero-dose fractions, **`projection_yearly_*`** rows (including **`disease_attributable_deaths`** per year), **`projection_benefit_summary`**, **`projection_death_benefit_summary`**, and **`projection_yearly_deaths_comparison`**. **Re-run overwrites this.** |
+| `zdsim_report.pdf` | **Narrative PDF report** — title, abstract, introduction, methodology, results (text + embedded figures), discussion, conclusion, references. Structured to mirror the Rono et al. (2024) project brief. Generated automatically at the end of every run; regenerate from an existing summary with `python -m zdsim.reporting path/to/zerodose_demo_summary.json`. |
 
 **View the figures:** on macOS, after a run:
 

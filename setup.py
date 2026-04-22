@@ -30,5 +30,6 @@ setup(
         "matplotlib",
         "starsim",
         "openpyxl>=3.0",
+        "reportlab>=4.0",
     ],
 )

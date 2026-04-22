@@ -1114,6 +1114,18 @@ def run_demo(
         for p in extra:
             print(f"Wrote {p}")
 
+    try:
+        from zdsim.reporting import generate_report_pdf
+
+        pdf_path = generate_report_pdf(summary, out_dir)
+        print(f"Wrote {pdf_path}")
+    except Exception as exc:
+        print(
+            f"Note: could not generate PDF report ({exc}). "
+            "Install reportlab to enable: pip install reportlab",
+            file=sys.stderr,
+        )
+
     print("\n--- Summary ---")
     print(
         f"Model (end of window): reference ZD={zd_status:.1%} → intervention ZD={zd_scale:.1%} "
