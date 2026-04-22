@@ -31,8 +31,6 @@ import sys
 from dataclasses import replace
 from datetime import datetime, timezone
 
-import numpy as np
-
 from zdsim.zerodose_calibration import (
     SimulationParameterBundle,
     build_calibration_bundle,
@@ -254,8 +252,6 @@ def main(argv=None):
             file=sys.stderr,
         )
         return 1
-
-    np.random.seed(args.seed)
 
     run_calibration(
         n_agents_calib=args.n_agents_calib,

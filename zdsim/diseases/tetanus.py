@@ -1,317 +1,232 @@
 """
-Tetanus disease module for zero-dose vaccination simulation.
+Tetanus disease module with age-specific wound-exposure dynamics.
+
+Tetanus (*Clostridium tetani*) is **not** person-to-person transmissible; β
+is 0 and the Starsim network transmission step is effectively inert.
+Infection occurs through wound contamination, and each age group has its
+own calibrated annual wound-exposure rate.
+
+Four age-specific segments
+--------------------------
+- **Neonatal** (0–28 days): high CFR; partial protection from maternal vaccination.
+- **Peri-neonatal** (29–60 days): moderate CFR.
+- **Childhood** (2 months – 15 years): reduced CFR, vaccine-derived immunity.
+- **Adult** (15+ years): Kenya has achieved MNT elimination; rarely reached in
+  the pediatric projection window but retained for completeness.
+
+Vaccine-induced immunity wanes exponentially (``waning=0.055``/yr per the
+Rono et al. 2024 brief). Once an agent's immunity falls below 0.1 it is
+reset to 0.0 and the agent re-enters the susceptible pool — completing the
+SIS cycle.
+
+Port notes (Starsim 3.3.3)
+--------------------------
+All stochastic draws use registered Starsim distributions
+(``ss.random()`` / ``ss.bernoulli``) so that RNG is managed per-module by
+the framework (supports CRN, MultiSim, and reproducible seeding).
 """
 
-import starsim as ss
 import numpy as np
+import starsim as ss
+
 
 class Tetanus(ss.Infection):
-    """
-    Tetanus disease module with age-specific wound-exposure segments.
+    """Age-stratified tetanus with wound-exposure transmission and waning."""
 
-    Tetanus is caused by Clostridium tetani and is NOT person-to-person
-    transmissible (beta = 0).  Infection occurs through wound contamination;
-    each age group has a calibrated annual wound-exposure rate.
-
-    The simulation population is restricted to children 0–5 years at
-    initialisation (see build_sim_from_bundle).  The neonatal, peri-neonatal,
-    and childhood segments therefore dominate; the adult segment (15+ years) is
-    only reached by agents who age past 15 during a long projection window.
-
-    Age-specific segments
-    ---------------------
-    - Neonatal (0–28 days):        High CFR, maternal vaccination protection
-    - Peri-neonatal (29–60 days):  Moderate CFR
-    - Childhood (2 months–15 yr):  Lower CFR, vaccine-derived immunity
-    - Adult (15+ yr):              Kenya has achieved MNT elimination; the
-                                   adult wound rate is calibrated but rarely
-                                   reached in the pediatric projection window.
-    """
-    
     def __init__(self, pars=None, **kwargs):
         super().__init__()
-        
-        # Define disease-specific parameters
-        # Tetanus is not directly transmissible (R0 = 0)
-        # Document requirements: Beta=1.3, gamma=3/12, waning=0.055
+
         self.define_pars(
-            beta=ss.peryear(0.0),  # Not transmissible (R0 = 0)
-            init_prev=ss.bernoulli(p=0.001),  # Very low initial prevalence
-            dur_inf=ss.lognorm_ex(mean=ss.years(3/12)),  # Document requirement: gamma=3/12 (3 months)
-            p_death=ss.bernoulli(p=0.1),  # Case Fatality Rate (CFR): 10% without treatment
-            p_severe=ss.bernoulli(p=0.3),  # High probability of severe disease
-            wound_rate=ss.peryear(0.1),  # Annual wound exposure rate
-            waning=ss.peryear(0.055),  # Document requirement: waning=0.055
-            
-            # Age-specific parameters (CALIBRATED VALUES)
-            neonatal_cfr=0.718,  # Neonatal tetanus CFR: 71.8% (calibrated)
-            peri_neonatal_cfr=0.521,  # Peri-neonatal tetanus CFR: 52.1% (calibrated)
-            childhood_cfr=0.480,  # Childhood tetanus CFR: 48.0% (calibrated)
-            adult_cfr=0.327,  # Adult tetanus CFR: 32.7% (calibrated)
-            
-            # Age-specific wound exposure rates (CALIBRATED VALUES)
-            neonatal_wound_rate=ss.peryear(0.0111),  # Neonatal wound rate: 0.0111/year (calibrated)
-            peri_neonatal_wound_rate=ss.peryear(0.0213),  # Peri-neonatal wound rate: 0.0213/year (calibrated)
-            childhood_wound_rate=ss.peryear(0.0637),  # Childhood wound rate: 0.0637/year (calibrated)
-            adult_wound_rate=ss.peryear(0.6346),  # Adult wound rate: 0.6346/year (calibrated)
-            
-            # Maternal vaccination protection for neonates (CALIBRATED VALUES)
-            maternal_vaccination_efficacy=0.743,  # 74.3% efficacy (calibrated)
-            maternal_vaccination_coverage=0.365,  # 36.5% coverage (calibrated)
+            # Core infection pars -------------------------------------------------
+            beta=ss.peryear(0.0),                       # Not person-to-person
+            init_prev=ss.bernoulli(p=0.001),
+            dur_inf=ss.lognorm_ex(mean=ss.years(3/12)), # gamma = 3/12 (brief)
+            p_death=ss.bernoulli(p=0.1),                # Fallback CFR
+            p_severe=ss.bernoulli(p=0.3),
+            wound_rate=ss.peryear(0.1),                 # Fallback wound rate
+            waning=ss.peryear(0.055),                   # Brief: waning = 0.055
+
+            # Age-specific CFR (calibrated) --------------------------------------
+            neonatal_cfr=0.718,
+            peri_neonatal_cfr=0.521,
+            childhood_cfr=0.480,
+            adult_cfr=0.327,
+
+            # Age-specific wound rates (calibrated) ------------------------------
+            neonatal_wound_rate=ss.peryear(0.0111),
+            peri_neonatal_wound_rate=ss.peryear(0.0213),
+            childhood_wound_rate=ss.peryear(0.0637),
+            adult_wound_rate=ss.peryear(0.6346),
+
+            # Maternal protection for neonates (calibrated) ----------------------
+            maternal_vaccination_efficacy=0.743,
+            maternal_vaccination_coverage=0.365,
+
+            # RNG streams (one per event type for CRN stability) ----------------
+            wound_rng=ss.random(),
+            infection_rng=ss.random(),
+            waning_rng=ss.random(),
+            death_rng=ss.random(),
         )
-        
-        # Define all states for tetanus
+
         self.define_states(
-            ss.BoolState('susceptible', default=True, label='Susceptible'),
-            ss.BoolState('infected', label='Infected'),
             ss.BoolState('recovered', label='Recovered'),
-            ss.FloatArr('ti_infected', label='Time of infection'),
             ss.FloatArr('ti_recovered', label='Time of recovery'),
             ss.FloatArr('ti_dead', label='Time of death'),
-            ss.FloatArr('rel_sus', default=1.0, label='Relative susceptibility'),
-            ss.FloatArr('rel_trans', default=1.0, label='Relative transmission'),
             ss.BoolState('severe', label='Severe disease'),
             ss.BoolState('vaccinated', default=False, label='Vaccinated'),
             ss.FloatArr('ti_vaccinated', label='Time of vaccination'),
             ss.FloatArr('immunity', default=0.0, label='Immunity level'),
             ss.FloatArr('ti_wound', label='Time of wound exposure'),
-            
-            # Age-specific tetanus segments
             ss.BoolState('neonatal', default=False, label='Neonatal tetanus (0-28 days)'),
             ss.BoolState('peri_neonatal', default=False, label='Peri-neonatal tetanus (29-60 days)'),
             ss.BoolState('childhood', default=False, label='Childhood tetanus (2 months-15 years)'),
             ss.BoolState('adult', default=False, label='Adult tetanus (15+ years)'),
-            
-            # Maternal vaccination status
             ss.BoolState('maternal_vaccinated', default=False, label='Maternal vaccination'),
             ss.FloatArr('maternal_immunity', default=0.0, label='Maternal immunity level'),
-            
-            reset=True
         )
-        
+
         self.update_pars(pars, **kwargs)
-        return
-    
+
+    # ------------------------------------------------------------------
+    # Per-timestep dynamics
+    # ------------------------------------------------------------------
     def step(self):
-        """Handle tetanus-specific transmission (wound exposure) with age-specific segments"""
-        # Tetanus is not directly transmissible, but occurs through wound exposure
-        # Simulate wound exposure events with age-specific rates
+        """Wound-exposure transmission with four age-specific segments.
+
+        Vaccinated agents are *not* excluded here: protection is applied via
+        per-agent ``immunity``. Once immunity wanes to zero (see
+        ``step_state``) the agent is fully re-exposed, completing the SIS
+        cycle described in the brief (waning = 0.055).
+        """
         sim = self.sim
         ti = sim.ti
-        
-        # Get age in days for age-specific calculations
         age_days = sim.people.age * 365
-        
-        # Check for new wound exposures by age group.
-        # Protection for vaccinated agents is handled via self.immunity inside
-        # _handle_age_specific_wounds, so we do not exclude them here. This
-        # preserves the SIS re-susceptibility behaviour: once vaccine-induced
-        # immunity wanes to zero (step_state sets susceptible=True, immunity=0),
-        # agents are fully exposed again — matching the document's waning=0.055.
-        susceptible = self.susceptible
-        if len(susceptible):
-            susceptible_uids = susceptible.uids
-            age_days_susceptible = age_days[susceptible_uids]
-            
-            # Neonatal tetanus (0-28 days)
-            neonatal_mask = age_days_susceptible <= 28
-            if np.any(neonatal_mask):
-                neonatal_uids = susceptible_uids[neonatal_mask]
-                self._handle_age_specific_wounds(neonatal_uids, 'neonatal', ti)
-            
-            # Peri-neonatal tetanus (29-60 days)
-            peri_neonatal_mask = (age_days_susceptible > 28) & (age_days_susceptible <= 60)
-            if np.any(peri_neonatal_mask):
-                peri_neonatal_uids = susceptible_uids[peri_neonatal_mask]
-                self._handle_age_specific_wounds(peri_neonatal_uids, 'peri_neonatal', ti)
-            
-            # Childhood tetanus (2 months-15 years)
-            childhood_mask = (age_days_susceptible > 60) & (age_days_susceptible <= 15*365)
-            if np.any(childhood_mask):
-                childhood_uids = susceptible_uids[childhood_mask]
-                self._handle_age_specific_wounds(childhood_uids, 'childhood', ti)
-            
-            # Adult tetanus (15+ years)
-            adult_mask = age_days_susceptible > 15*365
-            if np.any(adult_mask):
-                adult_uids = susceptible_uids[adult_mask]
-                self._handle_age_specific_wounds(adult_uids, 'adult', ti)
-        
-        return ss.uids()
-    
-    def _handle_age_specific_wounds(self, uids, age_group, ti):
-        """Handle wound exposure for specific age group.
 
-        Uses per-agent Bernoulli draws (vectorized) rather than aggregate
-        np.random.choice so each simulation arm consumes the same number of
-        RNG calls regardless of how many events occur.  This keeps the numpy
-        RNG states comparable across reference and intervention runs.
-        """
+        susceptible = self.susceptible
+        if not len(susceptible):
+            return ss.uids()
+        susceptible_uids = susceptible.uids
+        age_s = age_days[susceptible_uids]
+
+        # Age-group masks
+        segments = [
+            ('neonatal',      age_s <= 28),
+            ('peri_neonatal', (age_s > 28)  & (age_s <= 60)),
+            ('childhood',     (age_s > 60)  & (age_s <= 15 * 365)),
+            ('adult',          age_s >  15 * 365),
+        ]
+        for age_group, mask in segments:
+            if np.any(mask):
+                self._handle_age_specific_wounds(susceptible_uids[mask], age_group, ti)
+
+        return ss.uids()
+
+    def _handle_age_specific_wounds(self, uids, age_group, ti):
+        """Draw per-agent wound events and possible tetanus infections."""
         if len(uids) == 0:
             return
 
-        # Get age-specific wound probability per timestep
-        if age_group == 'neonatal':
-            wound_rate = self.pars.neonatal_wound_rate.to_prob(self.sim.t.dt)
-        elif age_group == 'peri_neonatal':
-            wound_rate = self.pars.peri_neonatal_wound_rate.to_prob(self.sim.t.dt)
-        elif age_group == 'childhood':
-            wound_rate = self.pars.childhood_wound_rate.to_prob(self.sim.t.dt)
-        elif age_group == 'adult':
-            wound_rate = self.pars.adult_wound_rate.to_prob(self.sim.t.dt)
-        else:
-            wound_rate = self.pars.wound_rate.to_prob(self.sim.t.dt)
+        rate_par = {
+            'neonatal':      self.pars.neonatal_wound_rate,
+            'peri_neonatal': self.pars.peri_neonatal_wound_rate,
+            'childhood':     self.pars.childhood_wound_rate,
+            'adult':         self.pars.adult_wound_rate,
+        }.get(age_group, self.pars.wound_rate)
+        wound_prob = rate_par.to_prob(self.sim.t.dt)
 
-        # Per-agent wound draw: fixed-size RNG call (len(uids)) independent of outcome count
-        wound_mask = np.random.random(len(uids)) < wound_rate
+        # Wound draw via managed RNG stream (one call per agent, independent of outcome count)
+        wound_draws = self.pars.wound_rng.rvs(uids)
+        wound_mask = wound_draws < wound_prob
         if not np.any(wound_mask):
             return
         wound_exposure = uids[wound_mask]
         self.ti_wound[wound_exposure] = ti
 
-        # Calculate tetanus risk based on per-agent immunity
-        immunity_protection = self.immunity[wound_exposure]
-
-        # Maternal vaccination protection for neonates
+        # Per-agent protection from immunity (vaccine/natural) + maternal for neonates
+        immunity = self.immunity[wound_exposure]
         if age_group == 'neonatal':
-            maternal_protection = self.maternal_immunity[wound_exposure]
-            total_protection = np.maximum(immunity_protection, maternal_protection)
+            protection = np.maximum(immunity, self.maternal_immunity[wound_exposure])
         else:
-            total_protection = immunity_protection
+            protection = immunity
+        tetanus_risk = 1.0 - protection
 
-        tetanus_risk = 1 - total_protection
-
-        # Per-agent infection draw: preserves individual heterogeneity in immunity
-        tetanus_mask = np.random.random(len(wound_exposure)) < tetanus_risk
+        # Per-agent infection draw via its own RNG stream
+        infection_draws = self.pars.infection_rng.rvs(wound_exposure)
+        tetanus_mask = infection_draws < tetanus_risk
         tetanus_cases = wound_exposure[tetanus_mask]
         if len(tetanus_cases) > 0:
-            self.set_prognoses(tetanus_cases, sources=-1, age_group=age_group)
-    
+            self.set_prognoses(tetanus_cases, sources=None, age_group=age_group)
+
     def set_prognoses(self, uids, sources=None, age_group=None):
-        """Set prognoses upon infection with age-specific segments"""
+        """Set prognoses upon tetanus infection (age-specific CFR)."""
         super().set_prognoses(uids, sources)
         ti = self.t.ti
         self.susceptible[uids] = False
         self.infected[uids] = True
         self.ti_infected[uids] = ti
-        
-        # Set age-specific tetanus segment
-        if age_group:
-            if age_group == 'neonatal':
-                self.neonatal[uids] = True
-            elif age_group == 'peri_neonatal':
-                self.peri_neonatal[uids] = True
-            elif age_group == 'childhood':
-                self.childhood[uids] = True
-            elif age_group == 'adult':
-                self.adult[uids] = True
-        
-        # Determine disease severity
-        severe = self.pars.p_severe.rvs(uids)
-        self.severe[uids] = severe
-        
-        p = self.pars
-        
-        # Sample duration of infection
-        dur_inf = p.dur_inf.rvs(uids)
-        
-        # Determine CFR based on age group
+
         if age_group == 'neonatal':
-            cfr = p.neonatal_cfr
+            self.neonatal[uids] = True
+            cfr = self.pars.neonatal_cfr
         elif age_group == 'peri_neonatal':
-            cfr = p.peri_neonatal_cfr
+            self.peri_neonatal[uids] = True
+            cfr = self.pars.peri_neonatal_cfr
         elif age_group == 'childhood':
-            cfr = p.childhood_cfr
+            self.childhood[uids] = True
+            cfr = self.pars.childhood_cfr
         elif age_group == 'adult':
-            cfr = p.adult_cfr
+            self.adult[uids] = True
+            cfr = self.pars.adult_cfr
         else:
-            cfr = p.p_death.p if hasattr(p.p_death, 'p') else 0.1  # Default CFR
-        
-        # Determine who dies and who recovers and when
-        will_die = np.random.random(len(uids)) < cfr
+            cfr = self.pars.p_death.pars.p if hasattr(self.pars.p_death, 'pars') else 0.1
+
+        self.severe[uids] = self.pars.p_severe.rvs(uids)
+        dur_inf = self.pars.dur_inf.rvs(uids)
+
+        # Age-specific CFR applied via managed RNG stream
+        will_die = self.pars.death_rng.rvs(uids) < cfr
         dead_uids = uids[will_die]
         rec_uids = uids[~will_die]
         self.ti_dead[dead_uids] = ti + dur_inf[will_die]
         self.ti_recovered[rec_uids] = ti + dur_inf[~will_die]
-        
-        return
-    
-    def initialize_maternal_vaccination(self, sim):
-        """Initialize maternal vaccination status for neonates"""
-        # This would be called when new births occur
-        # For now, we'll set maternal vaccination status based on coverage
-        if hasattr(sim, 'demographics'):
-            births = sim.demographics.get('births', None)
-            if births is not None:
-                new_births = births.new_births.uids
-                if len(new_births) > 0:
-                    # Set maternal vaccination status based on coverage
-                    maternal_coverage = self.pars.maternal_vaccination_coverage
-                    maternal_vaccinated = np.random.random(len(new_births)) < maternal_coverage
-                    
-                    self.maternal_vaccinated[new_births] = maternal_vaccinated
-                    self.maternal_immunity[new_births] = np.where(
-                        maternal_vaccinated, 
-                        self.pars.maternal_vaccination_efficacy, 
-                        0.0
-                    )
-    
+
     def step_state(self):
-        """Handle state transitions"""
+        """Recovery, waning immunity, and scheduled deaths."""
         sim = self.sim
         ti = sim.ti
-        
-        # Progress infectious -> recovered
+
+        # Recovery
         recovered = (self.infected & (self.ti_recovered <= ti)).uids
         if len(recovered):
             self.infected[recovered] = False
             self.recovered[recovered] = True
-            # Natural immunity after recovery
             self.immunity[recovered] = 0.9
-        
-        # Handle waning immunity (document requirement: waning=0.055)
-        waning_rate = self.pars.waning.to_prob(sim.t.dt)
+
+        # Waning immunity (brief: waning = 0.055/yr).  On a waning event we
+        # halve immunity; if it drops below 0.1, reset to 0 and re-enter the
+        # susceptible pool (complete SIS cycle).
+        waning_prob = self.pars.waning.to_prob(sim.t.dt)
         immune_agents = (self.immunity > 0).uids
         if len(immune_agents):
-            # Use numpy random instead of creating new bernoulli distribution
-            waning_events = np.random.random(len(immune_agents)) < waning_rate
-            waning_uids = immune_agents[waning_events]
-            if len(waning_uids):
-                # Reduce immunity level
-                self.immunity[waning_uids] *= 0.5  # Reduce immunity by half
-                # If immunity drops below threshold, become susceptible again
-                low_immunity = self.immunity[waning_uids] < 0.1
+            waning_draws = self.pars.waning_rng.rvs(immune_agents)
+            waned_uids = immune_agents[waning_draws < waning_prob]
+            if len(waned_uids):
+                self.immunity[waned_uids] *= 0.5
+                low_immunity = self.immunity[waned_uids] < 0.1
                 if np.any(low_immunity):
-                    susceptible_again = waning_uids[low_immunity]
+                    susceptible_again = waned_uids[low_immunity]
                     self.immunity[susceptible_again] = 0.0
                     self.susceptible[susceptible_again] = True
                     self.recovered[susceptible_again] = False
-                    # Clear vaccinated flag so agents are fully re-exposed once
-                    # immunity is gone (completes the SIS cycle for waning).
                     self.vaccinated[susceptible_again] = False
-        
-        # Trigger deaths
+
+        # Scheduled deaths
         deaths = (self.ti_dead <= ti).uids
         if len(deaths):
             sim.people.request_death(deaths)
-        
-        return
-    
+
     def step_die(self, uids):
-        """Reset infected/recovered flags for dead agents"""
         self.susceptible[uids] = False
         self.infected[uids] = False
         self.recovered[uids] = False
-        return
-    
-    def init_results(self):
-        """Initialize results tracking"""
-        super().init_results()
-        # Additional results are defined in the states, no need to redefine here
-        return
-    
-    def update_results(self):
-        """Update results each timestep"""
-        super().update_results()
-        # Results are automatically tracked through the states
-        return

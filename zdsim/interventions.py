@@ -1,30 +1,38 @@
 """
 Intervention modules for zero-dose vaccination simulation.
+
+Port notes (Starsim 3.3.3)
+--------------------------
+Stochastic agent selection uses a registered ``ss.random()`` distribution
+so RNG is handled by the Starsim framework (supports seeding, CRN, and
+MultiSim parallelism). No direct ``np.random`` calls remain.
 """
 
-import starsim as ss
 import numpy as np
+import starsim as ss
 
 
 class ZeroDoseVaccination(ss.Intervention):
     """
     Zero-dose vaccination intervention.
 
-    Targets children who have received zero doses of routine vaccines and
-    provides the DTP-HepB-Hib (pentavalent) vaccine.
+    Targets children who have never been vaccinated and delivers the
+    pentavalent (DTP-HepB-Hib) dose.
 
     Delivery modes
     --------------
-    Routine (default): every timestep within [start_day, end_day], each
-        eligible unvaccinated child is vaccinated with probability
-        ``routine_prob * coverage``.
-    Campaign: if ``year`` is set, vaccination occurs only on the timestep
-        closest to each listed calendar year, with probability ``coverage``.
+    - **Routine** (default): every timestep in ``[start_day, end_day]`` each
+      eligible unvaccinated child is vaccinated with probability
+      ``routine_prob * coverage``.
+    - **Campaign**: if ``year`` is supplied, vaccination occurs only on the
+      timesteps closest to those calendar years, with probability ``coverage``.
 
     Protection is applied to all five pentavalent disease modules by setting
     ``disease.immunity = efficacy`` and ``disease.rel_sus = 1 - efficacy``.
-    Immunity waning is handled inside each disease module (see tetanus.py).
+    Immunity waning is handled inside each disease module (see ``tetanus.py``).
     """
+
+    TARGET_DISEASES = ('diphtheria', 'tetanus', 'pertussis', 'hepatitis_b', 'hib')
 
     def __init__(self, pars=None, **kwargs):
         super().__init__()
@@ -37,6 +45,7 @@ class ZeroDoseVaccination(ss.Intervention):
             age_max=60,   # months
             year=None,
             routine_prob=0.1,
+            selection_rng=ss.random(),
         )
         self.define_states(
             ss.BoolState('vaccinated', default=False, label='Vaccinated'),
@@ -44,22 +53,22 @@ class ZeroDoseVaccination(ss.Intervention):
             ss.FloatArr('doses_received', default=0, label='Number of doses received'),
         )
         self.update_pars(pars, **kwargs)
-        return
 
     def init_pre(self, sim):
         super().init_pre(sim)
         if self.pars.year is not None:
+            # Campaign mode: vaccinate at the timestep closest to each target year
             self.timepoints = []
             for year in self.pars.year:
                 ti = sim.t.yearvec.searchsorted(year)
                 if ti < len(sim.t.yearvec):
                     self.timepoints.append(ti)
         else:
+            # Routine mode: every timestep in the [start_day, end_day] window
             dt_years = sim.t.dt.years if hasattr(sim.t.dt, 'years') else sim.t.dt
             start_ti = int(self.pars.start_day / (dt_years * 365))
             end_ti = int(self.pars.end_day / (dt_years * 365))
             self.timepoints = list(range(start_ti, min(end_ti, len(sim.t))))
-        return
 
     def check_eligibility(self):
         age_months = self.sim.people.age * 12
@@ -81,33 +90,31 @@ class ZeroDoseVaccination(ss.Intervention):
             prob = float(self.pars.routine_prob) * float(self.pars.coverage)
             prob = min(1.0, max(0.0, prob))
 
-        n_vaccinate = int(len(eligible_uids) * prob)
-        if n_vaccinate <= 0:
+        if prob <= 0:
             return ss.uids()
 
-        selected = np.random.choice(len(eligible_uids), size=n_vaccinate, replace=False)
-        vaccinated_uids = eligible_uids[selected]
+        # Per-agent Bernoulli selection via managed RNG stream
+        selection_draws = self.pars.selection_rng.rvs(eligible_uids)
+        selected_mask = selection_draws < prob
+        if not np.any(selected_mask):
+            return ss.uids()
+        vaccinated_uids = eligible_uids[selected_mask]
 
         self.vaccinated[vaccinated_uids] = True
         self.ti_vaccinated[vaccinated_uids] = sim.ti
         self.doses_received[vaccinated_uids] += 1
         self._apply_vaccine_effects(vaccinated_uids)
-
         return vaccinated_uids
 
     def _apply_vaccine_effects(self, uids):
+        """Set ``immunity`` and reduce ``rel_sus`` on each pentavalent module."""
         sim = self.sim
-        for name in ('diphtheria', 'tetanus', 'pertussis', 'hepatitis_b', 'hib'):
-            if name not in sim.diseases:
+        efficacy = float(self.pars.efficacy)
+        for name in self.TARGET_DISEASES:
+            dis = sim.diseases.get(name) if hasattr(sim.diseases, 'get') else getattr(sim.diseases, name, None)
+            if dis is None:
                 continue
-            dis = sim.diseases[name]
             dis.vaccinated[uids] = True
             dis.ti_vaccinated[uids] = sim.ti
-            dis.immunity[uids] = self.pars.efficacy
-            dis.rel_sus[uids] = 1.0 - self.pars.efficacy
-
-    def init_results(self):
-        super().init_results()
-
-    def update_results(self):
-        super().update_results()
+            dis.immunity[uids] = efficacy
+            dis.rel_sus[uids] = 1.0 - efficacy

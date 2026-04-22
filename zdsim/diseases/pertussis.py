@@ -1,129 +1,86 @@
 """
-Pertussis (Whooping Cough) disease module for zero-dose vaccination simulation.
+Pertussis (Whooping Cough) disease module.
+
+Implemented as a standard Starsim ``ss.Infection`` with person-to-person
+transmission driven by β, plus exponential waning of vaccine/natural
+immunity.  The pentavalent vaccine provides protection; zero-dose
+children are unprotected.
 """
 
-import starsim as ss
 import numpy as np
+import starsim as ss
+
 
 class Pertussis(ss.Infection):
     """
     Pertussis disease module.
-    
-    Pertussis (whooping cough) is a highly contagious respiratory disease.
-    The zero-dose vaccine (DTP) provides protection against pertussis.
+
+    Literature R0: 5.5–17.5 (Kenya, highly transmissible). Target R0 ≈ 11.5
+    with duration ≈ 0.25 yr ⇒ β = R0 / duration = 46.0 per year.
     """
-    
+
     def __init__(self, pars=None, **kwargs):
         super().__init__()
-        
-        # Define disease-specific parameters
-        # Literature R0: 5.5-17.5 for Kenya (highly transmissible)
-        # Target R0 ≈ 11.5 (mid-range), with duration ≈ 0.25 years
-        # Beta = R0 / duration = 11.5 / 0.25 = 46.0 per year
         self.define_pars(
-            beta=ss.peryear(46.0),  # High transmission rate (increased for literature R0)
-            init_prev=ss.bernoulli(p=0.02),  # Initial prevalence
-            dur_inf=ss.lognorm_ex(mean=ss.years(0.25)),  # Duration of infection (weeks)
-            p_death=ss.bernoulli(p=0.01),  # Case Fatality Rate (CFR): 1% in general population
-            p_severe=ss.bernoulli(p=0.05),  # Probability of severe disease
-            age_susceptibility=ss.bernoulli(p=0.9),  # Very high susceptibility in children
-            waning_immunity=ss.peryear(0.1),  # Immunity wanes over time
+            beta=ss.peryear(46.0),
+            init_prev=ss.bernoulli(p=0.02),
+            dur_inf=ss.lognorm_ex(mean=ss.years(0.25)),
+            p_death=ss.bernoulli(p=0.01),
+            p_severe=ss.bernoulli(p=0.05),
+            age_susceptibility=ss.bernoulli(p=0.9),
+            waning_immunity=ss.peryear(0.1),
         )
-        
-        # Define all states for pertussis
         self.define_states(
-            ss.BoolState('susceptible', default=True, label='Susceptible'),
-            ss.BoolState('infected', label='Infected'),
             ss.BoolState('recovered', label='Recovered'),
-            ss.FloatArr('ti_infected', label='Time of infection'),
             ss.FloatArr('ti_recovered', label='Time of recovery'),
             ss.FloatArr('ti_dead', label='Time of death'),
-            ss.FloatArr('rel_sus', default=1.0, label='Relative susceptibility'),
-            ss.FloatArr('rel_trans', default=1.0, label='Relative transmission'),
             ss.BoolState('severe', label='Severe disease'),
             ss.BoolState('vaccinated', default=False, label='Vaccinated'),
             ss.FloatArr('ti_vaccinated', label='Time of vaccination'),
             ss.FloatArr('immunity', default=0.0, label='Immunity level'),
-            reset=True
         )
-        
         self.update_pars(pars, **kwargs)
-        return
-    
-    def step_state(self):
-        """Handle state transitions and immunity waning"""
-        sim = self.sim
-        ti = sim.ti
-        
-        # Progress infectious -> recovered
-        recovered = (self.infected & (self.ti_recovered <= ti)).uids
-        if len(recovered):
-            self.infected[recovered] = False
-            self.recovered[recovered] = True
-            # Natural immunity after recovery
-            self.immunity[recovered] = 0.7
-        
-        # Handle immunity waning
-        self.update_immunity()
-        
-        # Trigger deaths
-        deaths = (self.ti_dead <= ti).uids
-        if len(deaths):
-            sim.people.request_death(deaths)
-        
-        return
-    
-    def update_immunity(self):
-        """Update immunity levels with waning"""
-        waning_rate = self.pars.waning_immunity.to_prob(self.sim.t.dt)
-        has_immunity = (self.immunity > 0).uids
-        if len(has_immunity):
-            # Immunity wanes exponentially
-            self.immunity[has_immunity] *= (1 - waning_rate)
-            # Update relative susceptibility based on immunity
-            self.rel_sus[has_immunity] = np.maximum(0, 1 - self.immunity[has_immunity])
-    
+
     def set_prognoses(self, uids, sources=None):
-        """Set prognoses upon infection"""
         super().set_prognoses(uids, sources)
         ti = self.t.ti
         self.susceptible[uids] = False
         self.infected[uids] = True
         self.ti_infected[uids] = ti
-        
-        # Determine disease severity
-        severe = self.pars.p_severe.rvs(uids)
-        self.severe[uids] = severe
-        
+
         p = self.pars
-        
-        # Sample duration of infection
+        self.severe[uids] = p.p_severe.rvs(uids)
         dur_inf = p.dur_inf.rvs(uids)
-        
-        # Determine who dies and who recovers and when
         will_die = p.p_death.rvs(uids)
         dead_uids = uids[will_die]
         rec_uids = uids[~will_die]
         self.ti_dead[dead_uids] = ti + dur_inf[will_die]
         self.ti_recovered[rec_uids] = ti + dur_inf[~will_die]
-        
-        return
-    
+
+    def step_state(self):
+        sim = self.sim
+        ti = sim.ti
+        recovered = (self.infected & (self.ti_recovered <= ti)).uids
+        if len(recovered):
+            self.infected[recovered] = False
+            self.recovered[recovered] = True
+            self.immunity[recovered] = 0.7
+
+        self._wane_immunity()
+
+        deaths = (self.ti_dead <= ti).uids
+        if len(deaths):
+            sim.people.request_death(deaths)
+
+    def _wane_immunity(self):
+        """Exponential waning of immunity; rel_sus follows 1 - immunity."""
+        waning_rate = self.pars.waning_immunity.to_prob(self.sim.t.dt)
+        has_immunity = (self.immunity > 0).uids
+        if len(has_immunity):
+            self.immunity[has_immunity] *= (1 - waning_rate)
+            self.rel_sus[has_immunity] = np.maximum(0, 1 - self.immunity[has_immunity])
+
     def step_die(self, uids):
-        """Reset infected/recovered flags for dead agents"""
         self.susceptible[uids] = False
         self.infected[uids] = False
         self.recovered[uids] = False
-        return
-    
-    def init_results(self):
-        """Initialize results tracking"""
-        super().init_results()
-        # Additional results are defined in the states, no need to redefine here
-        return
-    
-    def update_results(self):
-        """Update results each timestep"""
-        super().update_results()
-        # Results are automatically tracked through the states
-        return

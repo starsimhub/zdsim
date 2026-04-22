@@ -158,9 +158,13 @@ def build_sim_from_bundle(
     Births continuously replenish the under-5 population; the zero-dose share
     metric always measures the fraction of current under-5 agents unvaccinated.
     """
-    np.random.seed(bundle.seed)
-
-    sim_pars = dict(start=start, stop=stop, dt=1 / 52, verbose=0)
+    sim_pars = dict(
+        start=start,
+        stop=stop,
+        dt=1 / 52,
+        verbose=0,
+        rand_seed=int(bundle.seed),
+    )
 
     # Uniform under-5 age distribution: equal weight for each single-year group 0–4.
     # ss.People uses this to sample initial ages; within each bin Starsim draws
@@ -237,8 +241,10 @@ def grid_search_reference_routine(
     """
     Pick ``intervention_routine_prob`` so model ZD matches empirical target; holds
     all other bundle fields (including data-derived coverage) fixed.
+
+    Reproducibility is handled by Starsim: the trial bundle propagates
+    ``seed`` → ``ss.Sim(rand_seed=...)`` inside ``build_sim_from_bundle``.
     """
-    np.random.seed(base_bundle.seed)
     stop_short = start + calib_years
     # routine_prob × coverage (coverage from data); search a bit wider on routine
     grid = np.linspace(0.018, 0.090, 14)

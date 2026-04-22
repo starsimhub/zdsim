@@ -9,7 +9,11 @@ version = runpy.run_path(versionpath)['__version__']
 
 # # Get the documentation
 # with open(os.path.join(cwd, 'README.rst'), "r") as f:
-long_description = "zdsim, an agent-based TB model implemented using the Starsim framework"
+long_description = (
+    "zdsim, an agent-based model of zero-dose vaccination and pentavalent "
+    "disease burden among under-five children, implemented using the "
+    "Starsim framework (>=3.3.2)."
+)
 
 
 setup(
@@ -28,7 +32,7 @@ setup(
         "scipy",
         "pandas",
         "matplotlib",
-        "starsim",
+        "starsim>=3.3.2",
         "openpyxl>=3.0",
         "reportlab>=4.0",
     ],
