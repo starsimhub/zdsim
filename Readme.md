@@ -1,3 +1,5 @@
+**Warning! Zdsim is still a beta version. It is being shared solely for transparency and to facilitate collaborative development. It is not ready to be used for real research or policy questions.**
+
 # zdsim — Zero-dose vaccination ABM
 
 Agent-based model (built on [Starsim](https://starsim.org)) that estimates how many **tetanus cases and tetanus deaths are averted** when routine DTP1/pentavalent delivery is scaled up enough to roughly halve the under-5 **zero-dose** share in Kenya. Following Rono et al. (2024), **tetanus is the only disease simulated**: diphtheria is eliminated, neonatal tetanus is near elimination, and pertussis and measles are under marked control, so tetanus is the DTP-bracket sentinel.
