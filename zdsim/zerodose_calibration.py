@@ -8,24 +8,23 @@ import pandas as pd
 
 from zdsim.zerodose_data import empirical_zerodose_proxy_dtp1
 
+__all__ = ['SimulationParameters', 'build_calibration_parameters', 'empirical_summary_from_dataframe', 'with_intervention_delivery']
 
 @dataclass(frozen=True)
-class SimulationParameterBundle:
-    """ Immutable set of inputs used to build one Starsim scenario. """
+class SimulationParameters:
+    """ Immutable set of model inputs used to build one Starsim scenario.
+
+    Only tetanus is modelled as a disease (per Rono et al. 2024 — the other
+    DTP-bracket diseases are eliminated or near-elimination in Kenya). The
+    ``household_contacts`` / ``community_contacts`` networks are retained
+    because the vaccination intervention is still delivered through them.
+    """
     seed: int
     birth_rate: float  # crude CBR per 1000/yr, kept for reporting and back-compat
     death_rate: float
     household_contacts: int
     community_contacts: int
-    diphtheria_beta: float
-    pertussis_beta: float
-    hepatitis_b_beta: float
-    hib_beta: float
-    diphtheria_init_p: float
     tetanus_init_p: float  # initial prevalence seeded from reported monthly cases
-    pertussis_init_p: float
-    hepatitis_b_init_p: float
-    hib_init_p: float
     intervention_routine_prob: float
     intervention_coverage: float
     intervention_efficacy: float
@@ -37,12 +36,12 @@ class SimulationParameterBundle:
     data_derived: dict = field(default_factory=dict)
 
     def as_log_dict(self):
-        """ Return the bundle as a plain dict (for JSON logging). """
+        """ Return the parameter set as a plain dict (for JSON logging). """
         return asdict(self)
 
     @classmethod
     def from_dict(cls, d):
-        """ Rebuild a bundle from ``d``; extra keys are ignored. """
+        """ Rebuild a parameter set from ``d``; extra keys are ignored. """
         known = {f.name for f in dataclasses.fields(cls)}
         return cls(**{k: v for k, v in d.items() if k in known})
 
@@ -73,34 +72,21 @@ def demographics_from_live_births(df, *, population, default_birth_rate=25.0, de
     return default_birth_rate, default_death_rate, meta
 
 
-def disease_init_from_reported_cases(df, *, reference_population):
-    """ Per-disease initial Bernoulli prevalences, scaled from data when available. """
-    defaults = {
-        "diphtheria_init_p":  0.01,
-        "tetanus_init_p":     0.001,
-        "pertussis_init_p":   0.02,
-        "hepatitis_b_init_p": 0.005,
-        "hib_init_p":         0.01,
-    }
+def tetanus_init_from_reported_cases(df, *, reference_population):
+    """ Initial tetanus Bernoulli prevalence, scaled from reported cases when available. """
+    default = 0.001
     if df is None or reference_population is None or reference_population <= 0:
-        return defaults
-
-    out = dict(defaults)
-    if "tetanus" in df.columns:
-        m = float(np.nanmean(pd.to_numeric(df["tetanus"], errors="coerce")))
-        p = min(0.05, max(1e-4, (m * 12.0) / reference_population))
-        out["tetanus_init_p"] = float(p)
-    if "diphtheria" in df.columns:
-        m = float(np.nanmean(pd.to_numeric(df["diphtheria"], errors="coerce")))
-        p = min(0.05, max(1e-4, (m * 12.0) / reference_population))
-        out["diphtheria_init_p"] = float(p)
-    return out
+        return default
+    if "tetanus" not in df.columns:
+        return default
+    m = float(np.nanmean(pd.to_numeric(df["tetanus"], errors="coerce")))
+    return float(min(0.05, max(1e-4, (m * 12.0) / reference_population)))
 
 
-def build_calibration_bundle(*, seed, df, population, empirical):
-    """ Build a base bundle with demographics, disease inits, and data-derived coverage. """
+def build_calibration_parameters(*, seed, df, population, empirical):
+    """ Build a base parameter set with demographics, tetanus init, and data-derived coverage. """
     br, dr, demo_meta = demographics_from_live_births(df, population=population)
-    init_p            = disease_init_from_reported_cases(df, reference_population=population)
+    tetanus_init_p    = tetanus_init_from_reported_cases(df, reference_population=population)
 
     if empirical:
         cov     = _clip_cov(float(empirical["mean_dtp1_coverage_proxy"]))
@@ -115,22 +101,14 @@ def build_calibration_bundle(*, seed, df, population, empirical):
     # = birth_rate / 0.229 ~= birth_rate * 4.37.
     fertility_rate = float(br * 4.37)
 
-    return SimulationParameterBundle(
+    return SimulationParameters(
         seed                      = seed,
         birth_rate                = br,
         death_rate                = dr,
         fertility_rate            = fertility_rate,
         household_contacts        = 5,
         community_contacts        = 15,
-        diphtheria_beta           = 0.15,
-        pertussis_beta            = 0.25,
-        hepatitis_b_beta          = 0.08,
-        hib_beta                  = 0.12,
-        diphtheria_init_p         = init_p["diphtheria_init_p"],
-        tetanus_init_p            = init_p["tetanus_init_p"],
-        pertussis_init_p          = init_p["pertussis_init_p"],
-        hepatitis_b_init_p        = init_p["hepatitis_b_init_p"],
-        hib_init_p                = init_p["hib_init_p"],
+        tetanus_init_p            = tetanus_init_p,
         intervention_routine_prob        = 0.03,
         intervention_coverage            = cov,
         intervention_efficacy            = 0.9,

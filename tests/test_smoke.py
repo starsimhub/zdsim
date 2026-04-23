@@ -14,14 +14,8 @@ sc.options(interactive=False)
 
 
 def make_sim(intervention=None, seed=1, years=5):
-    """ Build a minimal zdsim Sim for unit tests. """
-    diseases = [
-        zds.Tetanus(),
-        zds.Diphtheria(),
-        zds.Pertussis(),
-        zds.HepatitisB(),
-        zds.Hib(),
-    ]
+    """ Build a minimal zdsim Sim for unit tests (tetanus only). """
+    diseases = [zds.Tetanus()]
     interventions = [intervention] if intervention is not None else []
     return ss.Sim(
         n_agents      = n_agents,

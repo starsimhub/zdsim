@@ -1,4 +1,8 @@
-""" Intervention modules: zero-dose (never-vaccinated) pentavalent delivery. """
+""" Intervention module: zero-dose (never-vaccinated) DTP1/pentavalent delivery.
+
+Tetanus is the sentinel disease through which the vaccine takes effect, per
+Rono et al. (2024).
+"""
 
 import starsim as ss
 
@@ -6,15 +10,15 @@ import starsim as ss
 class ZeroDoseVaccination(ss.Intervention):
     """ Vaccinate zero-dose children (routine or campaign mode).
 
-    A child is "zero-dose" iff they have not yet received any pentavalent dose
-    from this intervention. Newborns inherit ``zero_dose = True`` by default
-    (Starsim applies defaults to agents added by births), so the pool is
-    continuously replenished as the population grows. On first vaccination,
-    ``zero_dose`` flips to False and the target diseases receive an immunity
+    A child is "zero-dose" iff they have not yet received any DTP1/pentavalent
+    dose from this intervention. Newborns inherit ``zero_dose = True`` by
+    default (Starsim applies defaults to agents added by births), so the pool
+    is continuously replenished as the population grows. On first vaccination,
+    ``zero_dose`` flips to False and the tetanus module receives an immunity
     boost; annual boosters maintain that immunity through ``booster_age_max``.
     """
 
-    TARGET_DISEASES = ('diphtheria', 'tetanus', 'pertussis', 'hepatitis_b', 'hib')
+    TARGET_DISEASES = ('tetanus',)
 
     def __init__(self, pars=None, **kwargs):
         super().__init__()
@@ -123,7 +127,7 @@ class ZeroDoseVaccination(ss.Intervention):
         return newly_vaccinated
 
     def _apply_vaccine_effects(self, uids):
-        """ Set ``immunity`` and reduce ``rel_sus`` on each pentavalent module. """
+        """ Set ``immunity`` and reduce ``rel_sus`` on the tetanus module. """
         sim      = self.sim
         efficacy = float(self.pars.efficacy)
         for name in self.TARGET_DISEASES:

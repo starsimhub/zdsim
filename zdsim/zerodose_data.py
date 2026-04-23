@@ -1,4 +1,4 @@
-""" Load the bundled administrative immunization workbook. """
+""" Load the included administrative immunization workbook. """
 
 import os
 
@@ -13,7 +13,7 @@ def default_formatted_xlsx_path():
 
 
 def load_formatted_xlsx(path=None):
-    """ Load Sheet1 of the monthly workbook; uses the bundled default if ``path`` is None. """
+    """ Load Sheet1 of the monthly workbook; uses the included default if ``path`` is None. """
     path = path or default_formatted_xlsx_path()
     if not os.path.isfile(path):
         raise FileNotFoundError(

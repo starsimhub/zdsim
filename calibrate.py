@@ -8,7 +8,7 @@ import sys
 from datetime import datetime, timezone
 
 from zdsim.zerodose_calibration import (
-    build_calibration_bundle,
+    build_calibration_parameters,
     empirical_summary_from_dataframe,
     with_intervention_delivery,
 )
@@ -19,7 +19,7 @@ from zdsim.zerodose_data import default_formatted_xlsx_path, load_formatted_xlsx
 # inside the zdsim package itself).
 from run_simulation import (
     CALIBRATION_SCHEMA_VERSION,
-    build_sim_from_bundle,          # noqa: F401 – imported so callers don't need run_simulation
+    build_simulation,               # noqa: F401 – imported so callers don't need run_simulation
     grid_search_reference_routine,
 )
 
@@ -28,7 +28,7 @@ DEFAULT_OUT = "calibration.json"
 
 def run_calibration(*, n_agents_calib, calib_years, start, seed, data_path,
                     scale_routine_factor, scale_coverage_cap, population, out):
-    """ Run the grid search and write the reference + scale-up bundles to ``out``. """
+    """ Run the grid search and write the reference + scale-up parameter sets to ``out``. """
     empirical      = None
     empirical_zd   = 0.165
     data_file_used = None
@@ -46,7 +46,7 @@ def run_calibration(*, n_agents_calib, calib_years, start, seed, data_path,
     else:
         print(f"No data file; using fallback zero-dose target {empirical_zd:.1%}.")
 
-    base_bundle = build_calibration_bundle(
+    base_pars = build_calibration_parameters(
         seed=seed,
         df=df_data,
         population=population,
@@ -55,11 +55,11 @@ def run_calibration(*, n_agents_calib, calib_years, start, seed, data_path,
 
     print(
         f"Grid search: {calib_years}y, {n_agents_calib} agents, "
-        f"coverage={base_bundle.intervention_coverage:.4f}..."
+        f"coverage={base_pars.intervention_coverage:.4f}..."
     )
     reference_rp, calib_zd = grid_search_reference_routine(
         empirical_zd,
-        base_bundle,
+        base_pars,
         n_agents=n_agents_calib,
         calib_years=calib_years,
         start=start,
@@ -69,24 +69,24 @@ def run_calibration(*, n_agents_calib, calib_years, start, seed, data_path,
         f"(model ZD={calib_zd:.1%}, target={empirical_zd:.1%})."
     )
 
-    reference_bundle = with_intervention_delivery(base_bundle, routine_prob=reference_rp)
+    reference_pars = with_intervention_delivery(base_pars, routine_prob=reference_rp)
 
     scale_rp = min(0.12, reference_rp * scale_routine_factor)
     scale_cov = float(
-        min(scale_coverage_cap, max(reference_bundle.intervention_coverage + 0.02, 0.85))
+        min(scale_coverage_cap, max(reference_pars.intervention_coverage + 0.02, 0.85))
     )
-    scale_up_bundle = with_intervention_delivery(
-        base_bundle, routine_prob=scale_rp, coverage=scale_cov
+    scale_up_pars = with_intervention_delivery(
+        base_pars, routine_prob=scale_rp, coverage=scale_cov
     )
 
     print(
-        f"Reference bundle: routine_prob={reference_bundle.intervention_routine_prob:.6f}, "
-        f"coverage={reference_bundle.intervention_coverage:.4f}, "
-        f"efficacy={reference_bundle.intervention_efficacy:.4f}."
+        f"Reference parameters: routine_prob={reference_pars.intervention_routine_prob:.6f}, "
+        f"coverage={reference_pars.intervention_coverage:.4f}, "
+        f"efficacy={reference_pars.intervention_efficacy:.4f}."
     )
     print(
-        f"Scale-up bundle:  routine_prob={scale_up_bundle.intervention_routine_prob:.6f}, "
-        f"coverage={scale_up_bundle.intervention_coverage:.4f}."
+        f"Scale-up parameters:  routine_prob={scale_up_pars.intervention_routine_prob:.6f}, "
+        f"coverage={scale_up_pars.intervention_coverage:.4f}."
     )
 
     result = {
@@ -107,8 +107,8 @@ def run_calibration(*, n_agents_calib, calib_years, start, seed, data_path,
             "scale_up_coverage": scale_cov,
         },
         "empirical": empirical,
-        "reference_bundle": reference_bundle.as_log_dict(),
-        "scale_up_bundle": scale_up_bundle.as_log_dict(),
+        "reference_parameters": reference_pars.as_log_dict(),
+        "scale_up_parameters": scale_up_pars.as_log_dict(),
     }
 
     out_abs = os.path.abspath(out)
@@ -174,7 +174,7 @@ def main(argv=None):
         "--scale-coverage-cap",
         type=float,
         default=0.88,
-        help="Coverage ceiling for the scale-up bundle (default: 0.88)",
+        help="Coverage ceiling for the scale-up parameter set (default: 0.88)",
     )
     p.add_argument(
         "--population",

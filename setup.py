@@ -10,9 +10,10 @@ version = runpy.run_path(versionpath)['__version__']
 # # Get the documentation
 # with open(os.path.join(cwd, 'README.rst'), "r") as f:
 long_description = (
-    "zdsim, an agent-based model of zero-dose vaccination and pentavalent "
-    "disease burden among under-five children, implemented using the "
-    "Starsim framework (>=3.3.2)."
+    "zdsim, an agent-based model of zero-dose vaccination among under-five "
+    "children, using tetanus as the sentinel outcome for DTP1/pentavalent "
+    "coverage gaps (per Rono et al. 2024). Implemented on the Starsim "
+    "framework (>=3.3.2)."
 )
 
 

@@ -1,6 +1,6 @@
 {
   "schema_version": "1",
-  "created_at": "2026-04-22T19:53:13.232880+00:00",
+  "created_at": "2026-04-23T06:58:32.742535+00:00",
   "calibration_metadata": {
     "data_file": "/Users/mine/git/zdsim/zdsim/data/zerodose_data_formated.xlsx",
     "n_agents_calib": 10000,
@@ -11,7 +11,7 @@
     "scale_coverage_cap": 0.88,
     "empirical_zerodose_proxy": 0.1647298685507964,
     "calibrated_routine_prob": 0.029076923076923077,
-    "calibrated_model_zd": 0.16386890487609912,
+    "calibrated_model_zd": 0.16407185628742516,
     "scale_up_routine_prob": 0.06687692307692307,
     "scale_up_coverage": 0.8552701314492037
   },
@@ -22,26 +22,21 @@
     "n_months": 84,
     "years_span": "2018-2024"
   },
-  "reference_bundle": {
+  "reference_parameters": {
     "seed": 42,
     "birth_rate": 25.0,
     "death_rate": 8.0,
     "household_contacts": 5,
     "community_contacts": 15,
-    "diphtheria_beta": 0.15,
-    "pertussis_beta": 0.25,
-    "hepatitis_b_beta": 0.08,
-    "hib_beta": 0.12,
-    "diphtheria_init_p": 0.01,
     "tetanus_init_p": 0.001,
-    "pertussis_init_p": 0.02,
-    "hepatitis_b_init_p": 0.005,
-    "hib_init_p": 0.01,
     "intervention_routine_prob": 0.029076923076923077,
     "intervention_coverage": 0.8352701314492037,
     "intervention_efficacy": 0.9,
     "intervention_age_min": 0.0,
-    "intervention_age_max": 60.0,
+    "intervention_age_max": 5.0,
+    "intervention_booster_age_max": 0.0,
+    "intervention_booster_interval_years": 1.0,
+    "fertility_rate": 109.25,
     "data_derived": {
       "demographics": {
         "population_used": null,
@@ -51,26 +46,21 @@
       "intervention_coverage_from_mean_dtp1_proxy": true
     }
   },
-  "scale_up_bundle": {
+  "scale_up_parameters": {
     "seed": 42,
     "birth_rate": 25.0,
     "death_rate": 8.0,
     "household_contacts": 5,
     "community_contacts": 15,
-    "diphtheria_beta": 0.15,
-    "pertussis_beta": 0.25,
-    "hepatitis_b_beta": 0.08,
-    "hib_beta": 0.12,
-    "diphtheria_init_p": 0.01,
     "tetanus_init_p": 0.001,
-    "pertussis_init_p": 0.02,
-    "hepatitis_b_init_p": 0.005,
-    "hib_init_p": 0.01,
     "intervention_routine_prob": 0.06687692307692307,
     "intervention_coverage": 0.8552701314492037,
     "intervention_efficacy": 0.9,
     "intervention_age_min": 0.0,
-    "intervention_age_max": 60.0,
+    "intervention_age_max": 5.0,
+    "intervention_booster_age_max": 0.0,
+    "intervention_booster_interval_years": 1.0,
+    "fertility_rate": 109.25,
     "data_derived": {
       "demographics": {
         "population_used": null,

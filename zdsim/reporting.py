@@ -40,9 +40,14 @@ FIGURE_MANIFEST = [
         "translating to a national cohort.",
     ),
     (
-        "projection_disease_deaths.png",
-        "Figure 4. Disease-attributable deaths (pentavalent modules) per year "
-        "with annual averted counts.",
+        "projection_tetanus_deaths.png",
+        "Figure 4. Tetanus deaths per year with annual averted counts "
+        "(no-intervention, reference, and scale-up scenarios).",
+    ),
+    (
+        "projection_cumulative_deaths_averted.png",
+        "Figure 4b. Cumulative tetanus deaths averted versus the "
+        "no-intervention counterfactual.",
     ),
     (
         "admin_data_dtp1_zerodose_timeseries.png",
@@ -53,6 +58,16 @@ FIGURE_MANIFEST = [
         "admin_data_dpt123_vs_births.png",
         "Figure 6. Administrative DPT1 / DPT3 doses versus estimated live "
         "births, providing context for the DTP1 coverage proxy.",
+    ),
+    (
+        "admin_data_disease_context.png",
+        "Figure 7. Monthly reported cases for pneumonia, measles, and "
+        "tetanus from the Kenya HMIS administrative dataset — descriptive "
+        "context only, mirroring the tables in the Rono et al. (2024) "
+        "Results section. Pneumonia and measles are shown because the "
+        "brief cites their monthly burden; neither is modelled in this "
+        "ABM (pneumonia is addressed by PCV, measles by MCV, and the "
+        "brief explicitly notes measles is under marked control).",
     ),
 ]
 
@@ -215,11 +230,11 @@ def _abstract_paragraphs(summary, styles):
         f"delivery probability is calibrated (grid search) so that the "
         f"modelled end-of-window zero-dose share matches the empirical "
         f"proxy, and an <i>intervention</i> scenario with a higher routine "
-        f"delivery probability and coverage cap. Tetanus is modelled via "
-        f"environmental / wound-exposure dynamics with waning immunity "
-        f"(Starsim SIS-style); the other pentavalent modules (diphtheria, "
-        f"pertussis, hepatitis B, Hib) are modelled for disease-attributable "
-        f"mortality. Vaccination acts on under-fives only.",
+        f"delivery probability and coverage cap. Following Rono et al. "
+        f"(2024), tetanus is the sentinel disease — the only DTP-bracket "
+        f"disease still endemic in Kenya — and is modelled via environmental "
+        f"/ wound-exposure dynamics with waning immunity (Starsim SIS-style). "
+        f"Vaccination acts on under-fives only.",
         styles["Body"],
     ))
     items.append(Paragraph(
@@ -257,6 +272,7 @@ def _introduction_paragraphs(summary, styles):
     emp_cov = _safe_get(summary, "empirical_zerodose_proxy_dtp1", "mean_dtp1_coverage_proxy", default=0.0)
     span = _safe_get(summary, "empirical_zerodose_proxy_dtp1", "years_span", default="")
     n_months = _safe_get(summary, "empirical_zerodose_proxy_dtp1", "n_months", default=0)
+    context = _safe_get(summary, "empirical_disease_context_monthly", default={}) or {}
 
     items = [
         Paragraph(
@@ -285,7 +301,7 @@ def _introduction_paragraphs(summary, styles):
             styles["Body"],
         ),
         Paragraph(
-            f"The bundled administrative dataset provides a monthly DTP1 "
+            f"The included administrative dataset provides a monthly DTP1 "
             f"coverage proxy spanning {span} "
             f"({_fmt_int(n_months)} months). Its mean coverage is "
             f"<b>{_fmt_pct(emp_cov)}</b>, implying a mean zero-dose share "
@@ -293,6 +309,32 @@ def _introduction_paragraphs(summary, styles):
             f"calibration target.",
             styles["Body"],
         ),
+    ]
+
+    if context:
+        items.append(Paragraph("Descriptive disease context", styles["Sub"]))
+        fragments = []
+        for name in ("pneumonia", "measles", "tetanus"):
+            if name in context:
+                mean_m = context[name].get("mean_monthly_cases")
+                fragments.append(f"<b>{name}</b> ≈ {_fmt_int(mean_m)}/month")
+        if fragments:
+            items.append(Paragraph(
+                "The same administrative dataset also reports monthly case "
+                "counts for several under-five diseases. Mirroring the "
+                "tables in the Rono et al. (2024) Results section, the "
+                "average monthly burden is: " + "; ".join(fragments) + ". "
+                "<b>Only tetanus is simulated</b> — pneumonia is addressed "
+                "by the pneumococcal vaccine (PCV), measles by the "
+                "measles-containing vaccine (MCV), and the brief explicitly "
+                "notes that pertussis and measles are under marked control "
+                "in Kenya. Pneumonia and measles are shown here purely as "
+                "context for the under-five disease burden in which "
+                "zero-dose children live.",
+                styles["Body"],
+            ))
+
+    items += [
         Paragraph("Objective", styles["Sub"]),
         Paragraph(
             "To quantify how many children would be additionally reached, "
@@ -313,19 +355,20 @@ def _introduction_paragraphs(summary, styles):
     return items
 
 
+
 def _methodology_paragraphs(summary, styles):
-    ref_bundle = _safe_get(summary, "calibration_reference_bundle", default={})
-    scl_bundle = _safe_get(summary, "calibration_scale_up_bundle", default={})
+    ref_pars = _safe_get(summary, "calibration_reference_parameters", default={})
+    scaleup_pars = _safe_get(summary, "calibration_scale_up_parameters", default={})
     ref_rp = _safe_get(summary, "model_reference_routine_prob")
     scl_rp = _safe_get(summary, "model_scale_up_routine_prob")
     scl_cov = _safe_get(summary, "model_scale_up_coverage")
-    efficacy = ref_bundle.get("intervention_efficacy")
+    efficacy = ref_pars.get("intervention_efficacy")
     start = _safe_get(summary, "projection_calendar_start", default="?")
     stop = _safe_get(summary, "projection_calendar_stop", default="?")
     n_agents = _safe_get(summary, "n_agents", default="?")
     calib_years = _safe_get(summary, "calibration_short_run_years")
     calib_agents = _safe_get(summary, "calibration_short_run_agents")
-    data_path = _safe_get(summary, "data_file", default="(bundled xlsx)")
+    data_path = _safe_get(summary, "data_file", default="(included xlsx)")
     calib_src = _safe_get(summary, "calibration_source", default="inline grid search")
 
     items = [
@@ -339,19 +382,20 @@ def _methodology_paragraphs(summary, styles):
             "overall coverage cap.",
             styles["Body"],
         ),
-        Paragraph("Disease modules", styles["Sub"]),
+        Paragraph("Disease module", styles["Sub"]),
         Paragraph(
-            "Five pentavalent disease modules are instantiated: "
-            "diphtheria, tetanus, pertussis, hepatitis B, and Hib. "
-            "All but tetanus use standard person-to-person transmission "
-            "with module-specific <i>&beta;</i> values. Tetanus, in "
-            "contrast, is modelled as an environmental / wound-exposure "
-            "process — an SIS-style dynamic with waning vaccine-induced "
-            "immunity — because tetanus transmission is not person-to-"
-            "person in practice. Vaccinated agents become transiently "
-            "immune with efficacy " f"{_fmt_pct(efficacy)} "
-            "and re-enter the susceptible pool as immunity wanes, matching "
-            "the dynamics described in the Rono et al. (2024) brief.",
+            "A single disease module is instantiated: <b>tetanus</b>. The "
+            "Rono et al. (2024) brief notes that diphtheria is eliminated, "
+            "neonatal tetanus is near elimination, and pertussis and "
+            "measles are under marked control in Kenya; tetanus is "
+            "therefore the only DTP-bracket disease with enough residual "
+            "burden to serve as a sensitive indicator of first-dose "
+            "coverage. Tetanus transmission is not person-to-person in "
+            "practice, so the module implements an environmental / "
+            "wound-exposure SIS-style dynamic with waning vaccine-induced "
+            "immunity. Vaccinated agents become transiently immune with "
+            f"efficacy {_fmt_pct(efficacy)} and re-enter the susceptible "
+            "pool as immunity wanes.",
             styles["Body"],
         ),
         Paragraph("Calibration", styles["Sub"]),
@@ -362,8 +406,8 @@ def _methodology_paragraphs(summary, styles):
             f"runs (≈{_fmt_int(calib_agents)} agents, "
             f"{calib_years}-year window) and, once converged, the chosen "
             f"routine probability and a coverage cap set by the mean DTP1 "
-            f"proxy define the <i>reference</i> bundle. The "
-            f"<i>intervention</i> bundle multiplies the reference routine "
+            f"proxy define the <i>reference</i> parameter set. The "
+            f"<i>intervention</i> parameter set multiplies the reference routine "
             f"probability (capped at 0.12) and raises the coverage by "
             f"+2 percentage points, bounded by the coverage cap.",
             styles["Body"],
@@ -384,41 +428,26 @@ def _methodology_paragraphs(summary, styles):
         ],
         [
             "Coverage cap",
-            _fmt_pct(ref_bundle.get("intervention_coverage")),
+            _fmt_pct(ref_pars.get("intervention_coverage")),
             _fmt_pct(scl_cov if scl_cov is not None
-                     else scl_bundle.get("intervention_coverage")),
+                     else scaleup_pars.get("intervention_coverage")),
         ],
         [
             "Vaccine efficacy",
-            _fmt_pct(ref_bundle.get("intervention_efficacy")),
-            _fmt_pct(scl_bundle.get("intervention_efficacy")),
+            _fmt_pct(ref_pars.get("intervention_efficacy")),
+            _fmt_pct(scaleup_pars.get("intervention_efficacy")),
         ],
         [
             "Eligible ages (years)",
-            f"{_fmt_num(ref_bundle.get('intervention_age_min'), 0)}"
-            f"–{_fmt_num(ref_bundle.get('intervention_age_max'), 0)}",
-            f"{_fmt_num(scl_bundle.get('intervention_age_min'), 0)}"
-            f"–{_fmt_num(scl_bundle.get('intervention_age_max'), 0)}",
+            f"{_fmt_num(ref_pars.get('intervention_age_min'), 0)}"
+            f"–{_fmt_num(ref_pars.get('intervention_age_max'), 0)}",
+            f"{_fmt_num(scaleup_pars.get('intervention_age_min'), 0)}"
+            f"–{_fmt_num(scaleup_pars.get('intervention_age_max'), 0)}",
         ],
         [
-            "Diphtheria β",
-            _fmt_num(ref_bundle.get("diphtheria_beta"), 3),
-            _fmt_num(scl_bundle.get("diphtheria_beta"), 3),
-        ],
-        [
-            "Pertussis β",
-            _fmt_num(ref_bundle.get("pertussis_beta"), 3),
-            _fmt_num(scl_bundle.get("pertussis_beta"), 3),
-        ],
-        [
-            "Hepatitis B β",
-            _fmt_num(ref_bundle.get("hepatitis_b_beta"), 3),
-            _fmt_num(scl_bundle.get("hepatitis_b_beta"), 3),
-        ],
-        [
-            "Hib β",
-            _fmt_num(ref_bundle.get("hib_beta"), 3),
-            _fmt_num(scl_bundle.get("hib_beta"), 3),
+            "Tetanus initial prevalence",
+            _fmt_num(ref_pars.get("tetanus_init_p"), 4),
+            _fmt_num(scaleup_pars.get("tetanus_init_p"), 4),
         ],
     ]
     param_table = Table(param_rows, colWidths=[8.0 * cm, 4.0 * cm, 4.0 * cm])
@@ -450,7 +479,7 @@ def _results_paragraphs(summary, styles):
     scl = _safe_get(summary, "zero_dose_fraction_under5_model_scale_up", default=0.0)
     red = _safe_get(summary, "relative_reduction_percent_model", default=0.0)
     benefit = _safe_get(summary, "projection_benefit_summary", default={}) or {}
-    death_b = _safe_get(summary, "projection_death_benefit_summary", default={}) or {}
+    death_b = _safe_get(summary, "projection_tetanus_death_benefit_summary", default={}) or {}
     tet = _safe_get(summary, "research_question_tetanus", "modeled_answer", default={}) or {}
     scaled = _safe_get(summary, "population_scaled_projection", default={}) or {}
 
@@ -482,16 +511,16 @@ def _results_paragraphs(summary, styles):
             f"cases averted in the first calendar year (2025).",
             styles["Body"],
         ),
-        Paragraph("Disease-attributable deaths", styles["Sub"]),
+        Paragraph("Tetanus deaths", styles["Sub"]),
         Paragraph(
-            f"Across all pentavalent disease modules, total modelled deaths "
-            f"are <b>{_fmt_int(death_b.get('total_reference_deaths'))}</b> "
+            f"Total modelled tetanus deaths are "
+            f"<b>{_fmt_int(death_b.get('total_reference_tetanus_deaths'))}</b> "
             f"in the reference scenario and "
-            f"<b>{_fmt_int(death_b.get('total_intervention_deaths'))}</b> "
+            f"<b>{_fmt_int(death_b.get('total_intervention_tetanus_deaths'))}</b> "
             f"in the intervention scenario "
-            f"(averted <b>{_fmt_int(death_b.get('total_deaths_averted'))}</b>, "
+            f"(averted <b>{_fmt_int(death_b.get('total_tetanus_deaths_averted'))}</b>, "
             f"mean "
-            f"{_fmt_num(death_b.get('mean_annual_deaths_averted'), 1)} per "
+            f"{_fmt_num(death_b.get('mean_annual_tetanus_deaths_averted'), 1)} per "
             f"year). These counts are stochastic in small cohorts.",
             styles["Body"],
         ),
@@ -514,7 +543,9 @@ def _results_paragraphs(summary, styles):
             f"{_fmt_int(scaled.get('mean_annual_children_additionally_vaccinated'))} "
             f"children additionally vaccinated per year. Scaled tetanus "
             f"cases averted: "
-            f"<b>{_fmt_int(scaled.get('tetanus_cases_averted_scaled'))}</b>. "
+            f"<b>{_fmt_int(scaled.get('tetanus_cases_averted_scaled'))}</b>; "
+            f"scaled tetanus deaths averted: "
+            f"<b>{_fmt_int(scaled.get('total_tetanus_deaths_averted_scaled'))}</b>. "
             f"Source: {scaled.get('anchor_source', 'see methodology')}.",
             styles["Body"],
         ))
@@ -526,15 +557,15 @@ def _results_paragraphs(summary, styles):
         items.append(Paragraph("Annual breakdown", styles["Sub"]))
         year_rows = [
             ["Year", "ZD share\n(reference)", "ZD share\n(intervention)",
-             "Ref. deaths", "Int. deaths"],
+             "Ref. tetanus\ndeaths", "Int. tetanus\ndeaths"],
         ]
         for r, s in zip(yearly_ref, yearly_scl):
             year_rows.append([
                 str(r.get("calendar_year", "?")),
                 _fmt_pct(r.get("zerodose_under5_fraction")),
                 _fmt_pct(s.get("zerodose_under5_fraction")),
-                _fmt_int(r.get("disease_attributable_deaths")),
-                _fmt_int(s.get("disease_attributable_deaths")),
+                _fmt_int(r.get("tetanus_deaths")),
+                _fmt_int(s.get("tetanus_deaths")),
             ])
         yt = Table(year_rows, colWidths=[2.2 * cm, 3.6 * cm, 3.6 * cm, 3.3 * cm, 3.3 * cm])
         yt.setStyle(TableStyle([
@@ -563,15 +594,17 @@ def _discussion_paragraphs(summary, styles):
             styles["Body"],
         ),
         Paragraph(
-            "Several caveats apply. Disease-attributable death counts come "
-            "from the Starsim pentavalent modules and represent only the "
-            "modelled fraction of child mortality — not all-cause under-"
-            "five mortality. Annual averted counts can be noisy when the "
-            "modelled cohort is small or the projection window is short; "
-            "in those regimes occasional negative yearly averted values "
-            "are expected and should prompt longer runs or larger cohorts. "
-            "When the two arms use distinct RNG seeds the comparison is "
-            "also noisier than when they share a seed (the default).",
+            "Several caveats apply. Tetanus is used as a sentinel for "
+            "DTP1 / pentavalent coverage and does not capture all-cause "
+            "under-five mortality; diphtheria, pertussis, hepatitis B and "
+            "Hib are not simulated here because Kenya has already "
+            "eliminated or controlled them. Annual averted counts can be "
+            "noisy when the modelled cohort is small or the projection "
+            "window is short; in those regimes occasional negative yearly "
+            "averted values are expected and should prompt longer runs or "
+            "larger cohorts. When the two arms use distinct RNG seeds the "
+            "comparison is also noisier than when they share a seed (the "
+            "default).",
             styles["Body"],
         ),
         Paragraph(
@@ -600,7 +633,7 @@ def _conclusion_paragraphs(summary, styles):
             f"<b>{_fmt_num(red, 1)}%</b> in this run) produces a meaningful "
             f"decline in modelled tetanus cases "
             f"(<b>{_fmt_int(tet_av)}</b> averted in the simulated cohort) "
-            f"and reduces overall pentavalent-attributable mortality. These "
+            f"and a corresponding reduction in tetanus deaths. These "
             f"findings support sustained investment in routine first-dose "
             f"delivery as the most direct lever on zero-dose prevalence.",
             styles["Body"],
