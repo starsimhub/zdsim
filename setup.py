@@ -9,7 +9,12 @@ version = runpy.run_path(versionpath)['__version__']
 
 # # Get the documentation
 # with open(os.path.join(cwd, 'README.rst'), "r") as f:
-long_description = "zdsim, an agent-based TB model implemented using the Starsim framework"
+long_description = (
+    "zdsim, an agent-based model of zero-dose vaccination among under-five "
+    "children, using tetanus as the sentinel outcome for DTP1/pentavalent "
+    "coverage gaps (per Rono et al. 2024). Implemented on the Starsim "
+    "framework (>=3.3.2)."
+)
 
 
 setup(
@@ -23,11 +28,18 @@ setup(
     platforms=["OS Independent"],
     packages=find_packages(),
     include_package_data=True,
+    package_data={"zdsim": ["data/zerodose_data_formated.xlsx"]},
     install_requires=[
         "numpy",
         "scipy",
         "pandas",
         "matplotlib",
-        "starsim",
+        "starsim>=3.3.2",
+        "sciris>=3.0",
+        "openpyxl>=3.0",
+        "reportlab>=4.0",
     ],
+    extras_require={
+        "test": ["pytest"],
+    },
 )
