@@ -2,9 +2,11 @@
 
 A compact agent-based model built on [Starsim](https://starsim.org) that answers a single research question:
 
-> **How many tetanus cases and deaths are averted if routine pentavalent delivery in Kenya is scaled up enough to roughly halve the under-5 zero-dose share?**
+> **How many tetanus cases and tetanus deaths are averted if routine DTP1/pentavalent delivery in Kenya is scaled up enough to roughly halve the under-5 zero-dose share?**
 
-This document walks through the moving parts end-to-end — with Mermaid diagrams, a class map, per-module tables, and a timestep trace.
+Per Rono et al. (2024), tetanus is the only DTP-bracket disease still endemic in Kenya (diphtheria is eliminated, neonatal tetanus is near elimination, pertussis and measles are under marked control). **Tetanus is therefore the only disease simulated** — it is the sentinel outcome for zero-dose / DTP1 coverage gaps.
+
+This document walks through the moving parts end-to-end — with Mermaid diagrams, a class map, module tables, and a timestep trace.
 
 ---
 
@@ -16,7 +18,7 @@ This document walks through the moving parts end-to-end — with Mermaid diagram
 4. [Core data structures](#4-core-data-structures)
 5. [Simulation anatomy (what lives inside `ss.Sim`)](#5-simulation-anatomy-what-lives-inside-sssim)
 6. [Timestep execution order](#6-timestep-execution-order)
-7. [Disease modules](#7-disease-modules)
+7. [Tetanus disease module](#7-tetanus-disease-module)
 8. [ZeroDoseVaccination intervention](#8-zerodosevaccination-intervention)
 9. [Analyzers and outputs](#9-analyzers-and-outputs)
 10. [Population scaling to Kenya anchors](#10-population-scaling-to-kenya-anchors)
@@ -28,17 +30,17 @@ This document walks through the moving parts end-to-end — with Mermaid diagram
 
 ```mermaid
 flowchart LR
-    XLSX[("zerodose_data_formated.xlsx<br/>monthly HMIS counts<br/>DPT1 to DPT3, estimated_lb,<br/>tetanus, diphtheria")]
+    XLSX[("zerodose_data_formated.xlsx<br/>monthly HMIS counts<br/>DPT1 to DPT3, estimated_lb,<br/>tetanus cases")]
     CAL["calibrate.py<br/>grid search over routine_prob"]
-    JSON[("calibration.json<br/>reference + scale-up bundles")]
-    RUN["run_simulation.py<br/>ref sim + scale-up sim"]
-    OUT[("outputs/<br/>summary JSON<br/>6 PNG plots<br/>zdsim_report.pdf")]
+    JSON[("calibration.json<br/>reference + scale-up parameter sets")]
+    RUN["run_simulation.py<br/>baseline + reference + scale-up sims"]
+    OUT[("outputs/<br/>summary JSON<br/>PNG plots<br/>zdsim_report.pdf")]
     WORKFLOW["research_workflow.py<br/>one-command wrapper"]
 
-    XLSX -->|DTP1 coverage proxy + births + cases| CAL
+    XLSX -->|DTP1 coverage proxy + births + tetanus cases| CAL
     CAL -->|writes| JSON
     JSON -->|loaded at startup| RUN
-    XLSX -->|context plots| RUN
+    XLSX -->|context plots + tetanus fit| RUN
     RUN --> OUT
 
     WORKFLOW -.->|ensures| JSON
@@ -65,17 +67,15 @@ zdsim/
 ├── research_workflow.py           🎛 convenience wrapper (calibrate → simulate)
 │
 ├── zdsim/                         📦 importable package
-│   ├── __init__.py                exposes ZeroDoseVaccination + 5 disease classes
+│   ├── __init__.py                exposes ZeroDoseVaccination + Tetanus
 │   ├── interventions.py           ZeroDoseVaccination
-│   ├── zerodose_calibration.py    SimulationParameterBundle + build_calibration_bundle
+│   ├── zerodose_calibration.py    SimulationParameters + build_calibration_parameters
 │   ├── zerodose_data.py           xlsx loader + DTP1/zero-dose proxy
+│   ├── analysis.py                YearlyRecorder, metrics, result extraction
+│   ├── plots.py                   matplotlib figure generation
 │   ├── reporting.py               PDF report generator (reportlab)
 │   └── diseases/
-│       ├── tetanus.py             environmental SIS + waning + 4 age bands
-│       ├── diphtheria.py          SIR
-│       ├── pertussis.py           SIRS (exponential waning)
-│       ├── hepatitis_b.py         SIR + chronic carriers
-│       └── hib.py                 SIR + meningitis flag
+│       └── tetanus.py             environmental SIS + waning + 4 age bands
 │
 ├── zdsim/data/zerodose_data_formated.xlsx
 ├── calibration.json               generated; auto-detected by run_simulation.py
@@ -94,7 +94,7 @@ zdsim/
 
 ```mermaid
 flowchart LR
-    SHEET["Sheet1<br/>monthly rows<br/>year · month · dpt1 · dpt3<br/>· estimated_lb · tetanus · diphtheria"]
+    SHEET["Sheet1<br/>monthly rows<br/>year · month · dpt1 · dpt3<br/>· estimated_lb · tetanus"]
 
     subgraph ZD ["zerodose_data.py"]
         A1["monthly_births = estimated_lb / 12"]
@@ -112,14 +112,14 @@ flowchart LR
 ```mermaid
 flowchart TD
     EMP["empirical zero-dose target<br/>e.g. 0.165"]
-    BASE["build_calibration_bundle<br/>→ base SimulationParameterBundle"]
+    BASE["build_calibration_parameters<br/>→ base SimulationParameters"]
 
-    GRID["grid_search_reference_routine<br/>for rp in linspace 0.018 to 0.090 in 14 steps:<br/>build sim · run · measure ZD<br/>pick rp that minimises abs ZD minus target"]
+    GRID["grid_search_reference_routine<br/>for rp in linspace 0.018 to 0.090 in 14 steps:<br/>build sim · run in parallel · measure ZD<br/>pick rp that minimises abs ZD minus target"]
 
-    REF["reference bundle<br/>routine_prob = rp*"]
-    INT["scale-up bundle<br/>routine_prob = min 0.12, rp* × 2.3<br/>coverage = min 0.88, cov + 0.02, 0.85"]
+    REF["reference parameters<br/>routine_prob = rp*"]
+    INT["scale-up parameters<br/>routine_prob = min 0.12, rp* × 2.3<br/>coverage = min 0.88, cov + 0.02, 0.85"]
 
-    OUT_JSON[("calibration.json<br/>schema_version<br/>calibration_metadata<br/>reference_bundle<br/>scale_up_bundle")]
+    OUT_JSON[("calibration.json<br/>schema_version<br/>calibration_metadata<br/>reference_parameters<br/>scale_up_parameters")]
 
     EMP --> GRID
     BASE --> GRID
@@ -129,66 +129,61 @@ flowchart TD
     INT --> OUT_JSON
 ```
 
-**Each of the 14 trial sims is short and small** — `CALIB_N_AGENTS = 10,000` agents over `CALIB_YEARS = 8` years — so the whole grid completes in a few minutes.
+**Each of the 14 trial sims is short and small** — `CALIB_N_AGENTS = 10,000` agents over `CALIB_YEARS = 8` years — and they run in parallel via `ss.multi_run`, so the whole grid completes in tens of seconds.
 
 ### 3c. Simulation stage (runtime)
 
 ```mermaid
 flowchart LR
     JSON[("calibration.json")]
-    REFB["reference bundle<br/>(seed = 42)"]
-    INTB["scale-up bundle<br/>(seed = 42, same seed)"]
+    REFB["reference parameters<br/>(seed = 42)"]
+    INTB["scale-up parameters<br/>(seed = 42, same seed)"]
 
     JSON --> REFB
     JSON --> INTB
 
-    REFB -->|build_sim_from_bundle| SIMR["sim_ref<br/>20 000 agents · 2025–2055 · dt = 1/52 yr"]
-    INTB -->|build_sim_from_bundle| SIMI["sim_int<br/>20 000 agents · 2025–2055 · dt = 1/52 yr"]
+    REFB -->|build_simulation(with_intervention=False)| SIMB["sim_baseline<br/>20 000 agents · 2025–2030"]
+    REFB -->|build_simulation(with_intervention=True)|  SIMR["sim_ref<br/>20 000 agents · 2025–2030"]
+    INTB -->|build_simulation(with_intervention=True)|  SIMI["sim_int<br/>20 000 agents · 2025–2030"]
 
-    SIMR --> AGG["compute metrics<br/>zerodose_fraction_under5<br/>_tetanus_metrics<br/>_get_rows from YearlyRecorder"]
-    SIMI --> AGG
+    SIMB & SIMR & SIMI -->|ss.multi_run, parallel| AGG["compute metrics<br/>zerodose_fraction_under5<br/>tetanus_metrics<br/>get_rows from YearlyRecorder"]
     AGG --> SUMMARY["summary dict"]
     SUMMARY --> JOUT[("zerodose_demo_summary.json")]
     SUMMARY --> PDF[("zdsim_report.pdf<br/>reportlab")]
-    SUMMARY --> PLOTS[("6 PNG plots")]
+    SUMMARY --> PLOTS[("PNG plots")]
 ```
 
 ---
 
 ## 4. Core data structures
 
-### SimulationParameterBundle
+### SimulationParameters
 
-A frozen dataclass — immutable, copy-on-write via `dataclasses.replace`. **Everything** needed to build one scenario is in here; `build_sim_from_bundle` reads from nothing else.
+A frozen dataclass — immutable, copy-on-write via `dataclasses.replace`. **Everything** needed to build one scenario is in here; `build_simulation` reads from nothing else.
 
 ```mermaid
 classDiagram
-    class SimulationParameterBundle {
+    class SimulationParameters {
         +int seed
         +float birth_rate
         +float death_rate
+        +float fertility_rate
         +int household_contacts
         +int community_contacts
-        +float diphtheria_beta
-        +float pertussis_beta
-        +float hepatitis_b_beta
-        +float hib_beta
-        +float diphtheria_init_p
         +float tetanus_init_p
-        +float pertussis_init_p
-        +float hepatitis_b_init_p
-        +float hib_init_p
         +float intervention_routine_prob
         +float intervention_coverage
         +float intervention_efficacy
         +float intervention_age_min
         +float intervention_age_max
+        +float intervention_booster_age_max
+        +float intervention_booster_interval_years
         +dict data_derived
         +as_log_dict() dict
-        +from_dict(d) SimulationParameterBundle
+        +from_dict(d) SimulationParameters
     }
 
-    class build_calibration_bundle {
+    class build_calibration_parameters {
         +seed
         +df
         +population
@@ -201,19 +196,17 @@ classDiagram
         +coverage
     }
 
-    build_calibration_bundle ..> SimulationParameterBundle : creates
-    with_intervention_delivery ..> SimulationParameterBundle : copies and updates
+    build_calibration_parameters ..> SimulationParameters : creates
+    with_intervention_delivery ..> SimulationParameters : copies and updates
 ```
 
 Fields come from three places:
 
 | Origin | Fields |
 |---|---|
-| **Derived from xlsx** | `birth_rate` (from `estimated_lb`), `intervention_coverage` (mean DTP1 proxy), all `*_init_p` (scaled from reported case counts) |
+| **Derived from xlsx** | `birth_rate` (from `estimated_lb`), `fertility_rate` (from `birth_rate`), `intervention_coverage` (mean DTP1 proxy), `tetanus_init_p` (scaled from reported monthly cases) |
 | **Derived by calibration** | `intervention_routine_prob` |
-| **Fixed constants** | `household_contacts = 5`, `community_contacts = 15`, `intervention_efficacy = 0.9`, age window `[0, 5]` yr, per-disease `*_beta` |
-
-> ⚠️ **The disease module `__init__` defaults for `beta` are overridden.** `run_simulation.py:build_sim_from_bundle` explicitly passes the bundle's `*_beta` values. See [§7](#7-disease-modules).
+| **Fixed constants** | `household_contacts = 5`, `community_contacts = 15`, `intervention_efficacy = 0.9`, age window `[0, 5]` yr, boosters disabled (`booster_age_max = 0`) |
 
 ---
 
@@ -223,11 +216,11 @@ Every scenario is one `ss.Sim` instance composed of five groups of modules.
 
 ```mermaid
 flowchart TB
-    subgraph SIM ["ss.Sim · start – stop · dt = 1/52 yr · rand_seed = bundle.seed"]
+    subgraph SIM ["ss.Sim · start – stop · dt = 1/52 yr · rand_seed = pars.seed"]
         direction TB
 
         subgraph PPL ["People"]
-            P1["ss.People<br/>n_agents = 20 000<br/>age_data: uniform 0 to 4 yr"]
+            P1["ss.People<br/>n_agents = 20 000<br/>age_data: LMIC pyramid exp(-0.022 × a)"]
         end
 
         subgraph NETS ["Networks"]
@@ -236,16 +229,12 @@ flowchart TB
         end
 
         subgraph DEM ["Demographics"]
-            D1["ss.Births birth_rate per 1000/yr"]
+            D1["ss.Pregnancy fertility_rate per 1000 women 15-49/yr"]
             D2["ss.Deaths death_rate per 1000/yr"]
         end
 
         subgraph DIS ["Diseases"]
-            X1["Diphtheria"]
             X2["Tetanus"]
-            X3["Pertussis"]
-            X4["HepatitisB"]
-            X5["Hib"]
         end
 
         subgraph INV ["Interventions"]
@@ -253,7 +242,7 @@ flowchart TB
         end
 
         subgraph ANA ["Analyzers (optional)"]
-            A1["YearlyRecorder<br/>zero-dose share + disease deaths per year"]
+            A1["YearlyRecorder<br/>zero-dose share + tetanus deaths per year"]
         end
     end
 
@@ -262,11 +251,13 @@ flowchart TB
     I1 -.->|vaccinated state| ANA
 ```
 
+The **baseline** scenario is identical except no `ZeroDoseVaccination` module is attached, so every under-5 is zero-dose by definition.
+
 ---
 
 ## 6. Timestep execution order
 
-Starsim runs these phases in order on each of the ~1,560 weekly timesteps across a 30-year run.
+Starsim runs these phases in order on each of the ~260 weekly timesteps in a 5-year projection window.
 
 ```mermaid
 sequenceDiagram
@@ -274,29 +265,29 @@ sequenceDiagram
     participant Sim as ss.Sim
     participant Dem as Demographics
     participant Net as Networks
-    participant Dis as Diseases
+    participant Dis as Tetanus
     participant Inv as ZeroDoseVaccination
     participant Ana as YearlyRecorder
 
     loop every timestep ti
-        Sim->>Dem: step — births and background deaths
+        Sim->>Dem: step — pregnancies, births, background deaths
         Sim->>Net: step — refresh contact pairs
-        Sim->>Dis: step — transmission via beta times contacts
+        Sim->>Dis: step — wound draws by age band
         Sim->>Dis: step_state — recover, wane, schedule deaths
         Sim->>Dis: step_die — clear state for the dead
         Sim->>Inv: step — only if ti in timepoints
-        Note right of Inv: check_eligibility<br/>p_vx Bernoulli filter<br/>set immunity and rel_sus
-        Sim->>Ana: step — record deaths every step<br/>record ZD snapshot on year boundaries
+        Note right of Inv: check_eligibility<br/>p_vx Bernoulli filter<br/>set immunity and rel_sus on tetanus
+        Sim->>Ana: step — record tetanus deaths every step<br/>record ZD snapshot on year boundaries
     end
 ```
 
-Within each step the vaccination intervention runs **after** the diseases, so immunity acquired this week influences next week's transmission — not this week's.
+Within each step the vaccination intervention runs **after** the disease, so immunity acquired this week influences next week's wound-to-infection draws — not this week's.
 
 ---
 
-## 7. Disease modules
+## 7. Tetanus disease module
 
-All five inherit from `ss.Infection` and follow the same skeleton:
+Tetanus is implemented as `zdsim/diseases/tetanus.py`; it inherits from `ss.Infection` but sets `beta = 0` because real-world tetanus is not person-to-person.
 
 ```mermaid
 classDiagram
@@ -311,45 +302,19 @@ classDiagram
         +step_die(uids)
     }
 
-    class Diphtheria
-    class Tetanus
-    class Pertussis
-    class HepatitisB
-    class Hib
+    class Tetanus {
+        +FloatArr immunity
+        +BoolState vaccinated
+        +FloatArr ti_vaccinated
+        +FloatArr ti_dead
+    }
 
-    ss_Infection <|-- Diphtheria
     ss_Infection <|-- Tetanus
-    ss_Infection <|-- Pertussis
-    ss_Infection <|-- HepatitisB
-    ss_Infection <|-- Hib
 ```
 
-### 7a. Pentavalent SIR diseases (4 modules)
+### Environmental SIS with four age bands
 
-Shared structure — person-to-person transmission via the two `RandomNet` networks:
-
-```mermaid
-stateDiagram-v2
-    direction LR
-    [*] --> S : birth or init_prev
-    S --> I : contact times beta times rel_sus
-    I --> R : dur_inf lognormal
-    I --> Dead : p_death times dur_inf
-    R --> R : immunity stays
-```
-
-| Module | `beta` used at runtime | `dur_inf` (mean) | `p_death` | Extra dynamic |
-|---|---|---|---|---|
-| **Diphtheria** | bundle = **0.15/yr** (default 6.0) | 0.5 yr | 5% | immunity = 0.8 on recovery |
-| **Pertussis** | bundle = **0.25/yr** (default 46.0) | 0.25 yr | 1% | exponential immunity waning @ 0.1/yr |
-| **HepatitisB** | bundle = **0.08/yr** (default 0.5) | 2.0 yr | 2% | 5% of infections stay chronic (never clear) |
-| **Hib** | bundle = **0.12/yr** (default 17.5) | 0.1 yr | 3% | 10% flagged as meningitis |
-
-> Bundle `*_beta` values are intentionally small — the model is deliberately tuned low so that **vaccination impact on zero-dose share**, not disease epidemiology, drives the headline results.
-
-### 7b. Tetanus — environmental SIS with four age bands
-
-Tetanus gets a separate diagram because it differs structurally: **no person-to-person β** — agents acquire tetanus from wound exposure at an age-specific rate.
+Tetanus is the only disease modelled, and it differs structurally from a standard SIR module: **no person-to-person β** — agents acquire tetanus from wound exposure at an age-specific rate.
 
 ```mermaid
 stateDiagram-v2
@@ -387,12 +352,12 @@ Each event type (wound, infection, waning, death) has its own RNG stream (`ss.ra
 flowchart TD
     START(["step called"])
     T{"sim.ti in<br/>self.timepoints?"}
-    EL["check_eligibility<br/>age in 0 to 5 yr<br/>AND NOT vaccinated"]
+    EL["check_eligibility<br/>age in 0 to 5 yr<br/>AND zero_dose"]
     DRAW["p_vx.filter on eligible_uids"]
     APPLY["_apply_vaccine_effects"]
-    SET["for each pentavalent disease:<br/>vaccinated uids = True<br/>ti_vaccinated uids = ti<br/>immunity uids = efficacy 0.9<br/>rel_sus uids = 1 minus efficacy"]
+    SET["tetanus module:<br/>vaccinated uids = True<br/>ti_vaccinated uids = ti<br/>immunity uids = efficacy 0.9<br/>rel_sus uids = 1 minus efficacy"]
     NO(["return empty uids — skip"])
-    STATE["module state update:<br/>self.vaccinated uids = True<br/>self.doses_received uids += 1"]
+    STATE["module state update:<br/>self.zero_dose uids = False<br/>self.vaccinated uids = True<br/>self.doses_received uids += 1"]
 
     START --> T
     T -->|yes| EL
@@ -419,6 +384,8 @@ else:                            # routine mode (default)
 
 **Why this shape?** `routine_prob` is the per-week probability a given child encounters the health system; `coverage` is the probability they actually get jabbed conditional on that encounter. Multiplying gives the weekly vaccination probability.
 
+Although the intervention conceptually represents a DTP1/pentavalent first dose, the only disease whose state it modifies is tetanus — that's the sentinel outcome in Rono et al. (2024).
+
 ---
 
 ## 9. Analyzers and outputs
@@ -429,7 +396,7 @@ else:                            # routine mode (default)
 flowchart TD
     S1["sim advances by 1 week"]
     S2["YearlyRecorder.step"]
-    S3["deaths_by_year of year += _deaths_this_step"]
+    S3["tetanus_deaths_by_year of year += tetanus_deaths_at_step"]
     S4{"year boundary?<br/>first step of a new year"}
     S5["append row:<br/>calendar_year<br/>zerodose_under5_fraction<br/>n_children_under5<br/>n_zero_dose_under5"]
     S6["continue"]
@@ -443,22 +410,24 @@ flowchart TD
 
 ```mermaid
 flowchart LR
+    SB["sim_baseline"] --> B1["base_zd"]
     SR["sim_ref"] --> R1["ref_zd<br/>zerodose_fraction_under5"]
     SI["sim_int"] --> I1["int_zd"]
-    SR --> R2["tet_ref<br/>_tetanus_metrics"]
+    SR --> R2["tet_ref<br/>tetanus_metrics"]
     SI --> I2["tet_int"]
-    SR --> R3["rows_ref<br/>_get_rows"]
+    SB --> B3["rows_base"]
+    SR --> R3["rows_ref<br/>get_rows"]
     SI --> I3["rows_int"]
 
     R1 & I1 --> REL["relative reduction percent<br/>ref_zd minus int_zd, over ref_zd, times 100"]
     R2 & I2 --> TAV["tetanus cases averted<br/>tet_ref.total minus tet_int.total"]
-    R3 & I3 --> DEATHS["total deaths averted<br/>sum of d_ref minus d_int"]
+    B3 & R3 & I3 --> DEATHS["tetanus deaths averted<br/>sum of d_ref minus d_int"]
 
     REL & TAV & DEATHS --> SCALED["population_scaled_projection<br/>multiplied by Kenya anchors"]
 
     SCALED --> J[("zerodose_demo_summary.json")]
     J --> PDF[("zdsim_report.pdf")]
-    R3 & I3 --> PNGS[("6 PNG plots")]
+    B3 & R3 & I3 --> PNGS[("PNG plots")]
 ```
 
 ### Output files (all under `outputs/`)
@@ -466,10 +435,12 @@ flowchart LR
 | File | What it shows |
 |---|---|
 | `zerodose_demo_summary.json` | Full summary dict (metrics + yearly rows + scaled projections) |
-| `zerodose_impact.png` | End-of-window bar chart: reference vs intervention ZD share |
+| `zerodose_impact.png` | End-of-window bar chart: empirical vs baseline vs reference vs scale-up ZD share |
 | `projection_zerodose_20y.png` | Yearly ZD share trajectory |
-| `projection_disease_deaths.png` | Yearly disease-attributable deaths |
+| `projection_tetanus_deaths.png` | Yearly tetanus deaths (no-intervention vs reference vs intervention) |
+| `projection_cumulative_deaths_averted.png` | Cumulative tetanus deaths averted vs no-intervention |
 | `tetanus_reference_vs_intervention.png` | New tetanus infections over time |
+| `calibration_before.png` / `calibration_after.png` | Monthly tetanus fit: over-predicting vs calibrated model vs data |
 | `admin_data_dtp1_zerodose_timeseries.png` | Empirical DTP1 / zero-dose proxies from xlsx |
 | `admin_data_dpt123_vs_births.png` | DPT1/3 dose counts vs estimated live births |
 | `zdsim_report.pdf` | Narrative PDF report (title → abstract → methods → results → discussion) |
@@ -486,8 +457,8 @@ KENYA_ANNUAL_LIVE_BIRTHS    = 1,270,000    # WHO/UNICEF WUENIC 2024
 model_births_per_year       = n_agents × birth_rate / 1000
 scale                       = KENYA_ANNUAL_LIVE_BIRTHS / model_births_per_year
 
-zero_dose_children_reached         = (ref_zd − int_zd) × 7_200_000
-total_disease_deaths_averted_scaled = death_av × scale
+zero_dose_children_reached          = (ref_zd − int_zd) × 7_200_000
+total_tetanus_deaths_averted_scaled = tetanus_deaths_averted × scale
 tetanus_cases_averted_scaled        = tet_av × scale
 ```
 
@@ -497,16 +468,18 @@ tetanus_cases_averted_scaled        = tet_av × scale
 
 | Decision | Rationale |
 |---|---|
-| **Calibration split from simulation** | Grid search is expensive (14 short sims); scenario runs are cheap. Separating means researchers tweak and rerun without re-sweeping. |
-| **Both arms share the same seed by default** | Matched counterfactual — noise cancels and observed deltas are attributable to the intervention, not RNG draws. |
-| **`SimulationParameterBundle` is frozen** | Immutable value type; scenarios are built via `dataclasses.replace`, so one bundle can never mutate another. |
+| **Tetanus is the only modelled disease** | The project brief (Rono et al. 2024) explicitly selects tetanus as the DTP-bracket sentinel because diphtheria is eliminated, neonatal tetanus is near elimination, and pertussis/measles are under marked control in Kenya. Modelling the other four pentavalent diseases would add noise without changing the research question. |
+| **Calibration split from simulation** | Grid search is expensive (14 short sims, albeit parallelised); scenario runs are cheap. Separating means researchers tweak and rerun without re-sweeping. |
+| **All three scenario arms share the same seed by default** | Matched counterfactual — noise cancels and observed deltas are attributable to the intervention, not RNG draws. |
+| **`SimulationParameters` is frozen** | Immutable value type; scenarios are built via `dataclasses.replace`, so one parameter set can never mutate another. |
 | **Tetanus = SIS + wound exposure** | Real tetanus doesn't transmit person-to-person, and immunity wanes — modeling it as SIR would misrepresent both. |
-| **`dt = 1/52` (weekly)** | Coarse enough to run a 30-year × 20k-agent simulation in seconds; fine enough to resolve the 28-day neonatal tetanus window. |
+| **`dt = 1/52` (weekly)** | Coarse enough to run a 5-year × 20k-agent simulation in seconds; fine enough to resolve the 28-day neonatal tetanus window. |
 | **All runtime config in `run_simulation.py:main()`** | No `argparse` — researchers change one file in one place. Calibration config still lives in `calibrate.py`'s CLI since it's a tool, not an experiment. |
-| **Bundle `*_beta` overrides module defaults** | Keeps module defaults as sensible epidemiological values, but lets the study deliberately tune effective transmission low to isolate the zero-dose signal. |
+| **Boosters disabled by default (`booster_age_max = 0`)** | Real EPI systems in low-coverage settings do not deliver annual adult pentavalent boosters; enabling them would produce unrealistic long-horizon dynamics. |
 | **One RNG stream per tetanus event type** | Common Random Numbers: flipping `routine_prob` in the scale-up arm changes vaccination draws without shifting wound/infection/death draws, so signal > noise. |
 | **Kenya anchors applied post-hoc** | The ABM runs on 20k cohort agents; real-world headcounts come from a deterministic multiplier — keeps simulation cheap and makes the scaling assumption explicit. |
+| **`ss.multi_run` for scenarios and grid search** | Parallelises the three scenario runs and the 14 calibration grid points; a full workflow completes in under a minute on a laptop. |
 
 ---
 
-*Last verified against source: `run_simulation.py` (478 lines), `zdsim/interventions.py` (104 lines), five disease modules, and `zdsim/zerodose_calibration.py`.*
+*Last verified against source: `run_simulation.py`, `zdsim/interventions.py`, `zdsim/diseases/tetanus.py`, `zdsim/zerodose_calibration.py`, `zdsim/analysis.py`, `zdsim/plots.py`.*
