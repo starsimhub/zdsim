@@ -130,9 +130,9 @@ def save_projection_plots(df_data, rows_base, rows_ref, rows_int, empirical_zd,
             paths.append(p_ctx)
 
     p3 = os.path.join(out_dir, "zerodose_impact.png")
-    labels = ["empirical\n(DTP1 proxy)", "baseline\n(no intervention)", "reference\n(calibrated)", "scale-up\n(intervention)"]
-    values = [empirical_zd * 100, base_zd * 100, ref_zd * 100, int_zd * 100]
-    colors = ["#2c3e50", "#c0392b", "#7f8c8d", "#27ae60"]
+    labels = ["empirical\n(DTP1 proxy)", "baseline\n(calibrated)", "scale-up\n(intervention)"]
+    values = [empirical_zd * 100, ref_zd * 100, int_zd * 100]
+    colors = ["#2c3e50", "#7f8c8d", "#27ae60"]
     fig, ax = plt.subplots(figsize=(8, 4.5))
     bars = ax.bar(labels, values, color=colors)
     for bar, v in zip(bars, values):
