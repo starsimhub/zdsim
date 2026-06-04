@@ -8,8 +8,15 @@ import pandas as pd
 import starsim as ss
 
 import zdsim as zds
-from zdsim.analysis import ( YearlyRecorder,  align_rows, context_monthly_means, get_rows,
-                            load_calibration, tetanus_metrics, zerodose_fraction_under5)
+from zdsim.analysis import (
+    YearlyRecorder,
+    align_rows,
+    context_monthly_means,
+    get_rows,
+    load_calibration,
+    tetanus_metrics,
+    zerodose_fraction_under5,
+)
 from zdsim.plots import save_calibration_plots, save_projection_plots
 from zdsim.reporting import generate_report_pdf
 from zdsim.zerodose_calibration import (
@@ -30,8 +37,8 @@ KENYA_ANNUAL_LIVE_BIRTHS = 1_270_000
 KENYA_ANCHOR_SOURCE = "UN WPP 2024; WHO/UNICEF WUENIC 2024 revision"
 
 def default_age_pyramid():
-   # LMIC declining-pyramid age distribution (birth_rate~25/1000, death_rate~8/1000). 
-   # TODO: Replace this function if you have data on the age distribution.
+    # LMIC declining-pyramid age distribution (birth_rate~25/1000, death_rate~8/1000).
+    # TODO: Replace this function if you have data on the age distribution.
     ages = np.arange(0, 81)
     return pd.DataFrame({"age": ages, "value": np.exp(-0.022 * ages)})
 
@@ -42,26 +49,23 @@ def build_simulation(pars, *, n_agents, start, stop, record_yearly=False, with_i
     attached, producing a true no-intervention baseline.
     """
     people = ss.People(n_agents=n_agents, age_data=default_age_pyramid())
-    pars = pars
     interventions = None
     if with_intervention:
         interventions = [
             zds.ZeroDoseVaccination(
-                dict(
-                    start_day=0,
-                    end_day=365 * int(stop - start),
-                    coverage=pars.intervention_coverage,
-                    efficacy=pars.intervention_efficacy,
-                    age_min=pars.intervention_age_min,
-                    age_max=pars.intervention_age_max,
-                    routine_prob=pars.intervention_routine_prob,
-                )
+                start_day=0,
+                end_day=365 * int(stop - start),
+                coverage=pars.intervention_coverage,
+                efficacy=pars.intervention_efficacy,
+                age_min=pars.intervention_age_min,
+                age_max=pars.intervention_age_max,
+                routine_prob=pars.intervention_routine_prob,
             )
         ]
     sim = ss.Sim(
         people=people,
-        diseases=[ zds.Tetanus(dict(init_prev=ss.bernoulli(p=pars.tetanus_init_p)))],
-        networks=[ ss.RandomNet(dict(n_contacts=pars.community_contacts, dur=0), name="community")],
+        diseases=[zds.Tetanus(dict(init_prev=ss.bernoulli(p=pars.tetanus_init_p)))],
+        networks=[ss.RandomNet(dict(n_contacts=pars.community_contacts, dur=0), name="community")],
         demographics=[ss.Pregnancy(fertility_rate=pars.fertility_rate), ss.Deaths(dict(death_rate=pars.death_rate))],
         interventions=interventions,
         analyzers=[YearlyRecorder()] if record_yearly else None,
@@ -97,8 +101,7 @@ def grid_search_reference_routine(empirical_zd, base_pars, *, n_agents, calib_ye
 
 
 def run_demo(*, n_agents, start, stop, seed, seed_intervention, out_dir, data_path,
-             scale_routine_factor, scale_coverage_cap, population, calibration_file=None,
-             save_calibration=None):
+             population, calibration_file=None):
     """ Run the full workflow and return the summary dict. """
     os.makedirs(out_dir, exist_ok=True)
     empirical = None
@@ -128,9 +131,9 @@ def run_demo(*, n_agents, start, stop, seed, seed_intervention, out_dir, data_pa
     scaleup_pars = replace(scaleup_pars, seed=inv_seed)
 
     scenarios = {
-        "counterfactual": dict(pars=ref_pars,     with_intervention=False, label="No intervention (counterfactual)"),
-        "baseline":       dict(pars=ref_pars,     with_intervention=True,  label="Baseline (calibrated current program)"),
-        "intervention":   dict(pars=scaleup_pars, with_intervention=True,  label="Scale-up toward 50% zero-dose reduction"),
+        "counterfactual": dict(pars=ref_pars,     with_intervention=False),
+        "baseline":       dict(pars=ref_pars,     with_intervention=True),
+        "intervention":   dict(pars=scaleup_pars, with_intervention=True),
     }
 
     print(f"Projection window {start}-{stop}, seeds reference={seed} intervention={inv_seed}.")
@@ -233,6 +236,22 @@ def run_demo(*, n_agents, start, stop, seed, seed_intervention, out_dir, data_pa
                 modeled_zero_dose_relative_reduction_percent_end_window=float(rel),
             ),
         ),
+        headline_impact=dict(
+            projection_window=f"{int(start)}-{int(stop)}",
+            zero_dose_under5_baseline=float(base["zd"]),
+            zero_dose_under5_scale_up=float(intr["zd"]),
+            zero_dose_under5_relative_reduction_percent=float(rel),
+            tetanus_cases_baseline=float(base["tetanus"]["total"]),
+            tetanus_cases_scale_up=float(intr["tetanus"]["total"]),
+            tetanus_cases_averted=float(tet_averted),
+            tetanus_cases_relative_reduction_percent=float(
+                100.0 * tet_averted / base["tetanus"]["total"]
+            ) if base["tetanus"]["total"] > 0 else 0.0,
+            tetanus_deaths_averted=float(tetanus_deaths_averted),
+            scaled_zero_dose_children_reached_at_end=int(round((base["zd"] - intr["zd"]) * KENYA_UNDER5_POPULATION)),
+            scaled_tetanus_cases_averted=int(round(tet_averted * scale)),
+            scaled_tetanus_deaths_averted=int(round(tetanus_deaths_averted * scale)),
+        ),
         population_scaled_projection=dict(
             anchor_label="Kenya national 2024 anchors",
             anchor_source=KENYA_ANCHOR_SOURCE,
@@ -252,9 +271,19 @@ def run_demo(*, n_agents, start, stop, seed, seed_intervention, out_dir, data_pa
     with open(out_path, "w", encoding="utf-8") as f:
         json.dump(summary, f, indent=2)
     print(f"Wrote {out_path}")
-    for p in save_projection_plots(df, cf["rows"], base["rows"], intr["rows"], empirical_zd,
-                                   cf["zd"], base["zd"], intr["zd"],
-                                   cf["sim"], base["sim"], intr["sim"], out_dir):
+    for p in save_projection_plots(
+        df,
+        cf["rows"],
+        base["rows"],
+        intr["rows"],
+        empirical_zd,
+        base["zd"],
+        intr["zd"],
+        cf["sim"],
+        base["sim"],
+        intr["sim"],
+        out_dir,
+    ):
         print(f"Wrote {p}")
     try:
         for p in save_calibration_plots(df, ref_pars, base_pars, n_agents=n_agents, out_dir=out_dir,
@@ -282,19 +311,12 @@ def main():
     seed_intervention = None
 
     data_path = default_formatted_xlsx_path()
-    use_data = True
-
-    scale_routine_factor = 2.3
-    scale_coverage_cap = 0.88
     population = None
 
     out_dir = os.path.join(os.path.dirname(__file__), "outputs")
     calibration_file = DEFAULT_CALIBRATION_FILE if os.path.isfile(DEFAULT_CALIBRATION_FILE) else None
-    save_calibration = None
 
-    if not use_data:
-        data_path = None
-    elif data_path and not os.path.isfile(data_path):
+    if data_path and not os.path.isfile(data_path):
         print(f"Data file not found: {data_path}.", file=sys.stderr)
         return 1
 
@@ -308,18 +330,15 @@ def main():
     print(f"Using calibration file {calibration_file}.")
 
     run_demo(
-        n_agents=int(n_agents),
-        start=int(start),
-        stop=int(stop),
-        seed=int(seed),
+        n_agents=n_agents,
+        start=start,
+        stop=stop,
+        seed=seed,
         seed_intervention=seed_intervention,
         out_dir=out_dir,
         data_path=data_path,
-        scale_routine_factor=float(scale_routine_factor),
-        scale_coverage_cap=float(scale_coverage_cap),
         population=population,
         calibration_file=calibration_file,
-        save_calibration=save_calibration,
     )
     return 0
 

@@ -7,8 +7,6 @@ cwd = os.path.abspath(os.path.dirname(__file__))
 versionpath = os.path.join(cwd, 'zdsim', 'version.py')
 version = runpy.run_path(versionpath)['__version__']
 
-# # Get the documentation
-# with open(os.path.join(cwd, 'README.rst'), "r") as f:
 long_description = (
     "zdsim, an agent-based model of zero-dose vaccination among under-five "
     "children, using tetanus as the sentinel outcome for DTP1/pentavalent "

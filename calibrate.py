@@ -5,30 +5,54 @@ import argparse
 import json
 import os
 import sys
+from dataclasses import replace
 from datetime import datetime, timezone
+
+import starsim as ss
 
 from zdsim.zerodose_calibration import (
     build_calibration_parameters,
     empirical_summary_from_dataframe,
     with_intervention_delivery,
 )
+from zdsim.analysis import zerodose_fraction_under5
 from zdsim.zerodose_data import default_formatted_xlsx_path, load_formatted_xlsx
 
-# Import the sim builder and grid-search from run_simulation (they live there
-# because they depend on disease modules which would create circular imports
-# inside the zdsim package itself).
+# Import shared calibration helpers from run_simulation.
 from run_simulation import (
     CALIBRATION_SCHEMA_VERSION,
-    build_simulation,               # noqa: F401 – imported so callers don't need run_simulation
-    grid_search_reference_routine,
+    build_simulation,
 )
 
 DEFAULT_OUT = "calibration.json"
 
 
+def _build_trial_sim(sim, calib_pars, *, base_pars, n_agents, start, calib_years):
+    """ Build one short-run sim for an Optuna trial. """
+    rp = float(calib_pars["routine_prob"]["value"])
+    rand_seed = calib_pars.get("rand_seed", int(base_pars.seed))
+    trial_pars = with_intervention_delivery(base_pars, routine_prob=rp)
+    trial_pars = replace(trial_pars, seed=int(rand_seed))
+    trial_sim = build_simulation(
+        trial_pars,
+        n_agents=n_agents,
+        start=start,
+        stop=int(start + calib_years),
+        with_intervention=True,
+    )
+    return trial_sim
+
+
+def _eval_zero_dose_mismatch(sim, *, expected):
+    """ Squared error between modelled and empirical zero-dose share. """
+    model_zd = float(zerodose_fraction_under5(sim))
+    return float((model_zd - float(expected)) ** 2)
+
+
 def run_calibration(*, n_agents_calib, calib_years, start, seed, data_path,
-                    scale_routine_factor, scale_coverage_cap, population, out):
-    """ Run the grid search and write the reference + scale-up parameter sets to ``out``. """
+                    scale_routine_factor, scale_coverage_cap, population, out,
+                    total_trials, n_workers):
+    """ Run Optuna calibration and write reference + scale-up parameter sets to ``out``. """
     empirical      = None
     empirical_zd   = 0.165
     data_file_used = None
@@ -54,16 +78,54 @@ def run_calibration(*, n_agents_calib, calib_years, start, seed, data_path,
     )
 
     print(
-        f"Grid search: {calib_years}y, {n_agents_calib} agents, "
-        f"coverage={base_pars.intervention_coverage:.4f}..."
+        f"Optuna calibration: {calib_years}y, {n_agents_calib} agents, "
+        f"{total_trials} trials..."
     )
-    reference_rp, calib_zd = grid_search_reference_routine(
-        empirical_zd,
+    sim_template = build_simulation(
         base_pars,
         n_agents=n_agents_calib,
-        calib_years=calib_years,
         start=start,
+        stop=int(start + calib_years),
+        with_intervention=True,
     )
+    calib_pars = dict(
+        routine_prob=dict(
+            low=0.018,
+            high=0.090,
+            guess=float(base_pars.intervention_routine_prob),
+            suggest_type="suggest_float",
+        ),
+    )
+    calib = ss.Calibration(
+        sim=sim_template,
+        calib_pars=calib_pars,
+        build_fn=_build_trial_sim,
+        build_kw=dict(
+            base_pars=base_pars,
+            n_agents=n_agents_calib,
+            start=start,
+            calib_years=calib_years,
+        ),
+        eval_fn=_eval_zero_dose_mismatch,
+        eval_kw=dict(expected=empirical_zd),
+        total_trials=total_trials,
+        n_workers=n_workers,
+        reseed=True,
+        debug=False,
+        verbose=False,
+    )
+    calib.calibrate()
+    reference_rp = float(calib.best_pars["routine_prob"])
+    calib_sim = build_simulation(
+        with_intervention_delivery(base_pars, routine_prob=reference_rp),
+        n_agents=n_agents_calib,
+        start=start,
+        stop=int(start + calib_years),
+        with_intervention=True,
+    )
+    calib_sim.run()
+    calib_zd = float(zerodose_fraction_under5(calib_sim))
+
     print(
         f"Calibrated routine_prob={reference_rp:.6f} "
         f"(model ZD={calib_zd:.1%}, target={empirical_zd:.1%})."
@@ -100,6 +162,8 @@ def run_calibration(*, n_agents_calib, calib_years, start, seed, data_path,
             "seed": seed,
             "scale_routine_factor": scale_routine_factor,
             "scale_coverage_cap": scale_coverage_cap,
+            "optuna_total_trials": int(total_trials),
+            "optuna_n_workers": None if n_workers is None else int(n_workers),
             "empirical_zerodose_proxy": empirical_zd,
             "calibrated_routine_prob": reference_rp,
             "calibrated_model_zd": float(calib_zd),
@@ -187,6 +251,18 @@ def main(argv=None):
         default=DEFAULT_OUT,
         help=f"Output JSON path (default: {DEFAULT_OUT})",
     )
+    p.add_argument(
+        "--total-trials",
+        type=int,
+        default=40,
+        help="Total Optuna trials for Starsim calibration (default: 40)",
+    )
+    p.add_argument(
+        "--n-workers",
+        type=int,
+        default=None,
+        help="Optuna worker count (default: all available cores)",
+    )
     args = p.parse_args(argv)
 
     data_path = None if args.no_data else args.data
@@ -207,6 +283,8 @@ def main(argv=None):
         scale_coverage_cap=args.scale_coverage_cap,
         population=args.population,
         out=args.out,
+        total_trials=args.total_trials,
+        n_workers=args.n_workers,
     )
     return 0
 

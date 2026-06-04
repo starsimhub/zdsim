@@ -119,7 +119,13 @@ class Tetanus(ss.Infection):
         ti = self.t.ti
         self.susceptible[uids] = False
         self.infected[uids]    = True
+        self.recovered[uids]   = False
         self.ti_infected[uids] = ti
+        self.severe[uids]      = False
+        self.neonatal[uids]      = False
+        self.peri_neonatal[uids] = False
+        self.childhood[uids]     = False
+        self.adult[uids]         = False
 
         if age_group == 'neonatal':
             self.neonatal[uids] = True
@@ -158,6 +164,11 @@ class Tetanus(ss.Infection):
             self.infected[recovered]  = False
             self.recovered[recovered] = True
             self.immunity[recovered]  = 0.9
+            self.severe[recovered]      = False
+            self.neonatal[recovered]      = False
+            self.peri_neonatal[recovered] = False
+            self.childhood[recovered]     = False
+            self.adult[recovered]         = False
 
         # Waning immunity (brief: waning = 0.055/yr).  On a waning event we
         # halve immunity; if it drops below 0.1, reset to 0 and re-enter the
@@ -181,11 +192,21 @@ class Tetanus(ss.Infection):
         deaths = (self.ti_dead <= ti).uids
         if len(deaths):
             sim.people.request_death(deaths)
+            self.ti_dead[deaths] = np.nan
         return
 
     def step_die(self, uids):
         """ Clear state flags on death. """
-        self.susceptible[uids] = False
-        self.infected[uids]    = False
-        self.recovered[uids]   = False
+        super().step_die(uids)
+        self.severe[uids]        = False
+        self.vaccinated[uids]    = False
+        self.neonatal[uids]      = False
+        self.peri_neonatal[uids] = False
+        self.childhood[uids]     = False
+        self.adult[uids]         = False
+        self.immunity[uids]      = 0.0
+        self.ti_recovered[uids]  = np.nan
+        self.ti_dead[uids]       = np.nan
+        self.ti_vaccinated[uids] = np.nan
+        self.ti_wound[uids]      = np.nan
         return

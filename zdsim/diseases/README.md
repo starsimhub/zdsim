@@ -19,7 +19,8 @@ brief is explicitly about "tetanus cases averted".
 The module exposes `vaccinated`, `ti_vaccinated`, and `immunity` states. The
 `ZeroDoseVaccination` intervention (see `zdsim/interventions.py`) sets
 `immunity = efficacy` and `rel_sus = 1 − efficacy` on tetanus when a child is
-vaccinated. Immunity then wanes inside `step_state` at `waning_immunity`.
+vaccinated. Immunity then wanes inside `step_state` using the `waning`
+parameter.
 
 See the repository-level `Readme.md` for parameter sources and calibration
 procedure.

@@ -55,15 +55,13 @@ def test_vaccine_reduces_zero_dose(do_plot=do_plot):
     sim_vx  = make_sim(intervention=vx, seed=1).run()
 
     # Count vaccinated children at the end of the run
-    n_vx_ref = 0  # No vaccination intervention in reference
     n_vx_arm = int(sim_vx.interventions.zerodosevaccination.vaccinated.sum())
 
-    assert n_vx_arm > n_vx_ref, \
-        f'Expected intervention arm to vaccinate more children ' \
-        f'but got ref={n_vx_ref}, intervention={n_vx_arm}'
+    assert n_vx_arm > 0, \
+        f'Expected intervention arm to vaccinate children but got intervention={n_vx_arm}'
     if do_plot:
         plt.figure()
-        plt.bar(['reference', 'intervention'], [n_vx_ref, n_vx_arm])
+        plt.bar(['reference', 'intervention'], [0, n_vx_arm])
         plt.ylabel('Children vaccinated at end of run')
         plt.title('Vaccination reduces zero-dose share')
     return sim_vx

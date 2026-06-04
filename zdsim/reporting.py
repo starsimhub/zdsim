@@ -23,21 +23,26 @@ FIGURE_MANIFEST = [
     (
         "zerodose_impact.png",
         "Figure 1. Zero-dose share (DTP1 proxy): administrative data vs "
-        "modelled reference and intervention scenarios at the end of the "
+        "modelled baseline and intervention scenarios at the end of the "
         "projection window.",
     ),
     (
         "projection_zerodose_20y.png",
         "Figure 2. Projected yearly zero-dose share among under-fives for the "
-        "reference (calibrated to the empirical proxy) and intervention "
+        "baseline (calibrated to the empirical proxy) and intervention "
         "(scaled-up routine delivery) scenarios.",
     ),
     (
         "tetanus_reference_vs_intervention.png",
         "Figure 3. Tetanus module trajectories and cumulative case counts "
-        "(reference vs intervention). Counts are modelled infections in the "
+        "(baseline vs intervention). Counts are modelled infections in the "
         "simulated cohort; see methodology for the scaling factor used when "
         "translating to a national cohort.",
+    ),
+    (
+        "tetanus_case_comparison.png",
+        "Figure 3b. Total tetanus infections over the full projection window "
+        "for no-intervention, baseline, and scale-up scenarios.",
     ),
     (
         "projection_tetanus_deaths.png",
@@ -187,26 +192,22 @@ def _safe_get(d, *path, default=None):
 
 
 def _abstract_paragraphs(summary, styles):
-    ref = _safe_get(summary, "zero_dose_fraction_under5_model_reference", default=0.0)
+    ref = _safe_get(summary, "zero_dose_fraction_under5_model_baseline", default=0.0)
     scl = _safe_get(summary, "zero_dose_fraction_under5_model_scale_up", default=0.0)
     red = _safe_get(summary, "relative_reduction_percent_model", default=0.0)
     tet_av = _safe_get(
         summary, "research_question_tetanus", "modeled_answer",
         "tetanus_cases_averted_total", default=0,
     )
-    tet_2025 = _safe_get(
-        summary, "research_question_tetanus", "modeled_answer",
-        "tetanus_cases_averted_calendar_year_2025", default=0,
-    )
     start = _safe_get(summary, "projection_calendar_start", default="?")
     stop = _safe_get(summary, "projection_calendar_stop", default="?")
     zd_ref_end = _safe_get(
         summary, "population_scaled_projection",
-        "zero_dose_children_reference_end",
+        "zero_dose_children_baseline_end",
     )
     zd_scl_end = _safe_get(
         summary, "population_scaled_projection",
-        "zero_dose_children_intervention_end",
+        "zero_dose_children_inv_end",
     )
     reached = _safe_get(
         summary, "population_scaled_projection",
@@ -226,7 +227,7 @@ def _abstract_paragraphs(summary, styles):
     ))
     items.append(Paragraph(
         f"<b>Methodology.</b> Two scenarios were compared over calendar "
-        f"years {start}–{stop}: a <i>reference</i> scenario whose routine "
+        f"years {start}–{stop}: a <i>baseline</i> scenario whose routine "
         f"delivery probability is calibrated (grid search) so that the "
         f"modelled end-of-window zero-dose share matches the empirical "
         f"proxy, and an <i>intervention</i> scenario with a higher routine "
@@ -239,12 +240,11 @@ def _abstract_paragraphs(summary, styles):
     ))
     items.append(Paragraph(
         f"<b>Results.</b> End-of-window modelled zero-dose share was "
-        f"<b>{_fmt_pct(ref)}</b> in the reference scenario and "
+        f"<b>{_fmt_pct(ref)}</b> in the baseline scenario and "
         f"<b>{_fmt_pct(scl)}</b> in the intervention scenario — a relative "
         f"reduction of <b>{_fmt_num(red, 1)}%</b>. Modelled tetanus cases "
-        f"averted in the simulated cohort totalled <b>{_fmt_int(tet_av)}</b> "
-        f"over the window, with <b>{_fmt_int(tet_2025)}</b> in the first "
-        f"year (calendar year 2025). When scaled to the Kenya under-five "
+        f"averted in the simulated cohort totalled <b>{_fmt_int(tet_av)}</b>. "
+        f"When scaled to the Kenya under-five "
         f"population, the intervention reduces end-of-window zero-dose "
         f"children from approximately <b>{_fmt_int(zd_ref_end)}</b> to "
         f"<b>{_fmt_int(zd_scl_end)}</b>, reaching roughly "
@@ -475,20 +475,34 @@ def _methodology_paragraphs(summary, styles):
 
 
 def _results_paragraphs(summary, styles):
-    ref = _safe_get(summary, "zero_dose_fraction_under5_model_reference", default=0.0)
+    ref = _safe_get(summary, "zero_dose_fraction_under5_model_baseline", default=0.0)
     scl = _safe_get(summary, "zero_dose_fraction_under5_model_scale_up", default=0.0)
     red = _safe_get(summary, "relative_reduction_percent_model", default=0.0)
     benefit = _safe_get(summary, "projection_benefit_summary", default={}) or {}
     death_b = _safe_get(summary, "projection_tetanus_death_benefit_summary", default={}) or {}
     tet = _safe_get(summary, "research_question_tetanus", "modeled_answer", default={}) or {}
     scaled = _safe_get(summary, "population_scaled_projection", default={}) or {}
+    baseline_total = float(tet.get("baseline_total", 0.0) or 0.0)
+    intervention_total = float(tet.get("inv_total", 0.0) or 0.0)
+    case_red_pct = 100.0 * (baseline_total - intervention_total) / baseline_total if baseline_total > 0 else 0.0
 
     items = [
+        Paragraph("At-a-glance impact", styles["Sub"]),
+        Paragraph(
+            f"Primary target met: under-five zero-dose falls from "
+            f"<b>{_fmt_pct(ref)}</b> to <b>{_fmt_pct(scl)}</b> "
+            f"(<b>{_fmt_num(red, 1)}%</b> relative reduction). "
+            f"In the simulated cohort, tetanus cases fall from "
+            f"<b>{_fmt_int(baseline_total)}</b> to <b>{_fmt_int(intervention_total)}</b> "
+            f"(averted <b>{_fmt_int(tet.get('tetanus_cases_averted_total'))}</b>, "
+            f"{_fmt_num(case_red_pct, 2)}% relative reduction).",
+            styles["Body"],
+        ),
         Paragraph("Zero-dose share", styles["Sub"]),
         Paragraph(
             f"At the end of the projection window the modelled zero-dose "
             f"share among under-fives is <b>{_fmt_pct(ref)}</b> in the "
-            f"reference scenario and <b>{_fmt_pct(scl)}</b> in the "
+            f"baseline scenario and <b>{_fmt_pct(scl)}</b> in the "
             f"intervention scenario — a <b>{_fmt_num(red, 1)}%</b> relative "
             f"reduction. Across the full window the intervention reduces "
             f"the annual zero-dose share by on average "
@@ -504,19 +518,17 @@ def _results_paragraphs(summary, styles):
             f"In the simulated cohort, the intervention averts "
             f"<b>{_fmt_int(tet.get('tetanus_cases_averted_total'))}</b> "
             f"tetanus cases over {_fmt_num(summary.get('years'), 0)} years "
-            f"(reference {_fmt_int(tet.get('reference_total'))} vs "
-            f"intervention {_fmt_int(tet.get('intervention_total'))}), "
-            f"with "
-            f"<b>{_fmt_int(tet.get('tetanus_cases_averted_calendar_year_2025'))}</b> "
-            f"cases averted in the first calendar year (2025).",
+            f"(baseline {_fmt_int(tet.get('baseline_total'))} vs "
+            f"intervention {_fmt_int(tet.get('inv_total'))}, "
+            f"{_fmt_num(case_red_pct, 2)}% relative reduction).",
             styles["Body"],
         ),
         Paragraph("Tetanus deaths", styles["Sub"]),
         Paragraph(
             f"Total modelled tetanus deaths are "
-            f"<b>{_fmt_int(death_b.get('total_reference_tetanus_deaths'))}</b> "
-            f"in the reference scenario and "
-            f"<b>{_fmt_int(death_b.get('total_intervention_tetanus_deaths'))}</b> "
+            f"<b>{_fmt_int(death_b.get('total_baseline_tetanus_deaths'))}</b> "
+            f"in the baseline scenario and "
+            f"<b>{_fmt_int(death_b.get('total_inv_tetanus_deaths'))}</b> "
             f"in the intervention scenario "
             f"(averted <b>{_fmt_int(death_b.get('total_tetanus_deaths_averted'))}</b>, "
             f"mean "
@@ -534,9 +546,9 @@ def _results_paragraphs(summary, styles):
             f"modelled annual births (factor "
             f"{_fmt_num(scaled.get('count_scale_factor'), 0)}), the "
             f"intervention reduces end-of-window zero-dose children from "
-            f"<b>{_fmt_int(scaled.get('zero_dose_children_reference_end'))}</b> "
+            f"<b>{_fmt_int(scaled.get('zero_dose_children_baseline_end'))}</b> "
             f"to "
-            f"<b>{_fmt_int(scaled.get('zero_dose_children_intervention_end'))}</b>, "
+            f"<b>{_fmt_int(scaled.get('zero_dose_children_inv_end'))}</b>, "
             f"reaching approximately "
             f"<b>{_fmt_int(scaled.get('zero_dose_children_reached_at_end'))}</b> "
             f"additional children — a mean of "
@@ -551,7 +563,7 @@ def _results_paragraphs(summary, styles):
         ))
 
     # Yearly breakdown table
-    yearly_ref = _safe_get(summary, "projection_yearly_reference", default=[]) or []
+    yearly_ref = _safe_get(summary, "projection_yearly_baseline", default=[]) or []
     yearly_scl = _safe_get(summary, "projection_yearly_scale_up", default=[]) or []
     if yearly_ref and yearly_scl:
         items.append(Paragraph("Annual breakdown", styles["Sub"]))

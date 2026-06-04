@@ -27,18 +27,18 @@ pip install -e .
 python research_workflow.py
 ```
 
-That's it. On first run it calibrates the model to the included Kenya HMIS data (`zdsim/data/zerodose_data_formated.xlsx`), saves `calibration.json`, then runs the reference vs scale-up simulations and writes `outputs/`.
+That's it. On first run it calibrates the model to the included Kenya HMIS data (`zdsim/data/zerodose_data_formated.xlsx`), saves `calibration.json`, then runs counterfactual, baseline, and scale-up simulations and writes `outputs/`.
 
 Subsequent runs reuse the same `calibration.json` — delete it, or set `FRESH_CALIBRATION = True` in `research_workflow.py`, to recalibrate.
 
 ### Configure
 
-All runtime parameters live in plain `main()` functions — no CLI to memorise.
+You can edit defaults in `main()` functions, or use CLI flags for calibration.
 
 | To change... | Edit `main()` in |
 |---|---|
-| Projection horizon (`start`, `stop`), agent count, seed, data path, output folder, scale-up aggressiveness | `run_simulation.py` |
-| Calibration grid size, short-run length, data path | `calibrate.py` |
+| Projection horizon (`start`, `stop`), agent count, seed, data path, output folder | `run_simulation.py` |
+| Calibration defaults (short-run length, data path, trial count, scale-up knobs) | `calibrate.py` |
 | Force recalibration on next run | `research_workflow.py` (`FRESH_CALIBRATION = True`) |
 
 Running `calibrate.py` or `run_simulation.py` directly also works — the wrapper just chains them.
@@ -51,11 +51,12 @@ Running `calibrate.py` or `run_simulation.py` directly also works — the wrappe
 |---|---|
 | `zerodose_demo_summary.json` | Full summary: empirical means, calibrated parameters, end-of-run zero-dose fractions, yearly rows, benefit summaries. Overwritten on each run. |
 | `zdsim_report.pdf` | Narrative report (title → abstract → methods → results with figures → discussion). Regenerate from an existing summary: `python -m zdsim.reporting outputs/zerodose_demo_summary.json`. |
-| `zerodose_impact.png` | End-of-window bar chart: reference vs intervention zero-dose share |
-| `projection_zerodose_20y.png` | Yearly zero-dose trajectory, reference vs intervention |
-| `projection_tetanus_deaths.png` | Yearly tetanus deaths (no-intervention vs reference vs intervention) |
+| `zerodose_impact.png` | End-of-window bar chart: baseline vs scale-up zero-dose share |
+| `projection_zerodose_20y.png` | Yearly zero-dose trajectory, baseline vs scale-up |
+| `projection_tetanus_deaths.png` | Yearly tetanus deaths (no-intervention vs baseline vs scale-up) |
 | `projection_cumulative_deaths_averted.png` | Cumulative tetanus deaths averted vs no-intervention |
 | `tetanus_reference_vs_intervention.png` | New tetanus infections over time |
+| `tetanus_case_comparison.png` | Total tetanus infections over the window (no-intervention, baseline, scale-up) |
 | `admin_data_dtp1_zerodose_timeseries.png` | Empirical DTP1 / zero-dose proxy from the xlsx |
 | `admin_data_dpt123_vs_births.png` | DPT1/2/3 dose counts relative to estimated live births |
 | `admin_data_disease_context.png` | Monthly pneumonia / measles / tetanus case counts (descriptive only — not modelled) |
@@ -73,8 +74,8 @@ PNGs are gitignored; they appear after you run the workflow.
 ## How it works (short version)
 
 1. **Data.** Monthly Kenya HMIS rows (2018–2024) in `zdsim/data/zerodose_data_formated.xlsx`. The `dpt1 / estimated_lb/12` ratio gives the **DTP1 coverage proxy**; `1 − coverage` is the **zero-dose proxy** (~16.5%).
-2. **Calibration.** `calibrate.py` grid-searches `routine_prob ∈ [0.018, 0.090]` so the simulated end-of-window zero-dose share matches that empirical proxy. The resulting **reference parameter set** plus a **scale-up parameter set** (higher `routine_prob`, higher `coverage` cap) is saved to `calibration.json`. Zero-dose is defined as the absence of DTP1/pentavalent first-dose; the only disease module simulated is tetanus.
-3. **Simulation.** `run_simulation.py` builds two `ss.Sim`s from those parameter sets (20 000 agents, weekly steps, 2025–2030 by default) and runs them in parallel with a **matched seed** so observed deltas are attributable to the intervention, not RNG draws.
+2. **Calibration.** `calibrate.py` uses Starsim's Optuna-backed `ss.Calibration` to fit `routine_prob ∈ [0.018, 0.090]` so the simulated end-of-window zero-dose share matches the empirical proxy. The resulting **baseline parameter set** plus a **scale-up parameter set** (higher `routine_prob`, higher `coverage` cap) is saved to `calibration.json`. Zero-dose is defined as the absence of DTP1/pentavalent first-dose; the only disease module simulated is tetanus.
+3. **Simulation.** `run_simulation.py` builds three scenarios from those parameter sets (counterfactual/no-intervention, baseline, and scale-up), runs them in parallel (20 000 agents, weekly steps, 2025–2030 by default), and reports both absolute and incremental impact.
 4. **Report.** Summary metrics are scaled to Kenya national anchors (7.2 M under-fives, 1.27 M annual births) and written to JSON + PNGs + PDF.
 
 ---

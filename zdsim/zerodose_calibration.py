@@ -134,7 +134,7 @@ def with_intervention_delivery(base, *, routine_prob, coverage=None):
 
 
 def empirical_summary_from_dataframe(df):
-    """ Return the empirical zero-dose summary, or None if ``df`` is None. """
+    """ Return the empirical zero-dose summary dict, or None if ``df`` is None. """
     if df is None:
         return None
     return empirical_zerodose_proxy_dtp1(df)
