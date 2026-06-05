@@ -111,9 +111,11 @@ def run_demo(*, n_agents, start, stop, seed, seed_intervention, out_dir, data_pa
     if data_path is not None:
         df = load_formatted_xlsx(data_path)
         empirical = empirical_summary_from_dataframe(df)
-        empirical_zd = float(empirical["mean_zerodose_proxy"])
+        from zdsim.zerodose_data import mean_implied_zerodose_share
+
+        empirical_zd = float(mean_implied_zerodose_share(empirical))
         data_file = os.path.abspath(data_path)
-        print(f"Data {data_file}: mean zero-dose proxy {empirical_zd:.1%}.")
+        print(f"Data {data_file}: mean implied zero-dose share {empirical_zd:.1%}.")
     else:
         print(f"No data file; using fallback zero-dose target {empirical_zd:.1%}.")
 
@@ -160,7 +162,8 @@ def run_demo(*, n_agents, start, stop, seed, seed_intervention, out_dir, data_pa
 
     cf, base, intr = results["counterfactual"], results["baseline"], results["intervention"]
     rel = 100.0 * (base["zd"] - intr["zd"]) / base["zd"] if base["zd"] > 0 else float("nan")
-    tet_averted = float(base["tetanus"]["total"] - intr["tetanus"]["total"])
+    tet_averted = float(base["tetanus"]["total_under5"] - intr["tetanus"]["total_under5"])
+    tet_averted_all_ages = float(base["tetanus"]["total"] - intr["tetanus"]["total"])
 
     years, base_year, int_year = align_rows(base["rows"], intr["rows"])
     if years:
@@ -174,8 +177,8 @@ def run_demo(*, n_agents, start, stop, seed, seed_intervention, out_dir, data_pa
     scale = KENYA_ANNUAL_LIVE_BIRTHS / model_births if model_births > 0 else 1.0
 
     tet_by_year = []
-    tbby = base["tetanus"]["by_calendar_year"]
-    tiby = intr["tetanus"]["by_calendar_year"]
+    tbby = base["tetanus"]["by_calendar_year_under5"]
+    tiby = intr["tetanus"]["by_calendar_year_under5"]
     for y in sorted(set(tbby) | set(tiby)):
         r = float(tbby.get(y, 0.0))
         i = float(tiby.get(y, 0.0))
@@ -196,9 +199,9 @@ def run_demo(*, n_agents, start, stop, seed, seed_intervention, out_dir, data_pa
         n_agents=int(n_agents),
         calibration_short_run_years=meta.get("calib_years", CALIB_YEARS),
         calibration_short_run_agents=meta.get("n_agents_calib", CALIB_N_AGENTS),
-        empirical_zerodose_proxy_dtp1=empirical,
+        empirical_zerodose_admin_dtp1=empirical,
         empirical_disease_context_monthly=context_monthly_means(df),
-        zero_dose_fraction_under5_empirical_proxy=float(empirical_zd),
+        zero_dose_fraction_under5_empirical=float(empirical_zd),
         zero_dose_fraction_under5_model_counterfactual_no_intervention=cf["zd"],
         zero_dose_fraction_under5_model_baseline=base["zd"],
         zero_dose_fraction_under5_model_scale_up=intr["zd"],
@@ -228,10 +231,13 @@ def run_demo(*, n_agents, start, stop, seed, seed_intervention, out_dir, data_pa
         research_question_tetanus=dict(
             question="How many tetanus cases will be averted if we reduce prevalence of zero-dose vaccination by 50% among under-fives by the year 2025?",
             modeled_answer=dict(
-                metric="new_tetanus_infections_in_simulated_cohort",
-                baseline_total=float(base["tetanus"]["total"]),
-                inv_total=float(intr["tetanus"]["total"]),
+                metric="new_tetanus_infections_under5_in_simulated_cohort",
+                baseline_total=float(base["tetanus"]["total_under5"]),
+                inv_total=float(intr["tetanus"]["total_under5"]),
                 tetanus_cases_averted_total=tet_averted,
+                baseline_total_all_ages=float(base["tetanus"]["total"]),
+                inv_total_all_ages=float(intr["tetanus"]["total"]),
+                tetanus_cases_averted_total_all_ages=tet_averted_all_ages,
                 by_calendar_year=tet_by_year,
                 modeled_zero_dose_relative_reduction_percent_end_window=float(rel),
             ),
@@ -241,12 +247,15 @@ def run_demo(*, n_agents, start, stop, seed, seed_intervention, out_dir, data_pa
             zero_dose_under5_baseline=float(base["zd"]),
             zero_dose_under5_scale_up=float(intr["zd"]),
             zero_dose_under5_relative_reduction_percent=float(rel),
-            tetanus_cases_baseline=float(base["tetanus"]["total"]),
-            tetanus_cases_scale_up=float(intr["tetanus"]["total"]),
+            tetanus_cases_baseline=float(base["tetanus"]["total_under5"]),
+            tetanus_cases_scale_up=float(intr["tetanus"]["total_under5"]),
             tetanus_cases_averted=float(tet_averted),
             tetanus_cases_relative_reduction_percent=float(
-                100.0 * tet_averted / base["tetanus"]["total"]
-            ) if base["tetanus"]["total"] > 0 else 0.0,
+                100.0 * tet_averted / base["tetanus"]["total_under5"]
+            ) if base["tetanus"]["total_under5"] > 0 else 0.0,
+            tetanus_cases_baseline_all_ages=float(base["tetanus"]["total"]),
+            tetanus_cases_scale_up_all_ages=float(intr["tetanus"]["total"]),
+            tetanus_cases_averted_all_ages=float(tet_averted_all_ages),
             tetanus_deaths_averted=float(tetanus_deaths_averted),
             scaled_zero_dose_children_reached_at_end=int(round((base["zd"] - intr["zd"]) * KENYA_UNDER5_POPULATION)),
             scaled_tetanus_cases_averted=int(round(tet_averted * scale)),
@@ -297,7 +306,10 @@ def run_demo(*, n_agents, start, stop, seed, seed_intervention, out_dir, data_pa
         print(f"Wrote {pdf}")
     except Exception as e:
         print(f"PDF generation skipped: {e}")
-    print(f"Tetanus cases: baseline={base['tetanus']['total']:.0f}, intervention={intr['tetanus']['total']:.0f}, averted={tet_averted:.0f}")
+    print(
+        f"Tetanus cases (under-5): baseline={base['tetanus']['total_under5']:.0f}, "
+        f"intervention={intr['tetanus']['total_under5']:.0f}, averted={tet_averted:.0f}"
+    )
     print(f"Zero-dose under-5: empirical={empirical_zd:.1%}, counterfactual={cf['zd']:.1%}, baseline={base['zd']:.1%}, intervention={intr['zd']:.1%} ({rel:.1f}% relative reduction).")
     return summary
 

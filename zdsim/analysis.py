@@ -138,17 +138,26 @@ def get_rows(sim):
 
 
 def tetanus_metrics(sim):
-    """ Total and per-calendar-year new tetanus infections from a finished sim. """
+    """ New tetanus infections (all ages and under-5) totals and yearly breakdowns. """
     tet = sim.diseases.get("tetanus")
     if tet is None:
-        return dict(total=0.0, by_calendar_year={})
+        return dict(total=0.0, total_under5=0.0, by_calendar_year={}, by_calendar_year_under5={})
     new = np.asarray(tet.results.new_infections, dtype=float).ravel()
+    new_u5 = np.asarray(tet.results.new_infections_under5, dtype=float).ravel()
     yv = np.asarray(sim.t.yearvec, dtype=float).ravel()
-    out = dict(total=float(np.sum(new)) if new.size else 0.0, by_calendar_year={})
+    out = dict(
+        total=float(np.sum(new)) if new.size else 0.0,
+        total_under5=float(np.sum(new_u5)) if new_u5.size else 0.0,
+        by_calendar_year={},
+        by_calendar_year_under5={},
+    )
     if new.size and new.size == yv.size:
         years = np.floor(yv).astype(int)
         for y in np.unique(years):
-            out["by_calendar_year"][int(y)] = float(np.sum(new[years == y]))
+            mask = years == y
+            out["by_calendar_year"][int(y)] = float(np.sum(new[mask]))
+            if new_u5.size == new.size:
+                out["by_calendar_year_under5"][int(y)] = float(np.sum(new_u5[mask]))
     return out
 
 

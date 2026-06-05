@@ -22,51 +22,41 @@ from reportlab.platypus import (
 FIGURE_MANIFEST = [
     (
         "zerodose_impact.png",
-        "Figure 1. Zero-dose share (DTP1 proxy): administrative data vs "
+        "Figure 1. Implied zero-dose share from administrative DTP1 data vs "
         "modelled baseline and intervention scenarios at the end of the "
         "projection window.",
     ),
     (
         "projection_zerodose_20y.png",
         "Figure 2. Projected yearly zero-dose share among under-fives for the "
-        "baseline (calibrated to the empirical proxy) and intervention "
+        "baseline (calibrated to the empirical implied zero-dose share) and intervention "
         "(scaled-up routine delivery) scenarios.",
     ),
     (
         "tetanus_reference_vs_intervention.png",
-        "Figure 3. Tetanus module trajectories and cumulative case counts "
-        "(baseline vs intervention). Counts are modelled infections in the "
+        "Figure 3. Under-5 tetanus trajectories (baseline vs intervention) and "
+        "zero-dose share. Case counts are modelled under-5 infections in the "
         "simulated cohort; see methodology for the scaling factor used when "
         "translating to a national cohort.",
     ),
     (
         "tetanus_case_comparison.png",
-        "Figure 3b. Total tetanus infections over the full projection window "
-        "for no-intervention, baseline, and scale-up scenarios.",
-    ),
-    (
-        "projection_tetanus_deaths.png",
-        "Figure 4. Tetanus deaths per year with annual averted counts "
-        "(no-intervention, reference, and scale-up scenarios).",
-    ),
-    (
-        "projection_cumulative_deaths_averted.png",
-        "Figure 4b. Cumulative tetanus deaths averted versus the "
-        "no-intervention counterfactual.",
+        "Figure 3b. Total under-5 tetanus infections over the full projection "
+        "window for no-intervention, baseline, and scale-up scenarios.",
     ),
     (
         "admin_data_dtp1_zerodose_timeseries.png",
-        "Figure 5. Administrative DTP1 coverage proxy and implied zero-dose "
+        "Figure 4. Administrative DTP1 coverage indicator and implied zero-dose "
         "share (monthly), used to anchor the calibration target.",
     ),
     (
         "admin_data_dpt123_vs_births.png",
-        "Figure 6. Administrative DPT1 / DPT3 doses versus estimated live "
-        "births, providing context for the DTP1 coverage proxy.",
+        "Figure 5. Administrative DPT1 / DPT3 doses versus estimated live "
+        "births, providing context for the administrative DTP1 coverage indicator.",
     ),
     (
         "admin_data_disease_context.png",
-        "Figure 7. Monthly reported cases for pneumonia, measles, and "
+        "Figure 6. Monthly reported cases for pneumonia, measles, and "
         "tetanus from the Kenya HMIS administrative dataset — descriptive "
         "context only, mirroring the tables in the Rono et al. (2024) "
         "Results section. Pneumonia and measles are shown because the "
@@ -191,6 +181,21 @@ def _safe_get(d, *path, default=None):
     return cur
 
 
+def _empirical_admin_block(summary):
+    """ Administrative DTP1 summary block from the run summary JSON. """
+    return _safe_get(summary, "empirical_zerodose_admin_dtp1", default={}) or {}
+
+
+def _mean_implied_zerodose(summary, default=0.0):
+    block = _empirical_admin_block(summary)
+    return float(block.get("mean_implied_zerodose_share", default))
+
+
+def _mean_admin_dtp1_coverage(summary, default=0.0):
+    block = _empirical_admin_block(summary)
+    return float(block.get("mean_admin_dtp1_coverage", default))
+
+
 def _abstract_paragraphs(summary, styles):
     ref = _safe_get(summary, "zero_dose_fraction_under5_model_baseline", default=0.0)
     scl = _safe_get(summary, "zero_dose_fraction_under5_model_scale_up", default=0.0)
@@ -230,7 +235,7 @@ def _abstract_paragraphs(summary, styles):
         f"years {start}–{stop}: a <i>baseline</i> scenario whose routine "
         f"delivery probability is calibrated (grid search) so that the "
         f"modelled end-of-window zero-dose share matches the empirical "
-        f"proxy, and an <i>intervention</i> scenario with a higher routine "
+        f"implied zero-dose share, and an <i>intervention</i> scenario with a higher routine "
         f"delivery probability and coverage cap. Following Rono et al. "
         f"(2024), tetanus is the sentinel disease — the only DTP-bracket "
         f"disease still endemic in Kenya — and is modelled via environmental "
@@ -243,7 +248,8 @@ def _abstract_paragraphs(summary, styles):
         f"<b>{_fmt_pct(ref)}</b> in the baseline scenario and "
         f"<b>{_fmt_pct(scl)}</b> in the intervention scenario — a relative "
         f"reduction of <b>{_fmt_num(red, 1)}%</b>. Modelled tetanus cases "
-        f"averted in the simulated cohort totalled <b>{_fmt_int(tet_av)}</b>. "
+        f"averted among under-fives in the simulated cohort totalled "
+        f"<b>{_fmt_int(tet_av)}</b>. "
         f"When scaled to the Kenya under-five "
         f"population, the intervention reduces end-of-window zero-dose "
         f"children from approximately <b>{_fmt_int(zd_ref_end)}</b> to "
@@ -268,10 +274,11 @@ def _abstract_paragraphs(summary, styles):
 
 
 def _introduction_paragraphs(summary, styles):
-    emp_zd = _safe_get(summary, "empirical_zerodose_proxy_dtp1", "mean_zerodose_proxy", default=0.0)
-    emp_cov = _safe_get(summary, "empirical_zerodose_proxy_dtp1", "mean_dtp1_coverage_proxy", default=0.0)
-    span = _safe_get(summary, "empirical_zerodose_proxy_dtp1", "years_span", default="")
-    n_months = _safe_get(summary, "empirical_zerodose_proxy_dtp1", "n_months", default=0)
+    emp_block = _empirical_admin_block(summary)
+    emp_zd = _mean_implied_zerodose(summary)
+    emp_cov = _mean_admin_dtp1_coverage(summary)
+    span = emp_block.get("years_span", "")
+    n_months = emp_block.get("n_months", 0)
     context = _safe_get(summary, "empirical_disease_context_monthly", default={}) or {}
 
     items = [
@@ -302,7 +309,7 @@ def _introduction_paragraphs(summary, styles):
         ),
         Paragraph(
             f"The included administrative dataset provides a monthly DTP1 "
-            f"coverage proxy spanning {span} "
+            f"administrative DTP1 coverage indicator spanning {span} "
             f"({_fmt_int(n_months)} months). Its mean coverage is "
             f"<b>{_fmt_pct(emp_cov)}</b>, implying a mean zero-dose share "
             f"of <b>{_fmt_pct(emp_zd)}</b>. This value anchors the model "
@@ -402,11 +409,13 @@ def _methodology_paragraphs(summary, styles):
         Paragraph(
             f"A grid search over the routine-delivery probability is used "
             f"to match the modelled end-of-window zero-dose share to the "
-            f"empirical DTP1 proxy. Calibration uses short, higher-agent "
+            f"empirical implied zero-dose share from administrative DTP1. "
+            f"Calibration uses short, higher-agent "
             f"runs (≈{_fmt_int(calib_agents)} agents, "
             f"{calib_years}-year window) and, once converged, the chosen "
-            f"routine probability and a coverage cap set by the mean DTP1 "
-            f"proxy define the <i>reference</i> parameter set. The "
+            f"routine probability and a coverage cap set by the mean "
+            f"administrative DTP1 coverage indicator define the <i>reference</i> "
+            f"parameter set. The "
             f"<i>intervention</i> parameter set multiplies the reference routine "
             f"probability (capped at 0.12) and raises the coverage by "
             f"+2 percentage points, bounded by the coverage cap.",
@@ -479,8 +488,8 @@ def _results_paragraphs(summary, styles):
     scl = _safe_get(summary, "zero_dose_fraction_under5_model_scale_up", default=0.0)
     red = _safe_get(summary, "relative_reduction_percent_model", default=0.0)
     benefit = _safe_get(summary, "projection_benefit_summary", default={}) or {}
-    death_b = _safe_get(summary, "projection_tetanus_death_benefit_summary", default={}) or {}
     tet = _safe_get(summary, "research_question_tetanus", "modeled_answer", default={}) or {}
+    death_b = _safe_get(summary, "projection_tetanus_death_benefit_summary", default={}) or {}
     scaled = _safe_get(summary, "population_scaled_projection", default={}) or {}
     baseline_total = float(tet.get("baseline_total", 0.0) or 0.0)
     intervention_total = float(tet.get("inv_total", 0.0) or 0.0)
@@ -492,7 +501,7 @@ def _results_paragraphs(summary, styles):
             f"Primary target met: under-five zero-dose falls from "
             f"<b>{_fmt_pct(ref)}</b> to <b>{_fmt_pct(scl)}</b> "
             f"(<b>{_fmt_num(red, 1)}%</b> relative reduction). "
-            f"In the simulated cohort, tetanus cases fall from "
+            f"In the simulated under-five cohort, tetanus cases fall from "
             f"<b>{_fmt_int(baseline_total)}</b> to <b>{_fmt_int(intervention_total)}</b> "
             f"(averted <b>{_fmt_int(tet.get('tetanus_cases_averted_total'))}</b>, "
             f"{_fmt_num(case_red_pct, 2)}% relative reduction).",
@@ -515,7 +524,7 @@ def _results_paragraphs(summary, styles):
         ),
         Paragraph("Tetanus burden", styles["Sub"]),
         Paragraph(
-            f"In the simulated cohort, the intervention averts "
+            f"In the simulated under-five cohort, the intervention averts "
             f"<b>{_fmt_int(tet.get('tetanus_cases_averted_total'))}</b> "
             f"tetanus cases over {_fmt_num(summary.get('years'), 0)} years "
             f"(baseline {_fmt_int(tet.get('baseline_total'))} vs "
@@ -525,6 +534,8 @@ def _results_paragraphs(summary, styles):
         ),
         Paragraph("Tetanus deaths", styles["Sub"]),
         Paragraph(
+            "Yearly tetanus death counts are reported in the annual breakdown "
+            "table below (not as separate trajectory figures). "
             f"Total modelled tetanus deaths are "
             f"<b>{_fmt_int(death_b.get('total_baseline_tetanus_deaths'))}</b> "
             f"in the baseline scenario and "

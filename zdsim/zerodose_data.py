@@ -24,8 +24,15 @@ def load_formatted_xlsx(path=None):
     return df
 
 
-def empirical_zerodose_proxy_dtp1(df):
-    """ Mean DTP1 zero-dose proxy (1 - dpt1/monthly_births) across all rows. """
+def empirical_zerodose_from_admin_dtp1(df):
+    """ Summarise implied zero-dose share from administrative DTP1 doses and live births.
+
+    Each month, **administrative DTP1 coverage** is ``dpt1 / (estimated_lb / 12)``
+    (first-dose doses relative to estimated monthly births). This is an
+    administrative coverage *indicator*, not official WUENIC DTP1 coverage.
+    **Implied zero-dose share** is ``1 −`` that indicator and is used as the
+    calibration target for modelled zero-dose prevalence.
+    """
     need    = {"dpt1", "estimated_lb"}
     missing = need - set(df.columns)
     if missing:
@@ -40,16 +47,37 @@ def empirical_zerodose_proxy_dtp1(df):
     zerodose       = 1.0 - coverage
 
     return {
-        "mean_zerodose_proxy":      float(np.nanmean(zerodose)),
-        "std_zerodose_proxy":       float(np.nanstd(zerodose)),
-        "mean_dtp1_coverage_proxy": float(np.nanmean(coverage)),
-        "n_months":                 int(len(df)),
-        "years_span":               f"{df['year'].min()}-{df['year'].max()}" if "year" in df.columns else None,
+        "mean_implied_zerodose_share": float(np.nanmean(zerodose)),
+        "std_implied_zerodose_share":  float(np.nanstd(zerodose)),
+        "mean_admin_dtp1_coverage":    float(np.nanmean(coverage)),
+        "n_months":                    int(len(df)),
+        "years_span":                  f"{df['year'].min()}-{df['year'].max()}" if "year" in df.columns else None,
     }
 
 
+def mean_implied_zerodose_share(empirical):
+    """ Mean implied zero-dose share from an empirical summary dict. """
+    if not empirical:
+        return None
+    return float(empirical["mean_implied_zerodose_share"])
+
+
+def std_implied_zerodose_share(empirical):
+    """ Std dev of monthly implied zero-dose share. """
+    if not empirical:
+        return None
+    return float(empirical["std_implied_zerodose_share"])
+
+
+def mean_admin_dtp1_coverage(empirical):
+    """ Mean administrative DTP1 coverage indicator. """
+    if not empirical:
+        return None
+    return float(empirical["mean_admin_dtp1_coverage"])
+
+
 def monthly_dtp1_coverage_and_zerodose(df):
-    """ Per-row DTP1 coverage proxy, zero-dose proxy, and ``period`` label for plotting. """
+    """ Per-row administrative DTP1 coverage, implied zero-dose share, and period label. """
     need    = {"dpt1", "estimated_lb"}
     missing = need - set(df.columns)
     if missing:
@@ -61,8 +89,8 @@ def monthly_dtp1_coverage_and_zerodose(df):
     monthly_births = lb / 12.0
     ratio          = np.where(monthly_births > 0, d1 / monthly_births, np.nan)
 
-    out["dtp1_coverage_proxy"] = np.clip(ratio, 0.0, 1.0)
-    out["zerodose_proxy"]      = 1.0 - out["dtp1_coverage_proxy"]
+    out["admin_dtp1_coverage"]    = np.clip(ratio, 0.0, 1.0)
+    out["implied_zerodose_share"] = 1.0 - out["admin_dtp1_coverage"]
 
     if "year" in out.columns and "month" in out.columns:
         out["period"] = out["year"].astype(str) + " " + out["month"].astype(str)

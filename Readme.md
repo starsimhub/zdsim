@@ -53,13 +53,14 @@ Running `calibrate.py` or `run_simulation.py` directly also works — the wrappe
 | `zdsim_report.pdf` | Narrative report (title → abstract → methods → results with figures → discussion). Regenerate from an existing summary: `python -m zdsim.reporting outputs/zerodose_demo_summary.json`. |
 | `zerodose_impact.png` | End-of-window bar chart: baseline vs scale-up zero-dose share |
 | `projection_zerodose_20y.png` | Yearly zero-dose trajectory, baseline vs scale-up |
-| `projection_tetanus_deaths.png` | Yearly tetanus deaths (no-intervention vs baseline vs scale-up) |
-| `projection_cumulative_deaths_averted.png` | Cumulative tetanus deaths averted vs no-intervention |
-| `tetanus_reference_vs_intervention.png` | New tetanus infections over time |
-| `tetanus_case_comparison.png` | Total tetanus infections over the window (no-intervention, baseline, scale-up) |
-| `admin_data_dtp1_zerodose_timeseries.png` | Empirical DTP1 / zero-dose proxy from the xlsx |
+| `tetanus_reference_vs_intervention.png` | Under-5 tetanus infections over time + under-5 zero-dose panel |
+| `tetanus_case_comparison.png` | Total under-5 tetanus infections over the window (counterfactual, baseline, scale-up) |
+| `calibration_before.png` / `calibration_after.png` | Monthly tetanus model fit before/after calibration |
+| `admin_data_dtp1_zerodose_timeseries.png` | Administrative DTP1 coverage indicator and implied zero-dose share from the xlsx |
 | `admin_data_dpt123_vs_births.png` | DPT1/2/3 dose counts relative to estimated live births |
 | `admin_data_disease_context.png` | Monthly pneumonia / measles / tetanus case counts (descriptive only — not modelled) |
+
+Yearly tetanus deaths and deaths-averted totals are in `zerodose_demo_summary.json` (`projection_yearly_*`, `projection_tetanus_death_benefit_summary`), not in separate PNGs.
 
 Open the folder (macOS) to view figures:
 
@@ -73,8 +74,8 @@ PNGs are gitignored; they appear after you run the workflow.
 
 ## How it works (short version)
 
-1. **Data.** Monthly Kenya HMIS rows (2018–2024) in `zdsim/data/zerodose_data_formated.xlsx`. The `dpt1 / estimated_lb/12` ratio gives the **DTP1 coverage proxy**; `1 − coverage` is the **zero-dose proxy** (~16.5%).
-2. **Calibration.** `calibrate.py` uses Starsim's Optuna-backed `ss.Calibration` to fit `routine_prob ∈ [0.018, 0.090]` so the simulated end-of-window zero-dose share matches the empirical proxy. The resulting **baseline parameter set** plus a **scale-up parameter set** (higher `routine_prob`, higher `coverage` cap) is saved to `calibration.json`. Zero-dose is defined as the absence of DTP1/pentavalent first-dose; the only disease module simulated is tetanus.
+1. **Data.** Monthly Kenya HMIS rows (2018–2024) in `zdsim/data/zerodose_data_formated.xlsx`. The ratio `dpt1 / (estimated_lb/12)` is an **administrative DTP1 coverage indicator** (doses per estimated monthly birth, not official WUENIC coverage). **Implied zero-dose share** is `1 −` that indicator (~16.5% on average in the bundled data).
+2. **Calibration.** `calibrate.py` uses Starsim's Optuna-backed `ss.Calibration` to fit `routine_prob ∈ [0.018, 0.090]` so the simulated end-of-window zero-dose share matches the empirical implied zero-dose share. The resulting **baseline parameter set** plus a **scale-up parameter set** (higher `routine_prob`, higher `coverage` cap) is saved to `calibration.json`. Zero-dose is defined as the absence of DTP1/pentavalent first-dose; the only disease module simulated is tetanus.
 3. **Simulation.** `run_simulation.py` builds three scenarios from those parameter sets (counterfactual/no-intervention, baseline, and scale-up), runs them in parallel (20 000 agents, weekly steps, 2025–2030 by default), and reports both absolute and incremental impact.
 4. **Report.** Summary metrics are scaled to Kenya national anchors (7.2 M under-fives, 1.27 M annual births) and written to JSON + PNGs + PDF.
 
@@ -83,7 +84,7 @@ PNGs are gitignored; they appear after you run the workflow.
 ## Scope and limitations
 
 - **Modeled, not measured.** Outputs are illustrative unless you recalibrate to data you supply. Headline national or global counts (e.g. WHO's 14.3 M global zero-dose children) are **not** recomputed here — cite them from [WHO](https://www.who.int/news-room/fact-sheets/detail/immunization-coverage) or [WUENIC](https://www.who.int/teams/immunization-vaccines-and-biologicals/immunization-analysis-and-insights/global-monitoring/immunization-coverage/who-unicef-estimates-of-national-immunization-coverage).
-- **Cohort focus.** The population is initialised with children 0–5 years only; intervention targets ages 0–5 yr. All burden metrics are dominated by childhood segments.
+- **Intervention focus.** DTP1 delivery targets ages 0–5 yr; tetanus case averted metrics use **under-5 infections only**. The simulated population spans all ages (declining age pyramid), so all-age tetanus counts are reported separately and are much larger.
 - **No geography.** Contact structure is two `ss.RandomNet` networks (`household`, `community`) — no counties, no spatial stratification, no co-infection connectors.
 - **Tetanus only.** Diphtheria, pertussis, hepatitis B and Hib are *not* simulated as separate modules — the brief treats them as eliminated or controlled in Kenya and uses tetanus as the sentinel.
 - **Tetanus uses an environmental wound-exposure model**, not person-to-person β (see `zdsim/diseases/tetanus.py`). This differs from the Rono brief's teaching abstraction of β = 1.3.

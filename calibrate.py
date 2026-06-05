@@ -61,11 +61,13 @@ def run_calibration(*, n_agents_calib, calib_years, start, seed, data_path,
     if data_path is not None:
         df_data = load_formatted_xlsx(data_path)
         empirical = empirical_summary_from_dataframe(df_data)
-        empirical_zd = empirical["mean_zerodose_proxy"]
+        from zdsim.zerodose_data import mean_implied_zerodose_share, std_implied_zerodose_share
+
+        empirical_zd = mean_implied_zerodose_share(empirical)
         data_file_used = os.path.abspath(data_path)
         print(
-            f"Data {data_file_used}: mean zero-dose proxy "
-            f"{empirical_zd:.1%} (+/-{empirical['std_zerodose_proxy']:.1%} across months)"
+            f"Data {data_file_used}: mean implied zero-dose share "
+            f"{empirical_zd:.1%} (+/-{std_implied_zerodose_share(empirical):.1%} across months)"
         )
     else:
         print(f"No data file; using fallback zero-dose target {empirical_zd:.1%}.")
@@ -164,7 +166,7 @@ def run_calibration(*, n_agents_calib, calib_years, start, seed, data_path,
             "scale_coverage_cap": scale_coverage_cap,
             "optuna_total_trials": int(total_trials),
             "optuna_n_workers": None if n_workers is None else int(n_workers),
-            "empirical_zerodose_proxy": empirical_zd,
+            "empirical_implied_zerodose_share": empirical_zd,
             "calibrated_routine_prob": reference_rp,
             "calibrated_model_zd": float(calib_zd),
             "scale_up_routine_prob": scale_rp,
@@ -226,7 +228,7 @@ def main(argv=None):
     p.add_argument(
         "--no-data",
         action="store_true",
-        help="Skip xlsx; use the 16.5%% fallback zero-dose proxy",
+        help="Skip xlsx; use the 16.5%% fallback implied zero-dose share",
     )
     p.add_argument(
         "--scale-routine-factor",
