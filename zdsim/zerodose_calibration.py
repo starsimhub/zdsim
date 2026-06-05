@@ -6,7 +6,7 @@ from dataclasses import asdict, dataclass, field, replace
 import numpy as np
 import pandas as pd
 
-from zdsim.zerodose_data import empirical_zerodose_proxy_dtp1
+from zdsim.zerodose_data import empirical_zerodose_from_admin_dtp1, mean_admin_dtp1_coverage
 
 __all__ = ['SimulationParameters', 'build_calibration_parameters', 'empirical_summary_from_dataframe', 'with_intervention_delivery']
 
@@ -89,13 +89,13 @@ def build_calibration_parameters(*, seed, df, population, empirical):
     tetanus_init_p    = tetanus_init_from_reported_cases(df, reference_population=population)
 
     if empirical:
-        cov     = _clip_cov(float(empirical["mean_dtp1_coverage_proxy"]))
+        cov     = _clip_cov(float(mean_admin_dtp1_coverage(empirical)))
         emp_tag = True
     else:
         cov     = 0.65
         emp_tag = False
 
-    # Convert CBR (births per 1000 total population) to ASFR proxy (births per
+    # Convert CBR (births per 1000 total population) to ASFR approximation (births per
     # 1000 women aged 15-49 per year). With an exp(-0.022*a) age pyramid,
     # women aged 15-49 are ~22.9% of total population, so fertility_rate
     # = birth_rate / 0.229 ~= birth_rate * 4.37.
@@ -118,7 +118,7 @@ def build_calibration_parameters(*, seed, df, population, empirical):
         intervention_booster_interval_years = 1.0,
         data_derived = {
             "demographics": demo_meta,
-            "intervention_coverage_from_mean_dtp1_proxy": emp_tag,
+            "intervention_coverage_from_mean_admin_dtp1": emp_tag,
         },
     )
 
@@ -137,4 +137,4 @@ def empirical_summary_from_dataframe(df):
     """ Return the empirical zero-dose summary dict, or None if ``df`` is None. """
     if df is None:
         return None
-    return empirical_zerodose_proxy_dtp1(df)
+    return empirical_zerodose_from_admin_dtp1(df)

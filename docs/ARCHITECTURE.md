@@ -31,13 +31,13 @@ This document walks through the moving parts end-to-end — with Mermaid diagram
 ```mermaid
 flowchart LR
     XLSX[("zerodose_data_formated.xlsx<br/>monthly HMIS counts<br/>DPT1 to DPT3, estimated_lb,<br/>tetanus cases")]
-    CAL["calibrate.py<br/>grid search over routine_prob"]
+    CAL["calibrate.py<br/>Optuna over routine_prob"]
     JSON[("calibration.json<br/>reference + scale-up parameter sets")]
     RUN["run_simulation.py<br/>counterfactual + baseline + intervention sims"]
     OUT[("outputs/<br/>summary JSON<br/>PNG plots<br/>zdsim_report.pdf")]
     WORKFLOW["research_workflow.py<br/>one-command wrapper"]
 
-    XLSX -->|DTP1 coverage proxy + births + tetanus cases| CAL
+    XLSX -->|admin DTP1 indicator + births + tetanus cases| CAL
     CAL -->|writes| JSON
     JSON -->|required at startup| RUN
     XLSX -->|context plots + tetanus fit| RUN
@@ -54,7 +54,7 @@ flowchart LR
     style WORKFLOW fill:#ffe4e6,stroke:#e11d48,color:#000
 ```
 
-**Two stages by design.** Calibration is slow (it sweeps 14 short sims in a grid); simulation is fast. They are now **strictly separated**: `run_simulation.py` requires a pre-existing `calibration.json` and exits with an error if it is missing.
+**Two stages by design.** Calibration runs many short Optuna trials; simulation is fast. They are **strictly separated**: `run_simulation.py` requires a pre-existing `calibration.json` and exits with an error if it is missing.
 
 ---
 
@@ -71,7 +71,7 @@ zdsim/
 │   ├── __init__.py                exposes ZeroDoseVaccination + Tetanus
 │   ├── interventions.py           ZeroDoseVaccination
 │   ├── zerodose_calibration.py    SimulationParameters + build_calibration_parameters + with_intervention_delivery
-│   ├── zerodose_data.py           xlsx loader + DTP1/zero-dose proxy
+│   ├── zerodose_data.py           xlsx loader + admin DTP1 / implied zero-dose
 │   ├── analysis.py                YearlyRecorder, metrics, result extraction, context_monthly_means
 │   ├── plots.py                   matplotlib figure generation
 │   ├── reporting.py               PDF report generator (reportlab)
@@ -91,7 +91,7 @@ zdsim/
 
 ## 3. Data → calibration → simulation flow
 
-### 3a. From xlsx to empirical proxy
+### 3a. From xlsx to administrative indicators
 
 ```mermaid
 flowchart LR
@@ -99,38 +99,38 @@ flowchart LR
 
     subgraph ZD ["zerodose_data.py"]
         A1["monthly_births = estimated_lb / 12"]
-        A2["coverage = clip dpt1 / monthly_births, 0, 1"]
-        A3["zerodose = 1 minus coverage"]
-        A4["mean_zerodose_proxy<br/>approximately 16.5 percent"]
+        A2["admin_dtp1_coverage = clip dpt1 / monthly_births, 0, 1"]
+        A3["implied_zerodose_share = 1 minus coverage"]
+        A4["mean implied zero-dose share<br/>approximately 16.5 percent"]
         SHEET --> A1 --> A2 --> A3 --> A4
     end
 
     style A4 fill:#fef3c7,stroke:#f59e0b,color:#000
 ```
 
-### 3b. Calibration grid search
+### 3b. Calibration (Optuna)
 
 ```mermaid
 flowchart TD
-    EMP["empirical zero-dose target<br/>e.g. 0.165"]
-    BASE["build_calibration_parameters<br/>→ base SimulationParameters"]
+    EMP["empirical implied zero-dose target<br/>e.g. 0.165"]
+    BASE["build_calibration_parameters<br/>base SimulationParameters"]
 
-    GRID["grid_search_reference_routine<br/>for rp in linspace 0.018 to 0.090 in 14 steps:<br/>build sim · run in parallel · measure ZD<br/>pick rp that minimises abs ZD minus target"]
+    OPTUNA["ss.Calibration Optuna<br/>routine_prob in 0.018 to 0.090<br/>short sim per trial<br/>minimise squared ZD error"]
 
-    REF["reference parameters<br/>routine_prob = rp*"]
-    INT["scale-up parameters<br/>routine_prob = min 0.12, rp* × 2.3<br/>coverage = min 0.88, cov + 0.02, 0.85"]
+    REF["reference parameters<br/>routine_prob = best"]
+    INT["scale-up parameters<br/>higher routine_prob and coverage cap"]
 
     OUT_JSON[("calibration.json<br/>schema_version<br/>calibration_metadata<br/>reference_parameters<br/>scale_up_parameters")]
 
-    EMP --> GRID
-    BASE --> GRID
-    GRID --> REF
+    EMP --> OPTUNA
+    BASE --> OPTUNA
+    OPTUNA --> REF
     REF --> INT
     REF --> OUT_JSON
     INT --> OUT_JSON
 ```
 
-**Each of the 14 trial sims is short and small** — `CALIB_N_AGENTS = 10,000` agents over `CALIB_YEARS = 8` years — and they run in parallel via `ss.multi_run`, so the whole grid completes in tens of seconds.
+**Each trial sim is short and small** — `CALIB_N_AGENTS = 10,000` agents over `CALIB_YEARS = 8` years — with parallel workers when configured, so a typical 40-trial run completes in under a minute.
 
 ### 3c. Simulation stage (runtime)
 
@@ -139,7 +139,7 @@ flowchart TD
 | Scenario | Parameters | `with_intervention` | Meaning |
 |---|---|---|---|
 | `counterfactual` | reference | `False` | No intervention attached — reference point for "vaccination ever had any effect" |
-| `baseline` | reference | `True` | **Calibrated current program** — matches empirical zero-dose proxy |
+| `baseline` | reference | `True` | **Calibrated current program** — matches empirical implied zero-dose share |
 | `intervention` | scale-up | `True` | Proposed scale-up (higher `routine_prob` + coverage) |
 
 Primary comparison for the research question is `baseline → intervention`.  
@@ -154,11 +154,13 @@ flowchart LR
     JSON --> REFB
     JSON --> INTB
 
-    REFB -->|build_simulation(with_intervention=False)| SIMC["sim_counterfactual<br/>20 000 agents · 2025–2030"]
-    REFB -->|build_simulation(with_intervention=True)|  SIMB["sim_baseline<br/>20 000 agents · 2025–2030"]
-    INTB -->|build_simulation(with_intervention=True)|  SIMI["sim_intervention<br/>20 000 agents · 2025–2030"]
+    REFB -->|no intervention| SIMC["sim_counterfactual<br/>20k agents 2025-2030"]
+    REFB -->|baseline| SIMB["sim_baseline<br/>20k agents 2025-2030"]
+    INTB -->|scale-up| SIMI["sim_intervention<br/>20k agents 2025-2030"]
 
-    SIMC & SIMB & SIMI -->|ss.multi_run, parallel| AGG["compute metrics<br/>zerodose_fraction_under5<br/>tetanus_metrics<br/>get_rows from YearlyRecorder"]
+    SIMC --> AGG["compute metrics<br/>zerodose_fraction_under5<br/>tetanus_metrics under5 and all ages<br/>YearlyRecorder rows"]
+    SIMB --> AGG
+    SIMI --> AGG
     AGG --> SUMMARY["summary dict"]
     SUMMARY --> JOUT[("zerodose_demo_summary.json")]
     SUMMARY --> PDF[("zdsim_report.pdf<br/>reportlab")]
@@ -195,28 +197,28 @@ classDiagram
         +from_dict(d) SimulationParameters
     }
 
-    class build_calibration_parameters {
+    class BuildCalibParams {
         +seed
         +df
         +population
         +empirical
     }
 
-    class with_intervention_delivery {
+    class WithInterventionDelivery {
         +base
         +routine_prob
         +coverage
     }
 
-    build_calibration_parameters ..> SimulationParameters : creates
-    with_intervention_delivery ..> SimulationParameters : copies and updates
+    BuildCalibParams ..> SimulationParameters : creates
+    WithInterventionDelivery ..> SimulationParameters : copies and updates
 ```
 
 Fields come from three places:
 
 | Origin | Fields |
 |---|---|
-| **Derived from xlsx** | `birth_rate` (from `estimated_lb`), `fertility_rate` (from `birth_rate`), `intervention_coverage` (mean DTP1 proxy), `tetanus_init_p` (scaled from reported monthly cases) |
+| **Derived from xlsx** | `birth_rate` (from `estimated_lb`), `fertility_rate` (from `birth_rate`), `intervention_coverage` (mean administrative DTP1 coverage indicator), `tetanus_init_p` (scaled from reported monthly cases) |
 | **Derived by calibration** | `intervention_routine_prob` |
 | **Fixed constants** | `household_contacts = 5`, `community_contacts = 15`, `intervention_efficacy = 0.9`, age window `[0, 5]` yr, boosters disabled (`booster_age_max = 0`) |
 
@@ -230,11 +232,11 @@ Every scenario is one `ss.Sim` instance composed of these modules.
 
 ```mermaid
 flowchart TB
-    subgraph SIM ["ss.Sim · start – stop · dt = 1/52 yr · rand_seed = pars.seed"]
+    subgraph SIM ["ss.Sim weekly dt=1/52 rand_seed=pars.seed"]
         direction TB
 
         subgraph PPL ["People"]
-            P1["ss.People<br/>n_agents = 20 000<br/>age_data: LMIC pyramid exp(-0.022 × a)"]
+            P1["ss.People<br/>n_agents = 20000<br/>LMIC age pyramid 0-80y"]
         end
 
         subgraph NETS ["Networks"]
@@ -320,6 +322,7 @@ classDiagram
         +BoolState vaccinated
         +FloatArr ti_vaccinated
         +FloatArr ti_dead
+        +Result new_infections_under5
     }
 
     ss_Infection <|-- Tetanus
@@ -369,7 +372,7 @@ flowchart TD
     DRAW["p_vx.filter on eligible_uids"]
     APPLY["_apply_vaccine_effects"]
     SET["tetanus module:<br/>vaccinated uids = True<br/>ti_vaccinated uids = ti<br/>immunity uids = efficacy 0.9<br/>rel_sus uids = 1 minus efficacy"]
-    NO(["return empty uids — skip"])
+    NO(["return empty uids skip"])
     STATE["module state update:<br/>self.zero_dose uids = False<br/>self.vaccinated uids = True<br/>self.doses_received uids += 1"]
 
     START --> T
@@ -432,15 +435,20 @@ flowchart LR
     SB --> B3["rows_base<br/>get_rows"]
     SI --> I3["rows_int"]
 
-    B1 & I1 --> REL["relative reduction percent<br/>base_zd minus int_zd, over base_zd, times 100"]
-    B2 & I2 --> TAV["tetanus cases averted<br/>tet_base.total minus tet_int.total"]
-    B3 & I3 --> DEATHS["tetanus deaths averted<br/>sum of d_base minus d_int"]
-
-    REL & TAV & DEATHS --> SCALED["population_scaled_projection<br/>multiplied by Kenya anchors"]
-
+    B1 --> REL["relative reduction percent ZD"]
+    I1 --> REL
+    B2 --> TAV["under-5 tetanus cases averted"]
+    I2 --> TAV
+    B3 --> DEATHS["tetanus deaths averted yearly rows"]
+    I3 --> DEATHS
+    REL --> SCALED["population_scaled_projection Kenya anchors"]
+    TAV --> SCALED
+    DEATHS --> SCALED
     SCALED --> J[("zerodose_demo_summary.json")]
     J --> PDF[("zdsim_report.pdf")]
-    C3 & B3 & I3 --> PNGS[("PNG plots")]
+    C3 --> PNGS[("PNG plots")]
+    B3 --> PNGS
+    I3 --> PNGS
 ```
 
 ### Output files (all under `outputs/`)
@@ -450,10 +458,10 @@ flowchart LR
 | `zerodose_demo_summary.json` | Full summary dict (metrics + yearly rows + scaled projections) |
 | `zerodose_impact.png` | End-of-window bar chart: empirical vs calibrated baseline vs intervention ZD share |
 | `projection_zerodose_20y.png` | Yearly ZD share trajectory (baseline vs intervention) |
-| `tetanus_reference_vs_intervention.png` | New tetanus infections over time (counterfactual, baseline, intervention) + under-5 zero-dose panel |
-| `tetanus_case_comparison.png` | Total tetanus infections over the projection window (all three scenarios) |
+| `tetanus_reference_vs_intervention.png` | Under-5 tetanus infections over time (three scenarios) + under-5 zero-dose panel |
+| `tetanus_case_comparison.png` | Total under-5 tetanus infections over the projection window (three scenarios) |
 | `calibration_before.png` / `calibration_after.png` | Monthly tetanus fit: over-predicting vs calibrated model vs data |
-| `admin_data_dtp1_zerodose_timeseries.png` | Empirical DTP1 / zero-dose proxies from xlsx |
+| `admin_data_dtp1_zerodose_timeseries.png` | Administrative DTP1 coverage indicator and implied zero-dose share from xlsx |
 | `admin_data_dpt123_vs_births.png` | DPT1/3 dose counts vs estimated live births |
 | `admin_data_disease_context.png` | Monthly pneumonia / measles / tetanus context (observed, not modelled) |
 | `zdsim_report.pdf` | Narrative PDF report (title → abstract → methods → results → discussion) |
@@ -494,7 +502,7 @@ tetanus_cases_averted_scaled        = tet_av × scale
 | **Boosters disabled by default (`booster_age_max = 0`)** | Real EPI systems in low-coverage settings do not deliver annual adult pentavalent boosters; enabling them would produce unrealistic long-horizon dynamics. |
 | **One RNG stream per tetanus event type** | Common Random Numbers: flipping `routine_prob` in the scale-up arm changes vaccination draws without shifting wound/infection/death draws, so signal > noise. |
 | **Kenya anchors applied post-hoc** | The ABM runs on 20k cohort agents; real-world headcounts come from a deterministic multiplier — keeps simulation cheap and makes the scaling assumption explicit. |
-| **`ss.multi_run` for scenarios and grid search** | Parallelises the three scenario runs and the 14 calibration grid points; a full workflow completes in under a minute on a laptop. |
+| **`ss.multi_run` for scenarios** | Parallelises the three scenario runs; a full workflow completes in under a minute on a laptop. |
 
 ---
 

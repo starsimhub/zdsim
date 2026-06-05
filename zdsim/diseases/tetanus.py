@@ -76,6 +76,8 @@ class Tetanus(ss.Infection):
         """ Seed init_prev cases with age-stratified CFR (skip Infection default). """
         super(ss.Infection, self).init_post()
         if self.pars.init_prev is None:
+            self.pars._n_initial_cases = 0
+            self.pars._n_initial_cases_under5 = 0
             return
         initial_cases = self.pars.init_prev.filter()
         if len(initial_cases):
@@ -83,8 +85,32 @@ class Tetanus(ss.Infection):
             for age_group, mask in self._age_segment_masks(age_days):
                 if np.any(mask):
                     self.set_prognoses(initial_cases[mask], sources=-1, age_group=age_group)
+        age_y = self.sim.people.age[initial_cases] if len(initial_cases) else []
         self.pars._n_initial_cases = len(initial_cases)
+        self.pars._n_initial_cases_under5 = int(np.sum(age_y < 5.0)) if len(initial_cases) else 0
         return initial_cases
+
+    def init_results(self):
+        """ Add under-5 infection counts alongside the default infection results. """
+        super().init_results()
+        self.define_results(
+            ss.Result('new_infections_under5', dtype=int, scale=True, label='New infections under 5'),
+        )
+        return
+
+    def update_results(self):
+        """ Record all-age and under-5 new infections for the current timestep. """
+        super().update_results()
+        ti = self.t.ti
+        newly = np.round(self.ti_infected) == ti
+        n_under5 = 0
+        if np.any(newly):
+            age = self.sim.people.age
+            n_under5 = int(np.count_nonzero(newly & (age < 5.0)))
+        if ti == 0:
+            n_under5 -= int(self.pars.pop('_n_initial_cases_under5', 0))
+        self.results.new_infections_under5[ti] = max(n_under5, 0)
+        return
 
     def step(self):
         """ Wound-exposure transmission across four age segments. """

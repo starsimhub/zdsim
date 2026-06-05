@@ -8,10 +8,10 @@
   "n_agents": 20000,
   "calibration_short_run_years": 8,
   "calibration_short_run_agents": 10000,
-  "empirical_zerodose_proxy_dtp1": {
-    "mean_zerodose_proxy": 0.1647298685507964,
-    "std_zerodose_proxy": 0.06431024802344402,
-    "mean_dtp1_coverage_proxy": 0.8352701314492037,
+  "empirical_zerodose_admin_dtp1": {
+    "mean_implied_zerodose_share": 0.1647298685507964,
+    "std_implied_zerodose_share": 0.06431024802344402,
+    "mean_admin_dtp1_coverage": 0.8352701314492037,
     "n_months": 84,
     "years_span": "2018-2024"
   },
@@ -35,7 +35,7 @@
       "n_months": 84
     }
   },
-  "zero_dose_fraction_under5_empirical_proxy": 0.1647298685507964,
+  "zero_dose_fraction_under5_empirical": 0.1647298685507964,
   "zero_dose_fraction_under5_model_counterfactual_no_intervention": 1.0,
   "zero_dose_fraction_under5_model_baseline": 0.12941847206385404,
   "zero_dose_fraction_under5_model_scale_up": 0.06285390713476784,
@@ -64,7 +64,7 @@
         "mean_annual_live_births_estimated": 4954514.678571428,
         "birth_rate_source": "default (set --population to calibrate birth_rate from estimated_lb)"
       },
-      "intervention_coverage_from_mean_dtp1_proxy": true
+      "intervention_coverage_from_mean_admin_dtp1": true
     }
   },
   "calibration_scale_up_parameters": {
@@ -88,7 +88,7 @@
         "mean_annual_live_births_estimated": 4954514.678571428,
         "birth_rate_source": "default (set --population to calibrate birth_rate from estimated_lb)"
       },
-      "intervention_coverage_from_mean_dtp1_proxy": true
+      "intervention_coverage_from_mean_admin_dtp1": true
     }
   },
   "projection_yearly_baseline": [
@@ -209,45 +209,48 @@
   "research_question_tetanus": {
     "question": "How many tetanus cases will be averted if we reduce prevalence of zero-dose vaccination by 50% among under-fives by the year 2025?",
     "modeled_answer": {
-      "metric": "new_tetanus_infections_in_simulated_cohort",
-      "baseline_total": 17363.0,
-      "inv_total": 17281.0,
-      "tetanus_cases_averted_total": 82.0,
+      "metric": "new_tetanus_infections_under5_in_simulated_cohort",
+      "baseline_total": 221.0,
+      "inv_total": 158.0,
+      "tetanus_cases_averted_total": 63.0,
+      "baseline_total_all_ages": 17363.0,
+      "inv_total_all_ages": 17281.0,
+      "tetanus_cases_averted_total_all_ages": 82.0,
       "by_calendar_year": [
         {
           "calendar_year": 2025,
-          "baseline_tetanus_cases": 6747.0,
-          "inv_tetanus_cases": 6720.0,
-          "tetanus_cases_averted": 27.0
+          "baseline_tetanus_cases": 76.0,
+          "inv_tetanus_cases": 51.0,
+          "tetanus_cases_averted": 25.0
         },
         {
           "calendar_year": 2026,
-          "baseline_tetanus_cases": 4029.0,
-          "inv_tetanus_cases": 4005.0,
-          "tetanus_cases_averted": 24.0
+          "baseline_tetanus_cases": 43.0,
+          "inv_tetanus_cases": 23.0,
+          "tetanus_cases_averted": 20.0
         },
         {
           "calendar_year": 2027,
-          "baseline_tetanus_cases": 2774.0,
-          "inv_tetanus_cases": 2759.0,
-          "tetanus_cases_averted": 15.0
+          "baseline_tetanus_cases": 43.0,
+          "inv_tetanus_cases": 35.0,
+          "tetanus_cases_averted": 8.0
         },
         {
           "calendar_year": 2028,
-          "baseline_tetanus_cases": 2095.0,
-          "inv_tetanus_cases": 2082.0,
-          "tetanus_cases_averted": 13.0
+          "baseline_tetanus_cases": 35.0,
+          "inv_tetanus_cases": 26.0,
+          "tetanus_cases_averted": 9.0
         },
         {
           "calendar_year": 2029,
-          "baseline_tetanus_cases": 1691.0,
-          "inv_tetanus_cases": 1688.0,
-          "tetanus_cases_averted": 3.0
+          "baseline_tetanus_cases": 24.0,
+          "inv_tetanus_cases": 23.0,
+          "tetanus_cases_averted": 1.0
         },
         {
           "calendar_year": 2030,
-          "baseline_tetanus_cases": 27.0,
-          "inv_tetanus_cases": 27.0,
+          "baseline_tetanus_cases": 0.0,
+          "inv_tetanus_cases": 0.0,
           "tetanus_cases_averted": 0.0
         }
       ],
@@ -259,13 +262,16 @@
     "zero_dose_under5_baseline": 0.12941847206385404,
     "zero_dose_under5_scale_up": 0.06285390713476784,
     "zero_dose_under5_relative_reduction_percent": 51.433588936395246,
-    "tetanus_cases_baseline": 17363.0,
-    "tetanus_cases_scale_up": 17281.0,
-    "tetanus_cases_averted": 82.0,
-    "tetanus_cases_relative_reduction_percent": 0.4722686171744514,
+    "tetanus_cases_baseline": 221.0,
+    "tetanus_cases_scale_up": 158.0,
+    "tetanus_cases_averted": 63.0,
+    "tetanus_cases_relative_reduction_percent": 28.506787330316744,
+    "tetanus_cases_baseline_all_ages": 17363.0,
+    "tetanus_cases_scale_up_all_ages": 17281.0,
+    "tetanus_cases_averted_all_ages": 82.0,
     "tetanus_deaths_averted": 0.0,
     "scaled_zero_dose_children_reached_at_end": 479265,
-    "scaled_tetanus_cases_averted": 208280,
+    "scaled_tetanus_cases_averted": 160020,
     "scaled_tetanus_deaths_averted": 0
   },
   "population_scaled_projection": {
@@ -279,6 +285,6 @@
     "cumulative_child_years_zd_gap_closed": 2875589,
     "total_tetanus_deaths_averted_scaled": 0,
     "mean_annual_tetanus_deaths_averted_scaled": 0,
-    "tetanus_cases_averted_scaled": 208280
+    "tetanus_cases_averted_scaled": 160020
   }
 }

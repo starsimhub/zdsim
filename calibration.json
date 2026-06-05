@@ -11,16 +11,16 @@
     "scale_coverage_cap": 0.88,
     "optuna_total_trials": 40,
     "optuna_n_workers": null,
-    "empirical_zerodose_proxy": 0.1647298685507964,
+    "empirical_implied_zerodose_share": 0.1647298685507964,
     "calibrated_routine_prob": 0.032369477913263354,
     "calibrated_model_zd": 0.14671814671814673,
     "scale_up_routine_prob": 0.0744497992005057,
     "scale_up_coverage": 0.8552701314492037
   },
   "empirical": {
-    "mean_zerodose_proxy": 0.1647298685507964,
-    "std_zerodose_proxy": 0.06431024802344402,
-    "mean_dtp1_coverage_proxy": 0.8352701314492037,
+    "mean_implied_zerodose_share": 0.1647298685507964,
+    "std_implied_zerodose_share": 0.06431024802344402,
+    "mean_admin_dtp1_coverage": 0.8352701314492037,
     "n_months": 84,
     "years_span": "2018-2024"
   },
@@ -45,7 +45,7 @@
         "mean_annual_live_births_estimated": 4954514.678571428,
         "birth_rate_source": "default (set --population to calibrate birth_rate from estimated_lb)"
       },
-      "intervention_coverage_from_mean_dtp1_proxy": true
+      "intervention_coverage_from_mean_admin_dtp1": true
     }
   },
   "scale_up_parameters": {
@@ -69,7 +69,7 @@
         "mean_annual_live_births_estimated": 4954514.678571428,
         "birth_rate_source": "default (set --population to calibrate birth_rate from estimated_lb)"
       },
-      "intervention_coverage_from_mean_dtp1_proxy": true
+      "intervention_coverage_from_mean_admin_dtp1": true
     }
   }
 }

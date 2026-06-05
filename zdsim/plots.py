@@ -118,8 +118,10 @@ def save_projection_plots(df_data, rows_counterfactual, rows_baseline, rows_scal
         x = np.arange(len(d))
         p1 = os.path.join(out_dir, "admin_data_dtp1_zerodose_timeseries.png")
         fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(9, 6), sharex=True)
-        ax1.plot(x, d["dtp1_coverage_proxy"]); ax1.set_ylabel("DTP1 proxy"); ax1.grid(alpha=0.3)
-        ax2.plot(x, d["zerodose_proxy"], color="#c0392b"); ax2.set_ylabel("Zero-dose proxy"); ax2.set_xlabel("Month index"); ax2.grid(alpha=0.3)
+        ax1.plot(x, d["admin_dtp1_coverage"])
+        ax1.set_ylabel("DTP1 coverage (admin.)"); ax1.grid(alpha=0.3)
+        ax2.plot(x, d["implied_zerodose_share"], color="#c0392b")
+        ax2.set_ylabel("Implied zero-dose share"); ax2.set_xlabel("Month index"); ax2.grid(alpha=0.3)
         fig.tight_layout(); fig.savefig(p1, dpi=150); plt.close(fig); paths.append(p1)
 
         p2 = os.path.join(out_dir, "admin_data_dpt123_vs_births.png")
@@ -137,7 +139,7 @@ def save_projection_plots(df_data, rows_counterfactual, rows_baseline, rows_scal
             paths.append(p_ctx)
 
     p3 = os.path.join(out_dir, "zerodose_impact.png")
-    labels = ["empirical\n(DTP1 proxy)", "baseline\n(calibrated)", "scale-up\n(intervention)"]
+    labels = ["empirical\n(admin. DTP1)", "baseline\n(calibrated)", "scale-up\n(intervention)"]
     values = [empirical_zd * 100, baseline_zd * 100, scale_up_zd * 100]
     colors = ["#2c3e50", "#7f8c8d", "#27ae60"]
     fig, ax = plt.subplots(figsize=(8, 4.5))
@@ -171,9 +173,12 @@ def save_projection_plots(df_data, rows_counterfactual, rows_baseline, rows_scal
         fig.tight_layout(); fig.savefig(p4, dpi=150); plt.close(fig); paths.append(p4)
 
     p6 = os.path.join(out_dir, "tetanus_reference_vs_intervention.png")
-    tb = np.asarray(sim_counterfactual.diseases["tetanus"].results.new_infections, dtype=float).ravel()
-    tr = np.asarray(sim_baseline.diseases["tetanus"].results.new_infections, dtype=float).ravel()
-    ti = np.asarray(sim_scale_up.diseases["tetanus"].results.new_infections, dtype=float).ravel()
+    tet_cf = sim_counterfactual.diseases["tetanus"]
+    tet_base = sim_baseline.diseases["tetanus"]
+    tet_int = sim_scale_up.diseases["tetanus"]
+    tb = np.asarray(tet_cf.results.new_infections_under5, dtype=float).ravel()
+    tr = np.asarray(tet_base.results.new_infections_under5, dtype=float).ravel()
+    ti = np.asarray(tet_int.results.new_infections_under5, dtype=float).ravel()
     tv = np.asarray(sim_baseline.t.yearvec, dtype=float).ravel()
     if tb.size and tb.size == tr.size == ti.size == tv.size:
         total_cf = float(np.sum(tb))
@@ -189,8 +194,8 @@ def save_projection_plots(df_data, rows_counterfactual, rows_baseline, rows_scal
         ax1.plot(tv, tb, label="baseline (no intervention)", color="#c0392b", alpha=0.85)
         ax1.plot(tv, tr, label="baseline", color="#7f8c8d", alpha=0.85)
         ax1.plot(tv, ti, label="intervention", color="#27ae60", alpha=0.85)
-        ax1.set_ylabel("New tetanus infections (all ages)")
-        ax1.set_title("Tetanus trajectories by scenario")
+        ax1.set_ylabel("New tetanus infections (under-5)")
+        ax1.set_title("Under-5 tetanus trajectories by scenario")
         if total_base > 0:
             case_red = 100.0 * averted_vs_base / total_base
             note = f"Averted vs baseline: {averted_vs_base:,.0f} ({case_red:.2f}%)"
@@ -209,7 +214,7 @@ def save_projection_plots(df_data, rows_counterfactual, rows_baseline, rows_scal
             ax2.plot(years_u5, [int_year[y]["zerodose_under5_fraction"] * 100 for y in years_u5],
                      "o-", color="#27ae60", label="intervention")
             ax2.axhline(empirical_zd * 100, linestyle="--", linewidth=1, color="#2c3e50",
-                        label="empirical proxy")
+                        label="empirical (admin. DTP1)")
             ax2.set_ylabel("Zero-dose under-5 (%)")
             ax2.set_xlabel("Calendar year")
             ax2.set_title("Under-5 target metric (intervention signal)")
@@ -252,7 +257,7 @@ def save_projection_plots(df_data, rows_counterfactual, rows_baseline, rows_scal
             cx = b.get_x() + b.get_width() / 2
             ax_l.text(cx, v + span * 0.05, f"{v:,.0f}",
                       ha="center", va="bottom", fontsize=10, fontweight="bold")
-        ax_l.set_ylabel("Total tetanus infections, projection window")
+        ax_l.set_ylabel("Total under-5 tetanus infections, projection window")
         ax_l.set_title(f"Totals — {year_start}–{year_stop} ({n_years} yrs)")
         ax_l.grid(axis="y", alpha=0.3)
         ax_l.set_axisbelow(True)
@@ -285,12 +290,12 @@ def save_projection_plots(df_data, rows_counterfactual, rows_baseline, rows_scal
         ax_r.set_axisbelow(True)
 
         fig.suptitle(
-            f"Scenario comparison: total tetanus burden, {year_start}–{year_stop}",
+            f"Scenario comparison: under-5 tetanus burden, {year_start}–{year_stop}",
             fontsize=12, y=0.99,
         )
 
         footer = (
-            "Left: total infections per scenario (y-axis zoomed to show small differences). "
+            "Left: total under-5 infections per scenario (y-axis zoomed when differences are small). "
             "Right: cases averted vs the reference scenario, with relative reduction. "
             "Scenarios — No intervention: no DTP routine (counterfactual). "
             "Baseline: current DTP routine (calibrated). "
