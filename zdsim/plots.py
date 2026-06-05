@@ -104,7 +104,14 @@ def _save_context_plot(df, out_dir):
 
 def save_projection_plots(df_data, rows_counterfactual, rows_baseline, rows_scale_up, empirical_zd,
                           baseline_zd, scale_up_zd, sim_counterfactual, sim_baseline, sim_scale_up, out_dir):
-    """ Context + outcome plots for the reference/intervention projection. """
+    """ Context + outcome plots for the reference/intervention projection.
+
+    Writes (when data and rows are available): ``admin_data_*.png``,
+    ``zerodose_impact.png``, ``projection_zerodose_20y.png``,
+    ``tetanus_reference_vs_intervention.png``, ``tetanus_case_comparison.png``.
+    Tetanus death trajectories are not plotted; see ``zerodose_demo_summary.json``
+    and the PDF annual breakdown table.
+    """
     paths = []
     if df_data is not None:
         d = monthly_dtp1_coverage_and_zerodose(df_data)
@@ -155,7 +162,6 @@ def save_projection_plots(df_data, rows_counterfactual, rows_baseline, rows_scal
     fig.tight_layout(); fig.savefig(p3, dpi=150); plt.close(fig); paths.append(p3)
 
     years, base, intr = align_rows(rows_baseline, rows_scale_up)
-    counterfactual_by_year = {int(r["calendar_year"]): r for r in (rows_counterfactual or [])}
     if years:
         p4 = os.path.join(out_dir, "projection_zerodose_20y.png")
         fig, ax = plt.subplots(figsize=(9, 4))
@@ -163,44 +169,6 @@ def save_projection_plots(df_data, rows_counterfactual, rows_baseline, rows_scal
         ax.plot(years, [intr[y]["zerodose_under5_fraction"] * 100 for y in years], "s-", label="intervention")
         ax.set_ylabel("Zero-dose share (%)"); ax.set_xlabel("Calendar year"); ax.legend(); ax.grid(alpha=0.3)
         fig.tight_layout(); fig.savefig(p4, dpi=150); plt.close(fig); paths.append(p4)
-
-        p5 = os.path.join(out_dir, "projection_tetanus_deaths.png")
-        fig, ax = plt.subplots(figsize=(9, 4))
-        if counterfactual_by_year:
-            ax.plot(years, [counterfactual_by_year.get(y, {}).get("tetanus_deaths", np.nan) for y in years], "d--", color="#c0392b", label="no intervention")
-        ax.plot(years, [base[y]["tetanus_deaths"] for y in years], "o-", color="#7f8c8d", label="current program")
-        ax.plot(years, [intr[y]["tetanus_deaths"] for y in years], "s-", color="#27ae60", label="intervention")
-        if years:
-            baseline_total = float(np.nansum([base[y]["tetanus_deaths"] for y in years]))
-            intervention_total = float(np.nansum([intr[y]["tetanus_deaths"] for y in years]))
-            if baseline_total > 0:
-                death_red = 100.0 * (baseline_total - intervention_total) / baseline_total
-                ax.set_title(f"Tetanus deaths by scenario ({death_red:.2f}% reduction vs baseline)")
-        ax.set_ylabel("Tetanus deaths"); ax.set_xlabel("Calendar year"); ax.legend(); ax.grid(alpha=0.3)
-        fig.tight_layout(); fig.savefig(p5, dpi=150); plt.close(fig); paths.append(p5)
-
-        if counterfactual_by_year:
-            p5c = os.path.join(out_dir, "projection_cumulative_deaths_averted.png")
-            base_yearly = np.array([counterfactual_by_year.get(y, {}).get("tetanus_deaths", 0) for y in years], dtype=float)
-            ref_yearly = np.array([base[y]["tetanus_deaths"] for y in years], dtype=float)
-            int_yearly = np.array([intr[y]["tetanus_deaths"] for y in years], dtype=float)
-            cum_ref = np.cumsum(base_yearly - ref_yearly)
-            cum_int = np.cumsum(base_yearly - int_yearly)
-            fig, ax = plt.subplots(figsize=(9, 4))
-            ax.plot(years, cum_ref, "o-", color="#7f8c8d", label="baseline")
-            ax.plot(years, cum_int, "s-", color="#27ae60", label="intervention")
-            ax.axhline(0, color="k", linewidth=0.6, alpha=0.5)
-            ax.set_ylabel("Cumulative tetanus deaths averted"); ax.set_xlabel("Calendar year")
-            ax.set_title("Cumulative tetanus deaths averted vs no intervention")
-            ax.legend(); ax.grid(alpha=0.3)
-            note = "Averted deaths (year t) = cumulative sum of [no intervention - scenario] from 2025 to t."
-            fig.subplots_adjust(bottom=0.18)
-            fig.text(
-                0.01, 0.01, note,
-                ha="left", va="bottom", fontsize=8, wrap=True,
-                bbox=dict(boxstyle="round,pad=0.25", facecolor="#f9f9f9", edgecolor="#cccccc", alpha=0.9),
-            )
-            fig.savefig(p5c, dpi=150); plt.close(fig); paths.append(p5c)
 
     p6 = os.path.join(out_dir, "tetanus_reference_vs_intervention.png")
     tb = np.asarray(sim_counterfactual.diseases["tetanus"].results.new_infections, dtype=float).ravel()

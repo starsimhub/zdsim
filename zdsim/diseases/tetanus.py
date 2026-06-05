@@ -57,6 +57,35 @@ class Tetanus(ss.Infection):
         self.update_pars(pars, **kwargs)
         return
 
+    @staticmethod
+    def _age_segment_masks(age_days):
+        """ Boolean masks for the four tetanus age bands (age in days). """
+        return [
+            ('neonatal',      age_days <= 28),
+            ('peri_neonatal', (age_days > 28) & (age_days <= 60)),
+            ('childhood',     (age_days > 60) & (age_days <= 15 * 365)),
+            ('adult',         age_days > 15 * 365),
+        ]
+
+    def _infection_risk(self, uids):
+        """ Per-agent tetanus risk after a wound, from immunity and rel_sus. """
+        protection = np.maximum(self.immunity[uids], 1.0 - self.rel_sus[uids])
+        return np.clip(1.0 - protection, 0.0, 1.0)
+
+    def init_post(self):
+        """ Seed init_prev cases with age-stratified CFR (skip Infection default). """
+        super(ss.Infection, self).init_post()
+        if self.pars.init_prev is None:
+            return
+        initial_cases = self.pars.init_prev.filter()
+        if len(initial_cases):
+            age_days = self.sim.people.age[initial_cases] * 365
+            for age_group, mask in self._age_segment_masks(age_days):
+                if np.any(mask):
+                    self.set_prognoses(initial_cases[mask], sources=-1, age_group=age_group)
+        self.pars._n_initial_cases = len(initial_cases)
+        return initial_cases
+
     def step(self):
         """ Wound-exposure transmission across four age segments. """
         sim = self.sim
@@ -69,13 +98,7 @@ class Tetanus(ss.Infection):
         susceptible_uids = susceptible.uids
         age_s            = age_days[susceptible_uids]
 
-        segments = [
-            ('neonatal',      age_s <= 28),
-            ('peri_neonatal', (age_s >  28) & (age_s <= 60)),
-            ('childhood',     (age_s >  60) & (age_s <= 15 * 365)),
-            ('adult',          age_s >  15 * 365),
-        ]
-        for age_group, mask in segments:
+        for age_group, mask in self._age_segment_masks(age_s):
             if np.any(mask):
                 self._handle_age_specific_wounds(susceptible_uids[mask], age_group, ti)
 
@@ -101,9 +124,7 @@ class Tetanus(ss.Infection):
         wound_exposure = uids[wound_mask]
         self.ti_wound[wound_exposure] = ti
 
-        # Per-agent protection from vaccine/natural immunity
-        protection   = self.immunity[wound_exposure]
-        tetanus_risk = 1.0 - protection
+        tetanus_risk = self._infection_risk(wound_exposure)
 
         # Per-agent infection draw via its own RNG stream
         infection_draws = self.pars.infection_rng.rvs(wound_exposure)
@@ -161,9 +182,11 @@ class Tetanus(ss.Infection):
         # Recovery
         recovered = (self.infected & (self.ti_recovered <= ti)).uids
         if len(recovered):
-            self.infected[recovered]  = False
-            self.recovered[recovered] = True
-            self.immunity[recovered]  = 0.9
+            self.infected[recovered]    = False
+            self.recovered[recovered]   = True
+            self.susceptible[recovered] = True
+            self.immunity[recovered]    = 0.9
+            self.rel_sus[recovered]      = 0.1
             self.severe[recovered]      = False
             self.neonatal[recovered]      = False
             self.peri_neonatal[recovered] = False
@@ -180,10 +203,12 @@ class Tetanus(ss.Infection):
             waned_uids   = immune_agents[waning_draws < waning_prob]
             if len(waned_uids):
                 self.immunity[waned_uids] *= 0.5
+                self.rel_sus[waned_uids] = 1.0 - self.immunity[waned_uids]
                 low_immunity = self.immunity[waned_uids] < 0.1
                 if np.any(low_immunity):
                     susceptible_again = waned_uids[low_immunity]
                     self.immunity[susceptible_again]    = 0.0
+                    self.rel_sus[susceptible_again]     = 1.0
                     self.susceptible[susceptible_again] = True
                     self.recovered[susceptible_again]   = False
                     self.vaccinated[susceptible_again]  = False
@@ -205,6 +230,7 @@ class Tetanus(ss.Infection):
         self.childhood[uids]     = False
         self.adult[uids]         = False
         self.immunity[uids]      = 0.0
+        self.rel_sus[uids]       = 1.0
         self.ti_recovered[uids]  = np.nan
         self.ti_dead[uids]       = np.nan
         self.ti_vaccinated[uids] = np.nan

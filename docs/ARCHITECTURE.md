@@ -450,14 +450,15 @@ flowchart LR
 | `zerodose_demo_summary.json` | Full summary dict (metrics + yearly rows + scaled projections) |
 | `zerodose_impact.png` | End-of-window bar chart: empirical vs calibrated baseline vs intervention ZD share |
 | `projection_zerodose_20y.png` | Yearly ZD share trajectory (baseline vs intervention) |
-| `projection_tetanus_deaths.png` | Yearly tetanus deaths (no intervention / current program / intervention) |
-| `projection_cumulative_deaths_averted.png` | Cumulative tetanus deaths averted vs the no-intervention counterfactual |
-| `tetanus_reference_vs_intervention.png` | New tetanus infections over time (all 3 scenarios) + under-5 zero-dose panel |
+| `tetanus_reference_vs_intervention.png` | New tetanus infections over time (counterfactual, baseline, intervention) + under-5 zero-dose panel |
+| `tetanus_case_comparison.png` | Total tetanus infections over the projection window (all three scenarios) |
 | `calibration_before.png` / `calibration_after.png` | Monthly tetanus fit: over-predicting vs calibrated model vs data |
 | `admin_data_dtp1_zerodose_timeseries.png` | Empirical DTP1 / zero-dose proxies from xlsx |
 | `admin_data_dpt123_vs_births.png` | DPT1/3 dose counts vs estimated live births |
 | `admin_data_disease_context.png` | Monthly pneumonia / measles / tetanus context (observed, not modelled) |
 | `zdsim_report.pdf` | Narrative PDF report (title → abstract → methods → results → discussion) |
+
+Tetanus **death** trajectories are not exported as PNGs. Per-year `tetanus_deaths` live in `projection_yearly_baseline` / `projection_yearly_scale_up` inside the JSON; totals and averted counts are in `projection_tetanus_death_benefit_summary` and the PDF annual breakdown table.
 
 ---
 
@@ -484,7 +485,7 @@ tetanus_cases_averted_scaled        = tet_av × scale
 |---|---|
 | **Tetanus is the only modelled disease** | The project brief (Rono et al. 2024) explicitly selects tetanus as the DTP-bracket sentinel because diphtheria is eliminated, neonatal tetanus is near elimination, and pertussis/measles are under marked control in Kenya. Modelling the other four pentavalent diseases would add noise without changing the research question. |
 | **Calibration strictly split from simulation** | `run_simulation.py` refuses to run without `calibration.json`, so the calibrated values are always the input to scenarios. This prevents accidental grid-search reruns and makes experiments reproducible. |
-| **`baseline` is the calibrated current program, not a no-intervention arm** | The original paper reports a nonzero current zero-dose rate; the calibrated scenario is what "today" looks like. The no-intervention arm is renamed `counterfactual` and used only as a validity anchor and for deaths-averted denominators. |
+| **`baseline` is the calibrated current program, not a no-intervention arm** | The original paper reports a nonzero current zero-dose rate; the calibrated scenario is what "today" looks like. The no-intervention arm is renamed `counterfactual` and used as a validity anchor (e.g. `tetanus_case_comparison.png`, infection trajectories). Deaths-averted metrics compare baseline vs intervention yearly rows in JSON, not removed death-trajectory PNGs. |
 | **All three scenario arms share the same seed by default** | Matched counterfactual — noise cancels and observed deltas are attributable to the intervention, not RNG draws. |
 | **`SimulationParameters` is frozen** | Immutable value type; scenarios are built via `dataclasses.replace`, so one parameter set can never mutate another. |
 | **Tetanus = SIS + wound exposure** | Real tetanus doesn't transmit person-to-person, and immunity wanes — modeling it as SIR would misrepresent both. |

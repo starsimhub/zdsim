@@ -53,13 +53,14 @@ Running `calibrate.py` or `run_simulation.py` directly also works — the wrappe
 | `zdsim_report.pdf` | Narrative report (title → abstract → methods → results with figures → discussion). Regenerate from an existing summary: `python -m zdsim.reporting outputs/zerodose_demo_summary.json`. |
 | `zerodose_impact.png` | End-of-window bar chart: baseline vs scale-up zero-dose share |
 | `projection_zerodose_20y.png` | Yearly zero-dose trajectory, baseline vs scale-up |
-| `projection_tetanus_deaths.png` | Yearly tetanus deaths (no-intervention vs baseline vs scale-up) |
-| `projection_cumulative_deaths_averted.png` | Cumulative tetanus deaths averted vs no-intervention |
-| `tetanus_reference_vs_intervention.png` | New tetanus infections over time |
-| `tetanus_case_comparison.png` | Total tetanus infections over the window (no-intervention, baseline, scale-up) |
+| `tetanus_reference_vs_intervention.png` | New tetanus infections over time (counterfactual, baseline, intervention) + under-5 zero-dose panel |
+| `tetanus_case_comparison.png` | Total tetanus infections over the window (counterfactual, baseline, scale-up) |
+| `calibration_before.png` / `calibration_after.png` | Monthly tetanus model fit before/after calibration |
 | `admin_data_dtp1_zerodose_timeseries.png` | Empirical DTP1 / zero-dose proxy from the xlsx |
 | `admin_data_dpt123_vs_births.png` | DPT1/2/3 dose counts relative to estimated live births |
 | `admin_data_disease_context.png` | Monthly pneumonia / measles / tetanus case counts (descriptive only — not modelled) |
+
+Yearly tetanus deaths and deaths-averted totals are in `zerodose_demo_summary.json` (`projection_yearly_*`, `projection_tetanus_death_benefit_summary`), not in separate PNGs.
 
 Open the folder (macOS) to view figures:
 

@@ -45,28 +45,18 @@ FIGURE_MANIFEST = [
         "for no-intervention, baseline, and scale-up scenarios.",
     ),
     (
-        "projection_tetanus_deaths.png",
-        "Figure 4. Tetanus deaths per year with annual averted counts "
-        "(no-intervention, reference, and scale-up scenarios).",
-    ),
-    (
-        "projection_cumulative_deaths_averted.png",
-        "Figure 4b. Cumulative tetanus deaths averted versus the "
-        "no-intervention counterfactual.",
-    ),
-    (
         "admin_data_dtp1_zerodose_timeseries.png",
-        "Figure 5. Administrative DTP1 coverage proxy and implied zero-dose "
+        "Figure 4. Administrative DTP1 coverage proxy and implied zero-dose "
         "share (monthly), used to anchor the calibration target.",
     ),
     (
         "admin_data_dpt123_vs_births.png",
-        "Figure 6. Administrative DPT1 / DPT3 doses versus estimated live "
+        "Figure 5. Administrative DPT1 / DPT3 doses versus estimated live "
         "births, providing context for the DTP1 coverage proxy.",
     ),
     (
         "admin_data_disease_context.png",
-        "Figure 7. Monthly reported cases for pneumonia, measles, and "
+        "Figure 6. Monthly reported cases for pneumonia, measles, and "
         "tetanus from the Kenya HMIS administrative dataset — descriptive "
         "context only, mirroring the tables in the Rono et al. (2024) "
         "Results section. Pneumonia and measles are shown because the "
@@ -479,8 +469,8 @@ def _results_paragraphs(summary, styles):
     scl = _safe_get(summary, "zero_dose_fraction_under5_model_scale_up", default=0.0)
     red = _safe_get(summary, "relative_reduction_percent_model", default=0.0)
     benefit = _safe_get(summary, "projection_benefit_summary", default={}) or {}
-    death_b = _safe_get(summary, "projection_tetanus_death_benefit_summary", default={}) or {}
     tet = _safe_get(summary, "research_question_tetanus", "modeled_answer", default={}) or {}
+    death_b = _safe_get(summary, "projection_tetanus_death_benefit_summary", default={}) or {}
     scaled = _safe_get(summary, "population_scaled_projection", default={}) or {}
     baseline_total = float(tet.get("baseline_total", 0.0) or 0.0)
     intervention_total = float(tet.get("inv_total", 0.0) or 0.0)
@@ -525,6 +515,8 @@ def _results_paragraphs(summary, styles):
         ),
         Paragraph("Tetanus deaths", styles["Sub"]),
         Paragraph(
+            "Yearly tetanus death counts are reported in the annual breakdown "
+            "table below (not as separate trajectory figures). "
             f"Total modelled tetanus deaths are "
             f"<b>{_fmt_int(death_b.get('total_baseline_tetanus_deaths'))}</b> "
             f"in the baseline scenario and "
