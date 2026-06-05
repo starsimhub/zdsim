@@ -63,7 +63,7 @@ flowchart LR
 ```
 zdsim/
 ├── run_simulation.py              ▶ entry point — requires calibration.json
-├── calibrate.py                   🔧 standalone grid-search calibrator
+├── calibrate.py                   🔧 standalone Optuna calibrator
 ├── research_workflow.py           🎛 convenience wrapper (calibrate → simulate)
 ├── constants.py                   shared constants (anchors, defaults)
 │
@@ -492,7 +492,7 @@ tetanus_cases_averted_scaled        = tet_av × scale
 | Decision | Rationale |
 |---|---|
 | **Tetanus is the only modelled disease** | The project brief (Rono et al. 2024) explicitly selects tetanus as the DTP-bracket sentinel because diphtheria is eliminated, neonatal tetanus is near elimination, and pertussis/measles are under marked control in Kenya. Modelling the other four pentavalent diseases would add noise without changing the research question. |
-| **Calibration strictly split from simulation** | `run_simulation.py` refuses to run without `calibration.json`, so the calibrated values are always the input to scenarios. This prevents accidental grid-search reruns and makes experiments reproducible. |
+| **Calibration strictly split from simulation** | `run_simulation.py` refuses to run without `calibration.json`, so the calibrated values are always the input to scenarios. This prevents accidental recalibration during simulation runs and keeps experiments reproducible. |
 | **`baseline` is the calibrated current program, not a no-intervention arm** | The original paper reports a nonzero current zero-dose rate; the calibrated scenario is what "today" looks like. The no-intervention arm is renamed `counterfactual` and used as a validity anchor (e.g. `tetanus_case_comparison.png`, infection trajectories). Deaths-averted metrics compare baseline vs intervention yearly rows in JSON, not removed death-trajectory PNGs. |
 | **All three scenario arms share the same seed by default** | Matched counterfactual — noise cancels and observed deltas are attributable to the intervention, not RNG draws. |
 | **`SimulationParameters` is frozen** | Immutable value type; scenarios are built via `dataclasses.replace`, so one parameter set can never mutate another. |
